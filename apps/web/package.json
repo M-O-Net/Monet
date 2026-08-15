@@ -1,0 +1,39 @@
+{
+  "name": "@monet/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "generate-client": "openapi-typescript ./openapi.json -o ./src/client/schema.d.ts"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@monet/api-client": "workspace:*",
+    "@tanstack/react-query": "^5.62.0",
+    "@tanstack/react-router": "^1.121.0",
+    "katex": "^0.16.11",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@tanstack/router-plugin": "^1.121.0",
+    "@types/katex": "^0.16.7",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "openapi-typescript": "^7.5.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.18.0",
+    "vite": "^8.2.0"
+  }
+}
