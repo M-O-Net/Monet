@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+apps/web/src/routeTree.gen.ts
+apps/web/src/client/schema.d.ts
+apps/api/.venv
+apps/api/alembic/versions/*.py
+apps/web/dist
+node_modules
+.venv

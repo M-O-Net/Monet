@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# `just land` runs this. It is the ONLY path a PR is allowed to reach `main` through: pushing to
+# an already-ready PR is denied by `.githooks/pre-push`, and `gh pr ready`/`gh pr merge` run
+# directly are denied by `.claude/hooks/require-draft-pr.py` — both point here instead.
+#
+# Static analysis is NOT re-run here — `.githooks/pre-commit` already ran it per commit, and this
+# script waits on a real CI run (which independently runs it too) before anything merges, so a
+# `--no-verify` commit's lint break is still caught before it lands.
+#
+# Sequence: refuse a dirty tree and confirm HEAD matches the remote -> run tests/builds the diff
+# selects, concurrently -> on green, flip the PR out of draft -> wait for CI -> merge on green, or
+# flip back to draft on red so pushing more commits is allowed again (see pre-push).
+
+run_gh() {
+    python3 -c '
+import subprocess, sys
+try:
+    result = subprocess.run(["gh", *sys.argv[1:]], timeout=30)
+except subprocess.TimeoutExpired:
+    cmd = " ".join(sys.argv[1:])
+    print("gh " + cmd + " did not respond within 30s (stuck on auth?)", file=sys.stderr)
+    sys.exit(1)
+sys.exit(result.returncode)
+' "$@"
+}
+
+if [ -n "$(git status --porcelain)" ]; then
+    echo "just land refuses on a dirty tree — commit or stash first, then re-run." >&2
+    exit 1
+fi
+
+branch="$(git rev-parse --abbrev-ref HEAD)"
+git fetch --quiet origin "$branch" 2>/dev/null || true
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$branch" 2>/dev/null || echo "")" ]; then
+    echo "just land refuses: HEAD does not match origin/$branch — push first, then re-run." >&2
+    exit 1
+fi
+
+if ! run_gh pr view --json number >/dev/null 2>&1; then
+    echo "just land refuses: no PR exists for $branch yet — run \`just pr\` first." >&2
+    exit 1
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+LOGDIR="$(mktemp -d)"
+
+pr_marked_ready=0
+land_cleanup() {
+    rm -rf "$LOGDIR"
+    if [ "$pr_marked_ready" -eq 1 ]; then
+        echo "" >&2
+        echo "✗ land exiting without a clean merge/revert decision — reverting the PR to draft." >&2
+        run_gh pr ready --undo >/dev/null 2>&1 || true
+    fi
+}
+trap land_cleanup EXIT
+
+run_all=1
+changed=""
+base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
+if [ -n "$base" ]; then
+    run_all=0
+    changed="$(git diff --name-only "$base" 2>/dev/null || echo FORCE_ALL)"
+fi
+case "$changed" in *FORCE_ALL*) run_all=1;; esac
+changed="$(grep -vE '\.md$' <<<"$changed" || true)"
+
+want() {
+    [ "$run_all" -eq 1 ] && return 0
+    case "$1" in
+        api) grep -qE '^apps/api/' <<<"$changed";;
+        web) grep -qE '^(apps/web/|packages/)' <<<"$changed";;
+    esac
+}
+
+if [ "$run_all" -eq 0 ] && grep -qvE '^(apps/(api|web)/|packages/|\.claude/(hooks/|settings\.json$)|Justfile$|$)' <<<"$changed"; then
+    run_all=1
+fi
+
+echo "╔══════════════════════════════════════╗"
+echo "║  land: running the full local suite  ║"
+echo "╚══════════════════════════════════════╝"
+if [ "$run_all" -eq 1 ]; then
+    echo "  scope: FULL (no computable diff, or a change outside the mapped areas)"
+else
+    scope="$(for a in api web; do want "$a" && printf '%s ' "$a"; done)" || true
+    echo "  scope: ${scope:-none — nothing this PR changed maps to a checked area}"
+fi
+
+stage_api() {
+echo "▶ API: pytest"
+(cd "$ROOT" && just test-api)
+}
+
+stage_web() {
+echo "▶ Web: production build"
+(cd "$ROOT" && just build-web)
+}
+
+if want "web"; then
+    (cd "$ROOT" && pnpm install --frozen-lockfile) >/dev/null
+fi
+
+areas=()
+for a in api web; do
+    want "$a" || continue
+    areas+=("$a")
+done
+
+if [ "${#areas[@]}" -gt 0 ]; then
+    echo ""
+    echo "→ running in parallel: ${areas[*]}"
+fi
+
+declare -A pids=()
+declare -A starts=()
+for a in "${areas[@]}"; do
+    ( "stage_$a" ) >"$LOGDIR/$a.log" 2>&1 &
+    pids["$a"]=$!
+    starts["$a"]="$SECONDS"
+done
+
+failed=()
+for a in "${areas[@]}"; do
+    if wait "${pids[$a]}"; then
+        echo "✓ $a ($(( SECONDS - starts[$a] ))s)"
+    else
+        echo "✗ $a ($(( SECONDS - starts[$a] ))s)" >&2
+        failed+=("$a")
+    fi
+done
+
+for a in "${areas[@]}"; do
+    [ -s "$LOGDIR/$a.log" ] || continue
+    echo ""
+    echo "── $a ──"
+    cat "$LOGDIR/$a.log"
+done
+
+if [ "${#failed[@]}" -gt 0 ]; then
+    echo ""
+    echo "✗ failed locally: ${failed[*]} — not touching the PR's draft/ready state." >&2
+    exit 1
+fi
+
+echo ""
+echo "✓ local suite passed — marking the PR ready and waiting on CI."
+
+sha="$(git rev-parse HEAD)"
+before_ids="$(run_gh run list --commit "$sha" --json databaseId --jq '.[].databaseId' 2>/dev/null || true)"
+
+run_gh pr ready
+pr_marked_ready=1
+
+run_id=""
+for _ in $(seq 1 30); do
+    run_id="$(run_gh run list --commit "$sha" --json databaseId --jq '.[].databaseId' 2>/dev/null \
+                | grep -vFx -f <(printf '%s\n' "$before_ids") | head -1 || true)"
+    [ -n "$run_id" ] && break
+    sleep 2
+done
+if [ -z "$run_id" ]; then
+    echo "✗ no new CI run appeared for $sha within 60s of marking the PR ready." >&2
+    run_gh pr ready --undo
+    pr_marked_ready=0
+    exit 1
+fi
+
+echo "waiting on CI run ${run_id}…"
+run_id_outcome=""
+while true; do
+    run_id_outcome="$(run_gh run view "$run_id" --json status,conclusion,jobs --jq '
+        if ([.jobs[] | select(.conclusion == "failure")] | length) > 0 then "job_failed"
+        elif .status == "completed" then (if .conclusion == "success" then "success" else .conclusion end)
+        else "pending"
+        end
+    ' 2>/dev/null || echo "pending")"
+    [ "$run_id_outcome" != "pending" ] && break
+    sleep 5
+done
+
+if [ "$run_id_outcome" = "job_failed" ]; then
+    echo ""
+    echo "✗ a CI job failed — cancelling the rest of the run rather than waiting it out." >&2
+    run_gh run cancel "$run_id" >/dev/null 2>&1 || true
+fi
+
+if [ "$run_id_outcome" = "success" ]; then
+    echo ""
+    echo "✓ CI green — merging."
+    run_gh pr merge --squash
+    pr_marked_ready=0
+    exit 0
+fi
+
+echo ""
+echo "✗ CI did not succeed (outcome: $run_id_outcome) — reverting the PR to draft." >&2
+run_gh pr ready --undo
+pr_marked_ready=0
+exit 1

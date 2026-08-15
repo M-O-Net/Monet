@@ -1,0 +1,50 @@
+# Development overrides — hot reload + source bind-mounts, mirroring Muse's
+# infra/docker-compose.dev.yml mechanism.
+# Usage: just up   (docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build)
+
+services:
+  api:
+    # Only source/migrations are bind-mounted, each individually — not the whole /app — so the
+    # image's already-installed venv (built by the `deps` stage) is never shadowed and never
+    # needs reinstalling on container start. A dependency bump needs `up --build`; a code edit
+    # doesn't (uvicorn --reload picks it up from the mount).
+    volumes:
+      - ./apps/api/src:/app/src:ro
+      - ./apps/api/alembic:/app/alembic
+      - ./apps/api/alembic.ini:/app/alembic.ini:ro
+      - ./apps/api/scripts:/app/scripts:ro
+    environment:
+      CORS_ORIGINS: '["http://localhost:${WEB_PORT:-5273}"]'
+    # Migrate always (idempotent — a no-op once up to date), seed only if the table is empty
+    # (--if-empty) — so a fresh worktree/dev env always has the demo dataset on its first
+    # `just up`, without wiping anything added by hand through the GUI on every later restart.
+    command: >
+      sh -c "uv run alembic upgrade head &&
+             uv run python scripts/seed.py --if-empty &&
+             uv run uvicorn monet_api.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  web:
+    build:
+      target: dev
+    # Each anonymous volume masks node_modules on top of that package's own read-only bind, so
+    # the `dev` image's already-`pnpm install`-ed node_modules survive under the mask instead of
+    # being shadowed by the (empty, on the host) bind-mounted directory. `just up` pre-creates
+    # both mountpoints first (see its own Justfile recipe) — Docker can't mkdir an anonymous
+    # volume's mountpoint inside an already-read-only bind if the host directory doesn't exist
+    # yet.
+    volumes:
+      - ./apps/web:/app/apps/web:ro
+      - /app/apps/web/node_modules
+      - ./packages/api-client:/app/packages/api-client:ro
+      - /app/packages/api-client/node_modules
+    environment:
+      # The browser (not this container) makes the actual API calls, so this has to be a
+      # host-reachable URL, not the Docker-internal service name.
+      VITE_API_URL: http://localhost:${API_PORT:-8300}
+    # `!override`, not a plain list: Compose CONCATENATES `ports:` across -f files by default,
+    # so without this tag both the base file's `WEB_PORT:80` (nginx/serve) and this file's
+    # `WEB_PORT:5173` (vite dev) would apply at once — two different container ports mapped to
+    # the SAME host port, which silently fails to bind either (see Muse's `build: !reset null`
+    # for the same class of problem on a different field).
+    ports: !override
+      - "${WEB_PORT:-5273}:5173"

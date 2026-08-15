@@ -1,0 +1,41 @@
+# Render Blueprint — defines all three v0 deployables (API, static frontend, Postgres) together
+# for a one-step deploy from a single account/dashboard. See root AGENTS.md > Deployment.
+#
+# NOT yet deploy-tested against a real Render account (none was available while building this) —
+# field names below match Render's documented blueprint spec as of writing, but verify against
+# https://render.com/docs/blueprint-spec on the first real deploy and adjust if anything's moved.
+#
+# Render's free Postgres plan auto-deletes after ~30 days + a grace period — `plan: basic-256mb`
+# below is the paid tier specifically to avoid that (see AGENTS.md's Deployment section for the
+# cost breakdown). The API's `plan: free` is fine to change to `starter` later for an always-on
+# service with no cold-start; that's a dashboard-level choice, not something this file forces.
+
+databases:
+  - name: monet-db
+    plan: basic-256mb
+    postgresMajorVersion: "17"
+
+services:
+  - type: web
+    name: monet-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: monet-db
+          property: connectionString
+      - key: CORS_ORIGINS
+        value: '["https://monet-web.onrender.com"]' # adjust to the actual static site URL
+    preDeployCommand: uv run alembic upgrade head
+
+  - type: web
+    name: monet-web
+    runtime: static
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @monet/web build
+    staticPublishPath: apps/web/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://monet-api.onrender.com # adjust to the actual API URL
