@@ -1,20 +1,9 @@
 import { Link } from "@tanstack/react-router";
 
 import { Latex } from "../../components/Latex";
+import type { RelationOut } from "../../lib/types";
 
-interface RelationSlot {
-  position: number;
-  object: { id: string; latex: string };
-}
-
-interface RelationRow {
-  id: string;
-  operator: { id: string; latex: string };
-  inputs: RelationSlot[];
-  outputs: RelationSlot[];
-}
-
-export function RelationList({ title, relations }: { title: string; relations: RelationRow[] }) {
+export function RelationList({ title, relations }: { title: string; relations: RelationOut[] }) {
   if (relations.length === 0) return null;
   return (
     <div className="mb-7">
@@ -42,9 +31,16 @@ export function RelationList({ title, relations }: { title: string; relations: R
                 <span aria-hidden className="text-mist">
                   ──
                 </span>
-                <span className="rounded-sm border border-gold/40 bg-gold-soft px-2 py-0.5 text-xs font-medium tracking-wide text-ink">
+                {/* The operator is an object like any other (README: "operators are objects
+                    too"), so it links to its own page exactly as the operands do — it used to
+                    be the one object reference in the UI that was a dead end. */}
+                <Link
+                  to="/objects/$objectId"
+                  params={{ objectId: rel.operator.id }}
+                  className="rounded-sm border border-gold/40 bg-gold-soft px-2 py-0.5 text-xs font-medium tracking-wide text-ink transition-colors hover:bg-gold-soft/60"
+                >
                   <Latex>{rel.operator.latex}</Latex>
-                </span>
+                </Link>
                 <span aria-hidden className="text-mist">
                   ──▸
                 </span>
