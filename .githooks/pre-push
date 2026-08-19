@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# A push is allowed to a draft PR (or a branch with no PR yet) and denied to a ready one — the
+# entire rule. `.githooks/pre-commit` already checked every commit on the way here (static
+# analysis, per commit); `.githooks/land` (via `just land`) is the only path a PR is allowed to
+# reach `main` through — it runs the full local suite, flips the PR ready, waits for CI, and
+# merges or reverts to draft. A ready PR that could still be pushed to directly would let a fix
+# reach `main` with none of that having run again, so this hook exists to make that impossible —
+# not to run any checks of its own. See root AGENTS.md > Merge gate.
+#
+# BOUNDED, ALWAYS: this hook runs one `gh pr view` call and nothing else, capped at 10s — there
+# is no scenario, including `gh` hanging outright, where it should ever run longer than that.
+
+[ -t 0 ] || cat >/dev/null
+
+command -v gh >/dev/null 2>&1 || exit 0
+
+if ! python3 -c '
+import json, subprocess, sys
+try:
+    result = subprocess.run(
+        ["gh", "pr", "view", "--json", "isDraft,state"],
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        sys.exit(0)  # no PR (or gh errored) — allow
+    d = json.loads(result.stdout)
+    sys.exit(1 if (d.get("isDraft") is False and d.get("state") == "OPEN") else 0)
+except Exception:
+    sys.exit(0)  # cannot tell — allow, same as every other "cannot tell" case
+'; then
+    echo "This PR is ready (not a draft) — pushing directly to it is disabled." >&2
+    echo "Run \`gh pr ready --undo\` to put it back in draft, or \`just land\` to land it." >&2
+    exit 1
+fi
+
+exit 0

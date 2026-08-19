@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600;700&display=swap");
+
+@theme {
+  --font-display: "Fraunces", "Iowan Old Style", serif;
+  --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
+
+  --color-paper: #eaefe4;
+  --color-paper-deep: #e1e8db;
+  --color-ink: #23322b;
+  --color-ink-soft: #4c5c53;
+  --color-pond: #3e6e78;
+  --color-pond-deep: #2f545c;
+  --color-willow: #6b8c57;
+  --color-gold: #be8f3e;
+  --color-gold-soft: #f1e2c2;
+  --color-mist: #d6dcce;
+  --color-rust: #a8452f;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* A faint diffused-light wash, not a texture — impressionist light rather than paper grain. */
+  background-image:
+    radial-gradient(
+      ellipse 80% 55% at 15% -10%,
+      color-mix(in srgb, var(--color-gold-soft) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 70% 60% at 100% 10%,
+      color-mix(in srgb, var(--color-pond) 12%, transparent),
+      transparent
+    );
+  background-attachment: fixed;
+}
+
+::selection {
+  background-color: var(--color-gold-soft);
+  color: var(--color-ink);
+}

@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      # No `:-default` here: a weak default a real deploy might silently inherit isn't
+      # a default worth having. `.env.example` documents this; `.env` must set it for
+      # real (see Muse's infra/docker-compose.yml for the same pattern).
+      POSTGRES_USER: monet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — see .env.example}
+      POSTGRES_DB: monet
+    ports:
+      - "${PG_PORT:-5532}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monet"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://monet:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — see .env.example}@postgres:5432/monet
+    ports:
+      - "${API_PORT:-8300}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: serve
+    ports:
+      - "${WEB_PORT:-5273}:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── Manual invocation (just check) ───────────────────────────────────────────
+# `just check` runs this same script directly, not through git, so the two can't drift out of
+# sync. A real commit hook has no working-tree/staged distinction to make — git hands it exactly
+# the staged snapshot — but a manual dry-run is more useful scoped to everything changed since
+# origin/main, staged or not, so `just check` answers "is what I've touched so far okay" rather
+# than requiring a `git add` first.
+manual=0
+[ "${1:-}" = "--manual" ] && manual=1
+
+ROOT="$(git rev-parse --show-toplevel)"
+LOGDIR="$(mktemp -d)"
+trap 'rm -rf "$LOGDIR"' EXIT
+
+if [ "$manual" -eq 1 ]; then
+    base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
+    if [ -z "$base" ]; then
+        run_all=1
+        changed=""
+    else
+        run_all=0
+        changed="$(git diff --name-only "$base" 2>/dev/null || echo FORCE_ALL)"
+    fi
+else
+    changed="$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || echo FORCE_ALL)"
+    run_all=0
+fi
+case "$changed" in *FORCE_ALL*) run_all=1;; esac
+
+# Markdown is prose — nothing here reads a .md.
+changed="$(grep -vE '\.md$' <<<"$changed" || true)"
+
+want() {  # want <area> → should this area's checks run?
+    [ "$run_all" -eq 1 ] && return 0
+    case "$1" in
+        api)      grep -qE '^apps/api/' <<<"$changed";;
+        web)      grep -qE '^(apps/web/|packages/)' <<<"$changed";;
+        config)   grep -qE '(\.ya?ml|\.json|\.config\.[a-z]+)$' <<<"$changed";;
+        justfile) grep -qE '^Justfile$' <<<"$changed";;
+        # An unmatched bash case falls through returning 0 (true), not false — see Muse's own
+        # documented gotcha for the same pattern. Every real area above is explicit, so this
+        # only catches a typo'd/new area name added to the `for a in ...` loop without also
+        # adding a case arm here — fail closed (don't run) rather than silently always-run.
+        *)        return 1;;
+    esac
+}
+
+# Anything outside a known area forfeits filtering rather than being guessed at. `Justfile`
+# sits in the safe list rather than forcing FULL — the one cheap, worth-catching-pre-commit
+# failure mode for a Justfile-only edit is it becoming unparseable, checked below.
+if [ "$run_all" -eq 0 ] && grep -qvE '^(apps/(api|web)/|packages/|\.claude/(hooks/|settings\.json$)|Justfile$|$)' <<<"$changed"; then
+    run_all=1
+fi
+
+echo "╔══════════════════════════════════════╗"
+echo "║  pre-commit: static analysis         ║"
+echo "╚══════════════════════════════════════╝"
+if [ "$run_all" -eq 1 ]; then
+    echo "  scope: FULL (no computable diff, or a change outside the mapped areas)"
+else
+    scope="$(for a in config api web justfile; do want "$a" && printf '%s ' "$a"; done)" || true
+    echo "  scope: ${scope:-none — nothing staged maps to a checked area}"
+fi
+
+stage_config() {
+echo "▶ Config: prettier --check"
+(cd "$ROOT" && just lint-config)
+}
+
+stage_api() {
+echo "▶ API: uv lock --check"
+(cd "$ROOT/apps/api" && uv lock --check) || { echo "apps/api's lock is stale — run 'uv lock' there." >&2; exit 1; }
+
+echo "▶ API: lint"
+(cd "$ROOT" && just lint-api)
+}
+
+stage_web() {
+echo "▶ Web: lint"
+(cd "$ROOT" && just lint-web)
+}
+
+stage_justfile() {
+echo "▶ Justfile: syntax check (just --list)"
+(cd "$ROOT" && just --list >/dev/null)
+}
+
+if want "web"; then
+    (cd "$ROOT" && pnpm install --frozen-lockfile) >/dev/null
+fi
+
+areas=()
+for a in config api web justfile; do
+    want "$a" || continue
+    areas+=("$a")
+done
+
+if [ "${#areas[@]}" -gt 0 ]; then
+    echo ""
+    echo "→ running in parallel: ${areas[*]}"
+fi
+
+declare -A pids=()
+for a in "${areas[@]}"; do
+    ( "stage_$a" ) >"$LOGDIR/$a.log" 2>&1 &
+    pids["$a"]=$!
+done
+
+failed=()
+for a in "${areas[@]}"; do
+    if ! wait "${pids[$a]}"; then
+        failed+=("$a")
+    fi
+done
+
+for a in "${areas[@]}"; do
+    [ -s "$LOGDIR/$a.log" ] || continue
+    echo ""
+    echo "── $a ──"
+    cat "$LOGDIR/$a.log"
+done
+
+if [ "${#failed[@]}" -gt 0 ]; then
+    echo ""
+    echo "✗ failed: ${failed[*]}" >&2
+    exit 1
+fi
+
+echo ""
+echo "✓ pre-commit checks passed."

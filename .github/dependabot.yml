@@ -1,0 +1,42 @@
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      python:
+        patterns: ["*"]
+
+  # Must run from the workspace root, where pnpm-workspace.yaml and pnpm-lock.yaml live, so the
+  # single root lockfile is regenerated alongside every nested package.json edit. Covers
+  # apps/web and packages/api-client — do not scope this to apps/web alone, or Dependabot can
+  # edit its package.json without being able to update the root lockfile, breaking
+  # frozen-lockfile CI.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      web:
+        patterns: ["*"]
+
+  # One combined weekly PR across both service images, so a shared base-image bump lands once
+  # instead of once per Dockerfile.
+  - package-ecosystem: "docker"
+    directories:
+      - "/apps/api"
+      - "/apps/web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      docker:
+        patterns: ["*"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
