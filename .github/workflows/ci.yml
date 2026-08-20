@@ -157,6 +157,9 @@ jobs:
       - name: Lint
         run: just lint-web
 
+      - name: Test
+        run: just test-web
+
       - name: Build
         run: just build-web
 
