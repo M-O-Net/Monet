@@ -124,8 +124,7 @@ never becomes a route of its own.
   own generated code, not real issues in our code), config in native files (`ruff.toml`,
   `mypy.ini` — **not** `pyproject.toml`, see caching note below), `pytest` for tests.
 - TypeScript: `eslint` flat config with `typescript-eslint`'s `strictTypeChecked` +
-  `stylisticTypeChecked`, `eslint-plugin-react-hooks`, `prettier`, `vitest` +
-  `@testing-library/react` + `msw` for tests.
+  `stylisticTypeChecked`, `eslint-plugin-react-hooks`, `prettier`, `vitest` for tests.
 - Skip Muse's `.importlinter` import-boundary enforcement — it polices boundaries between
   multiple internal domains, and Monet v0 has effectively one (see "Backend domain modules"
   above for the part of that convention Monet keeps anyway).

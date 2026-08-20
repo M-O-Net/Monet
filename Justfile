@@ -175,10 +175,13 @@ gen-client:
 # build-web) are what `land` runs, once per PR — see root AGENTS.md > Merge gate for why
 # they're split this way.
 
-test: test-api build-web
+test: test-api test-web build-web
 
 test-api:
     {{_dc_dev}} run --rm --build test
+
+test-web:
+    cd apps/web && pnpm run test
 
 build-web:
     cd apps/web && pnpm run build

@@ -16,6 +16,7 @@ from sqlmodel import delete, func, select
 from monet_api.core.db import async_session
 from monet_api.objects.models import (
     Object,
+    OperatorDisplay,
     Relation,
     RelationInput,
     RelationOutput,
@@ -31,6 +32,7 @@ async def seed() -> None:
                 print(f"objects table already has {count} rows, skipping (--if-empty)")
                 return
 
+        await session.exec(delete(OperatorDisplay))
         await session.exec(delete(TopLevelObject))
         await session.exec(delete(RelationOutput))
         await session.exec(delete(RelationInput))
@@ -39,25 +41,50 @@ async def seed() -> None:
         await session.commit()
 
         # key -> (latex, description | None). Description is optional — most specimens don't
-        # need one, but the four sections and the operators benefit from one.
         objects: dict[str, tuple[str, str | None]] = {
-            # sections (see TopLevelObject below)
-            "Matrices": (r"\text{Matrices}", "Square arrays of numbers, and the operations "
-                         "that act on them: characteristic polynomials, inverses, "
-                         "determinants, sums."),
-            "Polynomials": (r"\text{Polynomials}", "Single-variable polynomials, and the "
-                             "operations that act on them: companion matrices, degree."),
-            "Integers": (r"\text{Integers}", "Whole numbers, positive and negative — the "
-                         "values relations like Determinant and Degree produce."),
-            "Booleans": (r"\text{Booleans}", "The two truth values a predicate-style relation, "
-                         "like Is Singular, produces."),
+            "LinearAlgebra": (
+                r"\text{Linear Algebra}",
+                "Matrices and the operations that act on them.",
+            ),
+            "PolynomialAlgebra": (
+                r"\text{Polynomial Algebra}",
+                "Single-variable polynomials and the operations that act on them.",
+            ),
+            "Values": (
+                r"\text{Values}",
+                "The plain numbers and truth values that relations produce as answers.",
+            ),
+            "Matrices": (r"\text{Matrices}", "Square arrays of numbers."),
+            "MatrixOperations": (
+                r"\text{Matrix Operations}",
+                "Operations taking matrices as "
+                "their input: characteristic polynomials, inverses, "
+                "determinants, sums.",
+            ),
+            "Polynomials": (r"\text{Polynomials}", "Single-variable polynomials."),
+            "PolynomialOperations": (
+                r"\text{Polynomial Operations}",
+                "Operations taking polynomials as their input: companion matrices, degree.",
+            ),
+            "Integers": (
+                r"\text{Integers}",
+                "Whole numbers, positive and negative — the "
+                "values relations like Determinant and Degree produce.",
+            ),
+            "Booleans": (
+                r"\text{Booleans}",
+                "The two truth values a predicate-style relation, like Is Singular, produces.",
+            ),
             # matrix specimens
             "A": (r"\begin{pmatrix}2&1\\1&2\end{pmatrix}", None),
             "B": (r"\begin{pmatrix}1&0\\0&1\end{pmatrix}", None),
             "D": (r"\begin{pmatrix}0&1\\1&0\end{pmatrix}", None),
             "E": (r"\begin{pmatrix}3&1\\1&3\end{pmatrix}", None),
-            "C": (r"\begin{pmatrix}0&-3\\1&4\end{pmatrix}", "The companion matrix of "
-                  r"$x^2 - 4x + 3$ — its own characteristic polynomial closes the loop."),
+            "C": (
+                r"\begin{pmatrix}0&-3\\1&4\end{pmatrix}",
+                "The companion matrix of "
+                r"$x^2 - 4x + 3$ — its own characteristic polynomial closes the loop.",
+            ),
             # polynomial specimens
             "P": (r"x^2 - 4x + 3", None),
             "Q": (r"x^2 - 2x + 1", None),
@@ -69,21 +96,34 @@ async def seed() -> None:
             "two": ("2", None),
             "true": (r"\text{True}", None),
             "false": (r"\text{False}", None),
-            # operators — matrix operations
-            "CharacteristicPolynomial": (r"\text{Characteristic Polynomial}",
-                "For a matrix A, the polynomial det(xI - A)."),
-            "Inverse": (r"\text{Inverse}",
-                        "The multiplicative inverse of a matrix, when one exists."),
+            "CharacteristicPolynomial": (
+                r"\text{Characteristic Polynomial}",
+                "For a matrix A, the polynomial det(xI - A).",
+            ),
+            "Inverse": (
+                r"\text{Inverse}",
+                "The multiplicative inverse of a matrix, when one exists.",
+            ),
             "Determinant": (r"\text{Determinant}", "The scalar determinant of a matrix."),
-            "Add": (r"\text{Add}", "The entrywise sum of two matrices of the same shape."),
+            "MatrixAddition": (
+                r"\text{Matrix Addition}",
+                "The entrywise sum of two matrices of the same shape.",
+            ),
             "IsSingular": (r"\text{Is Singular}", "Whether a matrix's determinant is zero."),
             # operators — polynomial operations
-            "CompanionMatrix": (r"\text{Companion Matrix}", "For a monic polynomial, the "
-                                 "matrix whose characteristic polynomial is that polynomial."),
+            "CompanionMatrix": (
+                r"\text{Companion Matrix}",
+                "For a monic polynomial, the "
+                "matrix whose characteristic polynomial is that polynomial.",
+            ),
             "Degree": (r"\text{Degree}", "The highest power of the variable in a polynomial."),
             # operator — sectioning
-            "ElementOf": (r"\text{Element Of}",
-                           "Marks an object as belonging to one of the top-level sections."),
+            "ElementOf": (
+                r"\text{Element Of}",
+                "Marks an object as belonging to a section. Flagged as the "
+                "membership operator, so the GUI renders its relations as tags and "
+                "member lists rather than as ordinary rows.",
+            ),
         }
 
         ids: dict[str, uuid.UUID] = {}
@@ -113,19 +153,44 @@ async def seed() -> None:
         await add_relation("Inverse", ["D"], ["D"])
         await add_relation("CharacteristicPolynomial", ["B"], ["Q"])
         await add_relation("CharacteristicPolynomial", ["D"], ["R"])
-        await add_relation("Add", ["A", "B"], ["E"])
+        await add_relation("MatrixAddition", ["A", "B"], ["E"])
         await add_relation("Determinant", ["A"], ["three"])
         await add_relation("IsSingular", ["A"], ["false"])
         await add_relation("Degree", ["P"], ["two"])
 
         relation_count = 11
 
-        # Sections: every specimen and operator gets an Element Of relation to its section, and
-        # the four section objects themselves are flagged as top-level (see TopLevelObject).
+        displays: dict[str, tuple[str | None, bool, bool]] = {
+            "ElementOf": (None, False, True),
+            "MatrixAddition": (r"{in0} \op{+} {in1} = {out0}", True, False),
+            "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
+            "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
+            "Degree": (r"\op{\deg(}{in0}\op{)} = {out0}", False, False),
+        }
+        for operator, (template, hidden, membership) in displays.items():
+            session.add(
+                OperatorDisplay(
+                    operator_id=ids[operator],
+                    template=template,
+                    hidden_by_default=hidden,
+                    is_membership=membership,
+                )
+            )
+
         sections = {
-            "Matrices": ["A", "B", "D", "E", "C",
-                         "CharacteristicPolynomial", "Inverse", "Determinant", "Add", "IsSingular"],
-            "Polynomials": ["P", "Q", "R", "CompanionMatrix", "Degree"],
+            "LinearAlgebra": ["Matrices", "MatrixOperations"],
+            "PolynomialAlgebra": ["Polynomials", "PolynomialOperations"],
+            "Values": ["Integers", "Booleans"],
+            "Matrices": ["A", "B", "D", "E", "C"],
+            "MatrixOperations": [
+                "CharacteristicPolynomial",
+                "Inverse",
+                "Determinant",
+                "MatrixAddition",
+                "IsSingular",
+            ],
+            "Polynomials": ["P", "Q", "R"],
+            "PolynomialOperations": ["CompanionMatrix", "Degree"],
             "Integers": ["one", "neg_one", "three", "two"],
             "Booleans": ["true", "false"],
         }
@@ -133,7 +198,9 @@ async def seed() -> None:
             for member in members:
                 await add_relation("ElementOf", [member], [section])
                 relation_count += 1
-            session.add(TopLevelObject(object_id=ids[section]))
+
+        for root in ("LinearAlgebra", "PolynomialAlgebra", "Values"):
+            session.add(TopLevelObject(object_id=ids[root]))
 
         await session.commit()
         print(f"seeded {len(objects)} objects and {relation_count} relations")

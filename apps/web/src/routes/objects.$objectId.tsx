@@ -4,13 +4,19 @@ import { useState } from "react";
 
 import { formatApiError } from "@monet/api-client";
 
+import { ConfirmButton } from "../components/ConfirmButton";
 import { Latex } from "../components/Latex";
 import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
+import { invalidateObjectGraph } from "../lib/queries";
+import { MemberList } from "./-components/MemberList";
+import { OperatorDisplayForm } from "./-components/OperatorDisplayForm";
 import { RelationList } from "./-components/RelationList";
+import { SectionTags } from "./-components/SectionTags";
 
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
+  remountDeps: ({ params }) => params.objectId,
 });
 
 function ObjectDetail() {
@@ -32,11 +38,7 @@ function ObjectDetail() {
   const [draftDescription, setDraftDescription] = useState("");
 
   const invalidateAll = () => {
-    void queryClient.invalidateQueries({ queryKey: ["get", "/objects"] });
-    void queryClient.invalidateQueries({ queryKey: ["get", "/top-level-objects"] });
-    void queryClient.invalidateQueries({
-      queryKey: ["get", "/objects/{object_id}", { params: { path: { object_id: objectId } } }],
-    });
+    invalidateObjectGraph(queryClient);
   };
 
   if (detail.isPending) return <p className="text-sm text-ink-soft">Loading…</p>;
@@ -44,8 +46,9 @@ function ObjectDetail() {
     return <p className="text-sm text-rust">{formatApiError(detail.error)}</p>;
   }
   const obj = detail.data;
-  const hasNoRelations =
-    obj.as_operator.length === 0 && obj.as_input.length === 0 && obj.as_output.length === 0;
+  const relationCount = obj.as_operator.length + obj.as_input.length + obj.as_output.length;
+  const isIsolated = relationCount === 0 && obj.sections.length === 0 && obj.members.length === 0;
+  const firstAsOperator = obj.as_operator.at(0);
 
   return (
     <div>
@@ -117,25 +120,41 @@ function ObjectDetail() {
                 <Latex>{obj.latex}</Latex>
               </h1>
               {obj.description && <p className="mt-1 text-sm text-ink-soft">{obj.description}</p>}
+              <SectionTags sections={obj.sections} />
             </div>
             <div className="flex shrink-0 gap-2">
-              <button
-                onClick={() => {
-                  const mutation = obj.is_top_level ? unmarkTopLevel : markTopLevel;
-                  mutation.mutate(
-                    { params: { path: { object_id: objectId } } },
-                    { onSuccess: invalidateAll },
-                  );
-                }}
-                className={
-                  obj.is_top_level
-                    ? "rounded-sm border border-gold/40 bg-gold-soft px-2 py-1 text-xs text-ink hover:bg-gold-soft/70"
-                    : "rounded-sm border border-mist px-2 py-1 text-xs text-ink-soft hover:bg-paper-deep"
-                }
-                title="Whether this object appears on the contents page"
-              >
-                {obj.is_top_level ? "On contents page" : "Add to contents page"}
-              </button>
+              {obj.is_top_level ? (
+                <ConfirmButton
+                  label="On contents page"
+                  title="Remove from the contents page?"
+                  description="It will stop being listed as a section on the contents page. Nothing else changes — its relations and everything filed under it stay exactly as they are."
+                  confirmLabel="Remove"
+                  tone="danger"
+                  pending={unmarkTopLevel.isPending}
+                  className="rounded-sm border border-gold/40 bg-gold-soft px-2 py-1 text-xs text-ink hover:bg-gold-soft/70"
+                  onConfirm={() => {
+                    unmarkTopLevel.mutate(
+                      { params: { path: { object_id: objectId } } },
+                      { onSuccess: invalidateAll },
+                    );
+                  }}
+                />
+              ) : (
+                <ConfirmButton
+                  label="Add to contents page"
+                  title="Add to the contents page?"
+                  description="It will be listed as a top-level section on the contents page."
+                  confirmLabel="Add"
+                  pending={markTopLevel.isPending}
+                  className="rounded-sm border border-mist px-2 py-1 text-xs text-ink-soft hover:bg-paper-deep"
+                  onConfirm={() => {
+                    markTopLevel.mutate(
+                      { params: { path: { object_id: objectId } } },
+                      { onSuccess: invalidateAll },
+                    );
+                  }}
+                />
+              )}
               <button
                 onClick={() => {
                   setDraftLatex(obj.latex);
@@ -146,17 +165,25 @@ function ObjectDetail() {
               >
                 Edit
               </button>
-              <button
-                onClick={() => {
+              <ConfirmButton
+                label="Delete"
+                title="Delete this object?"
+                description={
+                  relationCount === 0
+                    ? "It takes part in no relations, so nothing else is affected. This cannot be undone."
+                    : `It takes part in ${String(relationCount)} relation${relationCount === 1 ? "" : "s"}. Deleting is blocked while any of them still reference it — remove those first. This cannot be undone.`
+                }
+                confirmLabel="Delete"
+                tone="danger"
+                pending={deleteObject.isPending}
+                className="rounded-sm border border-rust/30 px-2 py-1 text-xs text-rust hover:bg-rust/10"
+                onConfirm={() => {
                   deleteObject.mutate(
                     { params: { path: { object_id: objectId } } },
                     { onSuccess: () => void navigate({ to: "/" }) },
                   );
                 }}
-                className="rounded-sm border border-rust/30 px-2 py-1 text-xs text-rust hover:bg-rust/10"
-              >
-                Delete
-              </button>
+              />
             </div>
           </>
         )}
@@ -165,14 +192,30 @@ function ObjectDetail() {
         <p className="mb-4 text-xs text-rust">{formatApiError(deleteObject.error)}</p>
       )}
 
-      {hasNoRelations && (
+      {isIsolated && (
         <p className="mb-7 text-sm text-ink-soft italic">
           Not yet connected to anything else in the valley.
         </p>
       )}
-      <RelationList title="Used as operator in" relations={obj.as_operator} />
-      <RelationList title="Appears as input in" relations={obj.as_input} />
-      <RelationList title="Appears as output in" relations={obj.as_output} />
+      <MemberList members={obj.members} />
+      <RelationList
+        title="Used as operator in"
+        relations={obj.as_operator}
+        currentObjectId={objectId}
+        collapseHidden={false}
+      />
+      <RelationList
+        title="Appears as input in"
+        relations={obj.as_input}
+        currentObjectId={objectId}
+      />
+      <RelationList
+        title="Appears as output in"
+        relations={obj.as_output}
+        currentObjectId={objectId}
+      />
+
+      {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 
       <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
         Add a relation

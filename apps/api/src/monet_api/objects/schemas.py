@@ -21,6 +21,11 @@ class ObjectUpdate(BaseModel):
     description: str | None = None
 
 
+class RelationDisplayOut(ORMModel):
+    template: str | None
+    hidden_by_default: bool
+
+
 class RelationSlotOut(BaseModel):
     position: int
     object: ObjectOut
@@ -31,6 +36,7 @@ class RelationOut(BaseModel):
     operator: ObjectOut
     inputs: list[RelationSlotOut]
     outputs: list[RelationSlotOut]
+    display: RelationDisplayOut | None
 
 
 class RelationCreate(BaseModel):
@@ -44,6 +50,32 @@ class ObjectDetailOut(BaseModel):
     latex: str
     description: str | None
     is_top_level: bool
+    sections: list[ObjectOut]
+    members: list[ObjectOut]
     as_operator: list[RelationOut]
     as_input: list[RelationOut]
     as_output: list[RelationOut]
+
+
+class SectionNode(BaseModel):
+    id: uuid.UUID
+    latex: str
+    description: str | None
+    member_count: int
+    children: list["SectionNode"]
+
+
+SectionNode.model_rebuild()
+
+
+class OperatorDisplayOut(ORMModel):
+    operator_id: uuid.UUID
+    template: str | None
+    hidden_by_default: bool
+    is_membership: bool
+
+
+class OperatorDisplayUpdate(BaseModel):
+    template: str | None
+    hidden_by_default: bool
+    is_membership: bool

@@ -1,9 +1,11 @@
 import asyncio
 from logging.config import fileConfig
+from typing import Literal
 
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
+from sqlmodel.sql.sqltypes import AutoString
 
 from alembic import context
 from monet_api.core.config import settings
@@ -18,19 +20,28 @@ if config.config_file_name is not None:
 target_metadata = SQLModel.metadata
 
 
+def render_item(type_: str, obj: object, autogen_context: object) -> str | Literal[False]:
+    if type_ == "type" and isinstance(obj, AutoString):
+        return "sa.String()"
+    return False
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_item=render_item,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection, target_metadata=target_metadata, render_item=render_item
+    )
     with context.begin_transaction():
         context.run_migrations()
 

@@ -1,6 +1,6 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600;700&display=swap");
 
 @theme {
   --font-display: "Fraunces", "Iowan Old Style", serif;
@@ -30,15 +30,58 @@ body {
       color-mix(in srgb, var(--color-gold-soft) 55%, transparent),
       transparent
     ),
-    radial-gradient(
-      ellipse 70% 60% at 100% 10%,
-      color-mix(in srgb, var(--color-pond) 12%, transparent),
-      transparent
-    );
+    radial-gradient(ellipse 70% 60% at 100% 10%, rgb(62 110 120 / 0.12), transparent);
   background-attachment: fixed;
 }
 
 ::selection {
   background-color: var(--color-gold-soft);
   color: var(--color-ink);
+}
+
+.relation-formula a {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--color-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.relation-row a,
+.relation-tag {
+  border: 1px solid transparent;
+  border-radius: 2px;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.relation-tag {
+  color: var(--color-ink-soft);
+}
+
+.relation-row a.is-linked {
+  border-color: rgb(190 143 62 / 0.4);
+  background-color: var(--color-gold-soft);
+  color: var(--color-ink);
+}
+
+.relation-formula .is-current,
+.relation-tag.is-current {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--color-pond);
+  cursor: default;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.relation-formula .is-current:hover,
+.relation-tag.is-current:hover {
+  border-color: rgb(62 110 120 / 0.3);
+  background-color: rgb(62 110 120 / 0.12);
 }

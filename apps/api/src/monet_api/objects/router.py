@@ -12,8 +12,11 @@ from monet_api.objects.schemas import (
     ObjectDetailOut,
     ObjectOut,
     ObjectUpdate,
+    OperatorDisplayOut,
+    OperatorDisplayUpdate,
     RelationCreate,
     RelationOut,
+    SectionNode,
 )
 
 router = APIRouter()
@@ -60,9 +63,7 @@ async def list_top_level_objects(session: DbSession) -> list[Object]:
     return await service.list_top_level_objects(session)
 
 
-@router.put(
-    "/top-level-objects/{object_id}", status_code=204, operation_id="mark_top_level_object"
-)
+@router.put("/top-level-objects/{object_id}", status_code=204, operation_id="mark_top_level_object")
 async def mark_top_level_object(object_id: uuid.UUID, session: DbSession) -> None:
     await service.mark_top_level_object(session, object_id)
 
@@ -72,6 +73,31 @@ async def mark_top_level_object(object_id: uuid.UUID, session: DbSession) -> Non
 )
 async def unmark_top_level_object(object_id: uuid.UUID, session: DbSession) -> None:
     await service.unmark_top_level_object(session, object_id)
+
+
+@router.get("/contents", response_model=list[SectionNode], operation_id="get_contents")
+async def get_contents(session: DbSession) -> list[SectionNode]:
+    return await service.get_contents(session)
+
+
+@router.get(
+    "/operator-displays/{operator_id}",
+    response_model=OperatorDisplayOut,
+    operation_id="get_operator_display",
+)
+async def get_operator_display(operator_id: uuid.UUID, session: DbSession) -> OperatorDisplayOut:
+    return await service.get_operator_display(session, operator_id)
+
+
+@router.put(
+    "/operator-displays/{operator_id}",
+    response_model=OperatorDisplayOut,
+    operation_id="set_operator_display",
+)
+async def set_operator_display(
+    operator_id: uuid.UUID, body: OperatorDisplayUpdate, session: DbSession
+) -> OperatorDisplayOut:
+    return await service.set_operator_display(session, operator_id, body)
 
 
 # ── relations ────────────────────────────────────────────────────────────────
