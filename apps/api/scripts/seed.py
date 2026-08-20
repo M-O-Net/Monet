@@ -152,9 +152,11 @@ async def seed() -> None:
             # Every matrix in the network will eventually have sums with every other, so these
             # rows are collapsed until asked for.
             "MatrixAddition": (r"{in0} \op{+} {in1} = {out0}", True, False),
-            "Determinant": (r"\op{\det}({in0}) = {out0}", False, False),
+            # The brackets belong to the operator's notation as much as the word does, so they
+            # go inside \op too — either side of the operand, highlighting as one thing.
+            "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
             "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
-            "Degree": (r"\op{\deg}({in0}) = {out0}", False, False),
+            "Degree": (r"\op{\deg(}{in0}\op{)} = {out0}", False, False),
         }
         for operator, (template, hidden, membership) in displays.items():
             session.add(

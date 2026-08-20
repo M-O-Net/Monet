@@ -99,7 +99,7 @@ function Editor({ operatorId, sample }: { operatorId: string; sample: RelationOu
           <p className="text-xs text-ink-soft italic">No template — rows keep the plain layout.</p>
         ) : renders ? (
           <div className="text-sm">
-            <RelationExpression relation={sample} template={template} />
+            <RelationExpression html={buildTemplateHtml(template, sample) ?? ""} />
           </div>
         ) : (
           <p className="text-xs text-rust">

@@ -46,3 +46,65 @@ body {
   background-color: var(--color-gold-soft);
   color: var(--color-ink);
 }
+
+/* Links inside a relation row: the operator's tag above, the operands in the formula, and
+   whatever notation the template marked as the operator with \op{...}. The ones in the formula
+   are anchors KaTeX put into the layout rather than elements we render, so they are styled here
+   by descent.
+
+   inline-block is what puts a highlight on the glyph it belongs to. KaTeX lays a matrix out as
+   a tall inline-block and raises a superscript inside its own box, so an inline anchor around
+   either is only as tall as its own line box — the highlight landed as a thin band through the
+   middle of a matrix, or below the "-1" it belonged to. Shrink-wrapping fixes the box without
+   moving the glyph.
+
+   Highlighting is driven by `.is-linked`, set on every link in the row that points where the
+   hovered one does, rather than by :hover on each. That is what lets the operator's tag and its
+   notation inside the formula light up together, and a notation split either side of its
+   operand — \det( ... ) — read as the single thing it is. The border sits there transparent at
+   rest so colouring it cannot nudge the mathematics around it. */
+.relation-formula a {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--color-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.relation-formula a {
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.relation-formula a.is-linked {
+  border-color: color-mix(in srgb, var(--color-gold) 40%, transparent);
+  background-color: var(--color-gold-soft);
+  color: var(--color-ink);
+}
+
+/* The object whose page this is, wherever it turns up in a row. It is marked rather than
+   linked — it is already here, so a link would lead back to where you are.
+
+   At rest that is only a change of colour: pond rather than the gold that means "somewhere to
+   go", and no fill, because the same object can appear several times in a row and filling every
+   occurrence weighed more than the mathematics did. The fill arrives on hovering the row, which
+   is when showing where else it occurs is worth the weight. */
+.relation-formula .is-current,
+.relation-tag.is-current {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--color-pond);
+  cursor: default;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.relation-row:hover .is-current {
+  border-color: color-mix(in srgb, var(--color-pond) 30%, transparent);
+  background-color: color-mix(in srgb, var(--color-pond) 12%, transparent);
+}

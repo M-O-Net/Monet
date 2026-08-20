@@ -207,10 +207,19 @@ function ObjectDetail() {
       <RelationList
         title="Used as operator in"
         relations={obj.as_operator}
+        currentObjectId={objectId}
         collapseHidden={false}
       />
-      <RelationList title="Appears as input in" relations={obj.as_input} />
-      <RelationList title="Appears as output in" relations={obj.as_output} />
+      <RelationList
+        title="Appears as input in"
+        relations={obj.as_input}
+        currentObjectId={objectId}
+      />
+      <RelationList
+        title="Appears as output in"
+        relations={obj.as_output}
+        currentObjectId={objectId}
+      />
 
       {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 
