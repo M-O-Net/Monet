@@ -72,4 +72,7 @@ class OperatorDisplay(SQLModel, table=True):
     )
     template: str | None = None
     hidden_by_default: bool = False
+    # Not unique on purpose. SubsetOf and InstanceOf are membership-shaped too, and every query
+    # already reads this as a set; a partial unique index would also make `alembic check` — a
+    # merge gate — compare unreliably between runs.
     is_membership: bool = False
