@@ -24,7 +24,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("operator_id", sa.Uuid(), nullable=False),
         sa.Column("code", sa.String(), nullable=False),
-        sa.ForeignKeyConstraint(["operator_id"], ["objects.id"]),
+        sa.ForeignKeyConstraint(["operator_id"], ["objects.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
 

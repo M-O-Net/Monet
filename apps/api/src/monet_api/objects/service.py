@@ -7,7 +7,6 @@ import re
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.objects import repository
@@ -112,17 +111,17 @@ async def update_object(session: AsyncSession, object_id: uuid.UUID, body: Objec
     return await repository.update_object(session, obj, body.latex, body.description)
 
 
+async def _relations_touching_object(session: AsyncSession, object_id: uuid.UUID) -> list[Relation]:
+    ids = {r.id for r in await repository.list_relations_by_operator(session, object_id)}
+    ids.update(await repository.list_relation_ids_by_input(session, object_id))
+    ids.update(await repository.list_relation_ids_by_output(session, object_id))
+    return [r for rid in ids if (r := await repository.get_relation(session, rid)) is not None]
+
+
 async def delete_object(session: AsyncSession, object_id: uuid.UUID) -> None:
     obj = await get_object_or_404(session, object_id)
-    try:
-        await repository.delete_object(session, obj)
-    except IntegrityError as exc:
-        await session.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="object is still used as an operator, as a relation's input/output, "
-            "or as an implementation's operator — remove those first",
-        ) from exc
+    await repository.delete_relations(session, await _relations_touching_object(session, object_id))
+    await repository.delete_object(session, obj)
 
 
 async def list_top_level_objects(session: AsyncSession) -> list[Object]:

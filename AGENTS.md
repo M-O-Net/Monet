@@ -25,6 +25,9 @@ relation_output(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk 
   field is both its storage and its display form — nothing about it is machine-structured in v0.
 - An object is an "operator" purely by being referenced as some relation's `operator_id` — no
   separate flag, no separate table.
+- Deleting an object deletes its edges: every relation it appears in, plus its contents-page
+  entry and its implementation. See `apps/api/AGENTS.md` for why the relation half of that can't
+  be a foreign key.
 - `position` on the junction tables is the one structural (not bookkeeping) field: it preserves
   operand order for non-commutative operators and distinguishes outputs when a relation produces
   more than one (e.g. quotient vs. remainder).

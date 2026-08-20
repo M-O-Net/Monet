@@ -60,11 +60,12 @@ async def test_update_and_delete_implementation(client: AsyncClient) -> None:
     assert (await client.get(f"/implementations/{implementation_id}")).status_code == 404
 
 
-async def test_deleting_an_object_with_an_implementation_is_blocked(client: AsyncClient) -> None:
+async def test_deleting_an_operator_deletes_its_implementation(client: AsyncClient) -> None:
     operator_id = await _operator(client)
-    await client.post("/implementations", json={"operator_id": operator_id, "code": ""})
-    resp = await client.delete(f"/objects/{operator_id}")
-    assert resp.status_code == 400
+    await client.post("/implementations", json={"operator_id": operator_id, "code": DETERMINANT})
+
+    assert (await client.delete(f"/objects/{operator_id}")).status_code == 204
+    assert (await client.get("/implementations")).json() == []
 
 
 async def test_assert_creates_the_output_object_and_relation(client: AsyncClient) -> None:

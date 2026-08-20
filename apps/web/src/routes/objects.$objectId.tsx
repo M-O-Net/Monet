@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { formatApiError } from "@monet/api-client";
 
+import { ConfirmPopover } from "../components/ConfirmPopover";
 import { Latex } from "../components/Latex";
 import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
@@ -48,6 +49,9 @@ function ObjectDetail() {
     return <p className="text-sm text-rust">{formatApiError(detail.error)}</p>;
   }
   const obj = detail.data;
+  const edgeCount = new Set(
+    [...obj.as_operator, ...obj.as_input, ...obj.as_output].map((r) => r.id),
+  ).size;
   const hasNoRelations =
     obj.as_operator.length === 0 && obj.as_input.length === 0 && obj.as_output.length === 0;
 
@@ -150,17 +154,23 @@ function ObjectDetail() {
               >
                 Edit
               </button>
-              <button
-                onClick={() => {
+              <ConfirmPopover
+                trigger="Delete"
+                triggerClassName="rounded-sm border border-rust/30 px-2 py-1 text-xs text-rust hover:bg-rust/10"
+                label="Delete this object"
+                question={
+                  edgeCount === 0
+                    ? "Delete this object? It takes part in no relations."
+                    : `Delete this object? The ${edgeCount === 1 ? "relation" : `${String(edgeCount)} relations`} it takes part in ${edgeCount === 1 ? "goes" : "go"} with it, and will disappear from the other objects involved.`
+                }
+                confirmLabel="Delete"
+                onConfirm={() => {
                   deleteObject.mutate(
                     { params: { path: { object_id: objectId } } },
                     { onSuccess: () => void navigate({ to: "/" }) },
                   );
                 }}
-                className="rounded-sm border border-rust/30 px-2 py-1 text-xs text-rust hover:bg-rust/10"
-              >
-                Delete
-              </button>
+              />
             </div>
           </>
         )}

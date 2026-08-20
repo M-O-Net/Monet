@@ -155,6 +155,12 @@ async def clear_relation_slots(session: AsyncSession, relation_id: uuid.UUID) ->
     await session.flush()
 
 
+async def delete_relations(session: AsyncSession, relations: list[Relation]) -> None:
+    for relation in relations:
+        await session.delete(relation)
+    await session.flush()
+
+
 async def delete_relation(session: AsyncSession, relation: Relation) -> None:
     await session.delete(relation)
     await session.commit()

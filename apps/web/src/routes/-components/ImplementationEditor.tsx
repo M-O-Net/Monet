@@ -1,4 +1,3 @@
-import { Popover } from "@base-ui/react/popover";
 import { python } from "@codemirror/lang-python";
 import { redo, undo } from "@codemirror/commands";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
@@ -6,6 +5,7 @@ import { useRef, useState } from "react";
 
 import { formatApiError } from "@monet/api-client";
 
+import { ConfirmPopover } from "../../components/ConfirmPopover";
 import { Latex } from "../../components/Latex";
 import { monetEditorTheme } from "../../components/editorTheme";
 import { api } from "../../lib/api";
@@ -89,6 +89,9 @@ export function ImplementationEditor({
   );
 }
 
+const CONFIRM_TRIGGER =
+  "inline-flex h-6 w-6 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-gold-soft/60 hover:text-ink disabled:opacity-40 disabled:hover:bg-transparent";
+
 const TOOL_BUTTON =
   "inline-flex h-6 w-6 items-center justify-center rounded-sm text-ink-soft transition-colors hover:bg-gold-soft/60 hover:text-ink";
 
@@ -146,57 +149,6 @@ function CheckIcon() {
     <svg {...ICON} aria-hidden>
       <path d="M20 6 9 17l-5-5" />
     </svg>
-  );
-}
-
-function ConfirmPopover({
-  icon,
-  label,
-  question,
-  confirmLabel,
-  onConfirm,
-  disabled,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  question: string;
-  confirmLabel: string;
-  onConfirm: () => void;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger
-        disabled={disabled}
-        title={label}
-        aria-label={label}
-        className={`${TOOL_BUTTON} disabled:opacity-40 disabled:hover:bg-transparent`}
-      >
-        {icon}
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Positioner sideOffset={6} align="end" className="z-20 outline-none">
-          <Popover.Popup className="w-60 rounded-sm border border-mist bg-paper p-3 shadow-[0_6px_20px_rgba(35,50,43,0.16)] outline-none">
-            <Popover.Description className="text-xs text-ink">{question}</Popover.Description>
-            <div className="mt-3 flex justify-end gap-2">
-              <Popover.Close className="rounded-sm px-2 py-1 text-xs text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink">
-                Keep it
-              </Popover.Close>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onConfirm();
-                }}
-                className="rounded-sm bg-rust px-3 py-1 text-xs font-medium text-paper transition-colors hover:bg-rust/85"
-              >
-                {confirmLabel}
-              </button>
-            </div>
-          </Popover.Popup>
-        </Popover.Positioner>
-      </Popover.Portal>
-    </Popover.Root>
   );
 }
 
@@ -281,7 +233,8 @@ function ImplementationForm({
         </span>
 
         <ConfirmPopover
-          icon={<TrashIcon />}
+          trigger={<TrashIcon />}
+          triggerClassName={CONFIRM_TRIGGER}
           label="Delete this implementation"
           question="Delete this implementation? The operator keeps its relations, but nothing will compute it."
           confirmLabel="Delete"
@@ -293,7 +246,8 @@ function ImplementationForm({
           }}
         />
         <ConfirmPopover
-          icon={<RevertIcon />}
+          trigger={<RevertIcon />}
+          triggerClassName={CONFIRM_TRIGGER}
           label="Discard changes"
           question="Discard your unsaved changes and go back to the saved code?"
           confirmLabel="Discard"
