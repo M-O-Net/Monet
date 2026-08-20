@@ -125,7 +125,7 @@ jobs:
 
       - name: Restore cached test-deps image
         id: cache-test-deps-image
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: /tmp/monet-api-test-deps.tar
           key: ${{ steps.test-deps-key.outputs.key }}
@@ -142,7 +142,7 @@ jobs:
 
       - name: Save test-deps image to cache
         if: steps.cache-test-deps-image.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: /tmp/monet-api-test-deps.tar
           key: ${{ steps.test-deps-key.outputs.key }}

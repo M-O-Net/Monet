@@ -145,10 +145,9 @@ and multi-app split.
   `uv sync --frozen --no-install-project` / `pnpm install --frozen-lockfile` _before_ any source
   is copied, so the expensive layer is keyed purely on dependencies. `RUN --mount=type=cache` for
   the uv/pnpm package caches. `apps/api/Dockerfile` adds a `test-deps` stage on the same
-  principle (the dev dependency group, still source-free) so the test image's expensive layer
-  caches independently of source too; both stages accept a `DEPS_IMAGE`/`TEST_DEPS_IMAGE` build
-  arg so CI can substitute a cache-restored image for them. **`final` must stay the last stage
-  in that file** — `render.yaml` builds it by path with no way to name a target.
+  principle, and both take a `DEPS_IMAGE`/`TEST_DEPS_IMAGE` build arg so CI can substitute a
+  cache-restored image. **`final` must stay the last stage there** — `render.yaml` builds it by
+  path and cannot name a target.
 - CI's `changes` job (`dorny/paths-filter`) gates backend/frontend jobs independently. Frontend
   Docker build uses `cache-from/to: type=gha`; the **backend must use the manual
   build+`docker save`+`actions/cache` tarball technique instead** — BuildKit's GHA cache backend
@@ -189,26 +188,12 @@ add/edit-object form (a LaTeX field), add/edit-relation form (pick operator, pic
 objects, pick ordered output objects — the operator picker is just an object picker, since
 operators aren't a distinct type).
 
-## Tests
-
-Backend tests run **inside the stack**, never on the host — `just test-api` is
-`docker compose run --rm --build test` against the profile-gated `test` service in
-`docker-compose.dev.yml`, which points at a dedicated `monet_test` database that its entrypoint
-drops, recreates, migrates and `alembic check`s on every run. Details and rationale live in
-`apps/api/AGENTS.md` > Tests; the short version is that the suite truncates every table, so it
-must never share a database with dev data, and that running it in the stack is also what lets
-`docker-compose.yml` publish no Postgres host port (one fewer thing for parallel worktrees to
-collide on) and removes any need for a hand-written `apps/api/.env`.
-
-Frontend "tests" are still just `just build-web` — there is no vitest suite in v0.
-
 ## Local dev
 
 Full Docker: `docker-compose.yml` (api + web + postgres) plus `docker-compose.dev.yml` (bind
 mounts, hot reload). `just wt-add <name>` creates a git worktree with its own isolated stack.
-The same Dockerfiles are what Render builds from at deploy time. **No service publishes a
-Postgres host port** — nothing outside the compose network needs one, and a per-worktree port
-for it would be one more thing `wt-add` has to allocate.
+The same Dockerfiles are what Render builds from at deploy time. No service publishes a Postgres
+host port — nothing outside the compose network needs one.
 
 `just up`'s api container always runs migrations, then seeds **only if the objects table is
 empty** (`scripts/seed.py --if-empty`) — so a brand-new worktree/dev env always has the demo
