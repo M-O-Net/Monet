@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: monet
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — see .env.example}
       POSTGRES_DB: monet
-    ports:
-      - "${PG_PORT:-5532}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,6 +20,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      target: final
     environment:
       DATABASE_URL: postgresql+asyncpg://monet:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — see .env.example}@postgres:5432/monet
     ports:

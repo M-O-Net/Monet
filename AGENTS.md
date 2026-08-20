@@ -144,7 +144,10 @@ and multi-app split.
 - Dockerfiles: a `deps` stage copies only lockfiles and runs
   `uv sync --frozen --no-install-project` / `pnpm install --frozen-lockfile` _before_ any source
   is copied, so the expensive layer is keyed purely on dependencies. `RUN --mount=type=cache` for
-  the uv/pnpm package caches.
+  the uv/pnpm package caches. `apps/api/Dockerfile` adds a `test-deps` stage on the same
+  principle, and both take a `DEPS_IMAGE`/`TEST_DEPS_IMAGE` build arg so CI can substitute a
+  cache-restored image. **`final` must stay the last stage there** — `render.yaml` builds it by
+  path and cannot name a target.
 - CI's `changes` job (`dorny/paths-filter`) gates backend/frontend jobs independently. Frontend
   Docker build uses `cache-from/to: type=gha`; the **backend must use the manual
   build+`docker save`+`actions/cache` tarball technique instead** — BuildKit's GHA cache backend
@@ -189,7 +192,8 @@ operators aren't a distinct type).
 
 Full Docker: `docker-compose.yml` (api + web + postgres) plus `docker-compose.dev.yml` (bind
 mounts, hot reload). `just wt-add <name>` creates a git worktree with its own isolated stack.
-The same Dockerfiles are what Render builds from at deploy time.
+The same Dockerfiles are what Render builds from at deploy time. No service publishes a Postgres
+host port — nothing outside the compose network needs one.
 
 `just up`'s api container always runs migrations, then seeds **only if the objects table is
 empty** (`scripts/seed.py --if-empty`) — so a brand-new worktree/dev env always has the demo

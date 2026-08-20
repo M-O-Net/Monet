@@ -13,18 +13,37 @@ Backend-local conventions. See root `AGENTS.md` first — this only adds detail 
   Plus `models.py` (SQLModel tables) and `schemas.py` (I/O models).
 - `scripts/seed.py` — wipes and reinserts the v0 demo dataset. `uv run python scripts/seed.py`
   from this directory, or `just seed` from the repo root.
-- `alembic/` — migrations. `uv run alembic revision --autogenerate -m "..."` needs a running
-  Postgres to diff against (`just up` starts one).
+- `alembic/` — migrations. Autogenerate with `just migrate-new "..."`, which runs inside the
+  stack: that is the only place a Postgres to diff against is reachable.
+- `tests/` — pytest suite, plus `docker-entry.sh` and `reset_test_db.py`, which set up the
+  database it runs against.
+
+## Tests
+
+`just test-api`, from the repo root — the suite runs as the dev stack's profile-gated `test`
+service, never on the host. Each run drops and recreates a dedicated **`monet_test`** database,
+migrates it from empty, runs `alembic check` (so a SQLModel table with no migration fails the
+run), then pytest. `docker-entry.sh` and `reset_test_db.py` each independently refuse a
+`DATABASE_URL` naming anything but `monet_test`, and that guard is the point: `conftest.py`'s
+autouse `_clean_db` DELETEs every row in every table, so a suite pointed at the dev database
+wipes the seeded dataset.
+
+`src/`, `tests/` and `alembic/` are bind-mounted, so editing a test needs no rebuild. Appending
+pytest args to the underlying `docker compose ... run --rm test` replaces the image's CMD but not
+its ENTRYPOINT, so the database is still recreated first.
 
 ## Running locally without Docker
 
+Tests, no (above). For a bare uvicorn against a Postgres you supply yourself:
+
 ```
 uv sync
-uv run alembic upgrade head
-uv run uvicorn monet_api.main:app --reload
+DATABASE_URL=postgresql+asyncpg://... uv run alembic upgrade head
+DATABASE_URL=postgresql+asyncpg://... uv run uvicorn monet_api.main:app --reload
 ```
 
-Needs `DATABASE_URL` pointed at a real Postgres (see root `.env.example`).
+The compose stack publishes no Postgres host port, so that `DATABASE_URL` cannot be the dev
+stack's database.
 
 ## Gotchas
 

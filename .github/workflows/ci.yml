@@ -41,6 +41,7 @@ jobs:
           filters: |
             api:
               - 'apps/api/**'
+              - 'docker-compose*.yml'
               - '.github/workflows/ci.yml'
             web:
               - 'apps/web/**'
@@ -58,22 +59,6 @@ jobs:
     if: needs.changes.outputs.api == 'true' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: monet
-          POSTGRES_PASSWORD: monet
-          POSTGRES_DB: monet
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U monet"
-          --health-interval 2s
-          --health-timeout 3s
-          --health-retries 20
-    env:
-      DATABASE_URL: postgresql+asyncpg://monet:monet@localhost:5432/monet
     steps:
       - uses: actions/checkout@v7
 
@@ -99,12 +84,8 @@ jobs:
       - name: Lint
         run: just lint-api
 
-      - name: Migrate
-        working-directory: apps/api
-        run: uv run alembic upgrade head
-
-      - name: Test
-        run: just test-api
+      - name: Write CI .env
+        run: cp .env.example .env
 
       # Builds the `deps` stage on its own and caches it as a tarball — actions/cache doesn't
       # store Docker layers directly, and `type=gha` silently fails to cache this layer's
@@ -138,8 +119,49 @@ jobs:
           path: /tmp/monet-api-deps.tar
           key: ${{ steps.deps-key.outputs.key }}
 
+      - name: Compute test-deps cache key
+        id: test-deps-key
+        run: echo "key=monet-api-test-deps-${{ hashFiles('apps/api/pyproject.toml', 'apps/api/uv.lock', 'apps/api/Dockerfile') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached test-deps image
+        id: cache-test-deps-image
+        uses: actions/cache/restore@v6
+        with:
+          path: /tmp/monet-api-test-deps.tar
+          key: ${{ steps.test-deps-key.outputs.key }}
+
+      - name: Load cached test-deps image
+        if: steps.cache-test-deps-image.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/monet-api-test-deps.tar
+
+      - name: Build test-deps image
+        if: steps.cache-test-deps-image.outputs.cache-hit != 'true'
+        run: |
+          docker build --target test-deps --build-arg DEPS_IMAGE=monet-api-deps:cache -f apps/api/Dockerfile -t monet-api-test-deps:cache .
+          docker save monet-api-test-deps:cache -o /tmp/monet-api-test-deps.tar
+
+      - name: Save test-deps image to cache
+        if: steps.cache-test-deps-image.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: /tmp/monet-api-test-deps.tar
+          key: ${{ steps.test-deps-key.outputs.key }}
+
+      - name: Build test image
+        run: >
+          docker compose --env-file .env
+          -f docker-compose.yml -f docker-compose.dev.yml
+          build --build-arg DEPS_IMAGE=monet-api-deps:cache --build-arg TEST_DEPS_IMAGE=monet-api-test-deps:cache
+          test
+
+      - name: Test
+        run: >
+          docker compose --env-file .env
+          -f docker-compose.yml -f docker-compose.dev.yml
+          run --rm test
+
       - name: Build full image (proves the Dockerfile actually builds)
-        run: docker build --build-arg DEPS_IMAGE=monet-api-deps:cache -f apps/api/Dockerfile -t monet-api:ci .
+        run: docker build --target final --build-arg DEPS_IMAGE=monet-api-deps:cache -f apps/api/Dockerfile -t monet-api:ci .
 
   web:
     name: "Web: lint/build"

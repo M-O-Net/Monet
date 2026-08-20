@@ -178,7 +178,7 @@ gen-client:
 test: test-api build-web
 
 test-api:
-    cd apps/api && uv run pytest
+    {{_dc_dev}} run --rm --build test
 
 build-web:
     cd apps/web && pnpm run build
