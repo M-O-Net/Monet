@@ -3,7 +3,7 @@
 
 FROM node:22-alpine AS deps
 WORKDIR /app
-RUN corepack enable
+RUN npm install -g corepack && corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
