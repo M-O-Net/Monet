@@ -48,10 +48,9 @@ Needs `DATABASE_URL` pointed at a real Postgres (see root `.env.example`).
   `x^{2} - 4 x + 3` and `x^{2}-4x+3` the same object while keeping `\text{Is Singular}` distinct
   from `\text{IsSingular}`. It is whitespace-insensitivity, not the canonical form (equivalent
   ways of writing the same matrix) that root `AGENTS.md` still defers.
-- Deleting an object deletes the relations it takes part in — as operator, input or output —
-  along with its contents-page entry and its implementation. Relations are the object's edges;
-  leaving them behind would mean a relation whose input no longer exists. The cascade for
-  relations happens in `delete_object`, not in a foreign key, because a relation an object merely
-  appears _inside_ has to be deleted whole: an `ON DELETE CASCADE` on `relation_input.object_id`
-  would remove the slot and leave the relation with a hole. Those two foreign keys are therefore
-  left blocking, so a bug there fails loudly instead of quietly corrupting a relation.
+- Deleting an object deletes its edges. Foreign keys do nearly all of it: `ON DELETE CASCADE`
+  carries away its contents-page entry, its implementation, the relations it operates, and those
+  relations' slots. The one case a foreign key cannot express is an object used as a relation's
+  input or output — cascading `relation_input.object_id` would delete the slot and leave the
+  relation with a hole — so `delete_object` issues one statement for that, and those two foreign
+  keys stay blocking as a backstop.

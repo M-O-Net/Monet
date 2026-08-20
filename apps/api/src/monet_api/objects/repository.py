@@ -2,7 +2,8 @@
 
 import uuid
 
-from sqlmodel import select
+from sqlalchemy import or_
+from sqlmodel import delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.objects.models import Object, Relation, RelationInput, RelationOutput, TopLevelObject
@@ -68,9 +69,7 @@ async def list_relations(session: AsyncSession) -> list[Relation]:
     return list((await session.exec(select(Relation))).all())
 
 
-async def list_relations_by_operator(
-    session: AsyncSession, object_id: uuid.UUID
-) -> list[Relation]:
+async def list_relations_by_operator(session: AsyncSession, object_id: uuid.UUID) -> list[Relation]:
     return list(
         (await session.exec(select(Relation).where(Relation.operator_id == object_id))).all()
     )
@@ -155,9 +154,14 @@ async def clear_relation_slots(session: AsyncSession, relation_id: uuid.UUID) ->
     await session.flush()
 
 
-async def delete_relations(session: AsyncSession, relations: list[Relation]) -> None:
-    for relation in relations:
-        await session.delete(relation)
+async def delete_relations_referencing_object(session: AsyncSession, object_id: uuid.UUID) -> None:
+    used_as_input = select(RelationInput.relation_id).where(RelationInput.object_id == object_id)
+    used_as_output = select(RelationOutput.relation_id).where(RelationOutput.object_id == object_id)
+    referenced = or_(
+        Relation.id.in_(used_as_input),  # type: ignore[attr-defined]
+        Relation.id.in_(used_as_output),  # type: ignore[attr-defined]
+    )
+    await session.exec(delete(Relation).where(referenced))
     await session.flush()
 
 
