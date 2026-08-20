@@ -6,7 +6,7 @@
 # build with no --build-arg falls back to the `deps` stage defined right below it.
 ARG DEPS_IMAGE=deps
 
-FROM python:3.13-slim AS deps
+FROM python:3.14-slim AS deps
 COPY --from=ghcr.io/astral-sh/uv:0.7 /uv /uvx /bin/
 WORKDIR /app
 ENV UV_LINK_MODE=copy

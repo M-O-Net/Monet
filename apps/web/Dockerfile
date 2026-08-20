@@ -1,7 +1,7 @@
 # Build context is the monorepo root (see docker-compose.yml) — pnpm workspaces need the
 # root lockfile alongside every package.json to install correctly.
 
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 RUN npm install -g corepack && corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
@@ -24,6 +24,6 @@ COPY apps/web apps/web
 WORKDIR /app/apps/web
 RUN pnpm run build
 
-FROM nginx:1.27-alpine AS serve
+FROM nginx:1.30-alpine AS serve
 COPY --from=final /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
