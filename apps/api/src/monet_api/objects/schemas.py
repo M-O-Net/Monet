@@ -47,3 +47,21 @@ class ObjectDetailOut(BaseModel):
     as_operator: list[RelationOut]
     as_input: list[RelationOut]
     as_output: list[RelationOut]
+
+
+class RelationAssert(BaseModel):
+    """A computed result being recorded.
+
+    Outputs arrive as LaTeX rather than as ids because an implementation's output may not exist as
+    an object yet.
+    """
+
+    operator_id: uuid.UUID
+    input_object_ids: list[uuid.UUID]
+    output_latex: list[str]
+
+
+class RelationAssertOut(BaseModel):
+    relation: RelationOut
+    created_object_ids: list[uuid.UUID]
+    created_relation: bool

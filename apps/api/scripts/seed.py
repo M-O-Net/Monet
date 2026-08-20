@@ -1,4 +1,7 @@
-"""Seeds the v0 demo dataset defined below: matrices, polynomials, and the operators between them.
+"""Seed the v0 demo dataset: objects, relations, and an implementation behind each operator.
+
+Matrices, polynomials, the operators between them, and the sympy implementation of each
+(source in scripts/implementations/).
 
 Wipes and reinserts, so it's safe to re-run — `uv run python scripts/seed.py` from apps/api/,
 or `just seed`, always resets to exactly this dataset. Pass --if-empty to skip entirely when
@@ -8,12 +11,14 @@ through the GUI on every restart).
 """
 
 import asyncio
+import pathlib
 import sys
 import uuid
 
 from sqlmodel import delete, func, select
 
 from monet_api.core.db import async_session
+from monet_api.implementations.models import Implementation
 from monet_api.objects.models import (
     Object,
     Relation,
@@ -31,6 +36,7 @@ async def seed() -> None:
                 print(f"objects table already has {count} rows, skipping (--if-empty)")
                 return
 
+        await session.exec(delete(Implementation))
         await session.exec(delete(TopLevelObject))
         await session.exec(delete(RelationOutput))
         await session.exec(delete(RelationInput))
@@ -42,26 +48,40 @@ async def seed() -> None:
         # need one, but the four sections and the operators benefit from one.
         objects: dict[str, tuple[str, str | None]] = {
             # sections (see TopLevelObject below)
-            "Matrices": (r"\text{Matrices}", "Square arrays of numbers, and the operations "
-                         "that act on them: characteristic polynomials, inverses, "
-                         "determinants, sums."),
-            "Polynomials": (r"\text{Polynomials}", "Single-variable polynomials, and the "
-                             "operations that act on them: companion matrices, degree."),
-            "Integers": (r"\text{Integers}", "Whole numbers, positive and negative — the "
-                         "values relations like Determinant and Degree produce."),
-            "Booleans": (r"\text{Booleans}", "The two truth values a predicate-style relation, "
-                         "like Is Singular, produces."),
+            "Matrices": (
+                r"\text{Matrices}",
+                "Square arrays of numbers, and the operations "
+                "that act on them: characteristic polynomials, inverses, "
+                "determinants, sums.",
+            ),
+            "Polynomials": (
+                r"\text{Polynomials}",
+                "Single-variable polynomials, and the "
+                "operations that act on them: companion matrices, degree.",
+            ),
+            "Integers": (
+                r"\text{Integers}",
+                "Whole numbers, positive and negative — the "
+                "values relations like Determinant and Degree produce.",
+            ),
+            "Booleans": (
+                r"\text{Booleans}",
+                "The two truth values a predicate-style relation, like Is Singular, produces.",
+            ),
             # matrix specimens
             "A": (r"\begin{pmatrix}2&1\\1&2\end{pmatrix}", None),
             "B": (r"\begin{pmatrix}1&0\\0&1\end{pmatrix}", None),
             "D": (r"\begin{pmatrix}0&1\\1&0\end{pmatrix}", None),
             "E": (r"\begin{pmatrix}3&1\\1&3\end{pmatrix}", None),
-            "C": (r"\begin{pmatrix}0&-3\\1&4\end{pmatrix}", "The companion matrix of "
-                  r"$x^2 - 4x + 3$ — its own characteristic polynomial closes the loop."),
+            "C": (
+                r"\begin{pmatrix}0&-3\\1&4\end{pmatrix}",
+                "The companion matrix of "
+                r"$x^{2} - 4 x + 3$ — its own characteristic polynomial closes the loop.",
+            ),
             # polynomial specimens
-            "P": (r"x^2 - 4x + 3", None),
-            "Q": (r"x^2 - 2x + 1", None),
-            "R": (r"x^2 - 1", None),
+            "P": (r"x^{2} - 4 x + 3", None),
+            "Q": (r"x^{2} - 2 x + 1", None),
+            "R": (r"x^{2} - 1", None),
             # number/boolean specimens
             "one": ("1", None),
             "neg_one": ("-1", None),
@@ -70,20 +90,29 @@ async def seed() -> None:
             "true": (r"\text{True}", None),
             "false": (r"\text{False}", None),
             # operators — matrix operations
-            "CharacteristicPolynomial": (r"\text{Characteristic Polynomial}",
-                "For a matrix A, the polynomial det(xI - A)."),
-            "Inverse": (r"\text{Inverse}",
-                        "The multiplicative inverse of a matrix, when one exists."),
+            "CharacteristicPolynomial": (
+                r"\text{Characteristic Polynomial}",
+                "For a matrix A, the polynomial det(xI - A).",
+            ),
+            "Inverse": (
+                r"\text{Inverse}",
+                "The multiplicative inverse of a matrix, when one exists.",
+            ),
             "Determinant": (r"\text{Determinant}", "The scalar determinant of a matrix."),
             "Add": (r"\text{Add}", "The entrywise sum of two matrices of the same shape."),
             "IsSingular": (r"\text{Is Singular}", "Whether a matrix's determinant is zero."),
             # operators — polynomial operations
-            "CompanionMatrix": (r"\text{Companion Matrix}", "For a monic polynomial, the "
-                                 "matrix whose characteristic polynomial is that polynomial."),
+            "CompanionMatrix": (
+                r"\text{Companion Matrix}",
+                "For a monic polynomial, the "
+                "matrix whose characteristic polynomial is that polynomial.",
+            ),
             "Degree": (r"\text{Degree}", "The highest power of the variable in a polynomial."),
             # operator — sectioning
-            "ElementOf": (r"\text{Element Of}",
-                           "Marks an object as belonging to one of the top-level sections."),
+            "ElementOf": (
+                r"\text{Element Of}",
+                "Marks an object as belonging to one of the top-level sections.",
+            ),
         }
 
         ids: dict[str, uuid.UUID] = {}
@@ -123,8 +152,18 @@ async def seed() -> None:
         # Sections: every specimen and operator gets an Element Of relation to its section, and
         # the four section objects themselves are flagged as top-level (see TopLevelObject).
         sections = {
-            "Matrices": ["A", "B", "D", "E", "C",
-                         "CharacteristicPolynomial", "Inverse", "Determinant", "Add", "IsSingular"],
+            "Matrices": [
+                "A",
+                "B",
+                "D",
+                "E",
+                "C",
+                "CharacteristicPolynomial",
+                "Inverse",
+                "Determinant",
+                "Add",
+                "IsSingular",
+            ],
             "Polynomials": ["P", "Q", "R", "CompanionMatrix", "Degree"],
             "Integers": ["one", "neg_one", "three", "two"],
             "Booleans": ["true", "false"],
@@ -135,8 +174,36 @@ async def seed() -> None:
                 relation_count += 1
             session.add(TopLevelObject(object_id=ids[section]))
 
+        # Implementations: the sympy behind each operator, read from real files in
+        # scripts/implementations/ and stored as text. Nothing here executes them — they run only
+        # in the browser sandbox. Nothing records how many inputs each one takes: an
+        # implementation may genuinely accept several counts, so the GUI offers as many inputs as
+        # you care to give it and the code raises if they don't suit. ElementOf is deliberately
+        # absent — it's structural bookkeeping, not a
+        # mathematical operation, so there's nothing to compute.
+        implementation_dir = pathlib.Path(__file__).parent / "implementations"
+        implementations = {
+            "CharacteristicPolynomial": "characteristic_polynomial",
+            "Inverse": "inverse",
+            "Determinant": "determinant",
+            "Add": "add",
+            "IsSingular": "is_singular",
+            "CompanionMatrix": "companion_matrix",
+            "Degree": "degree",
+        }
+        for operator, filename in implementations.items():
+            session.add(
+                Implementation(
+                    operator_id=ids[operator],
+                    code=(implementation_dir / f"{filename}.py").read_text(),
+                )
+            )
+
         await session.commit()
-        print(f"seeded {len(objects)} objects and {relation_count} relations")
+        print(
+            f"seeded {len(objects)} objects, {relation_count} relations, "
+            f"and {len(implementations)} implementations"
+        )
 
 
 if __name__ == "__main__":

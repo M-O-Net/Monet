@@ -12,6 +12,8 @@ from monet_api.objects.schemas import (
     ObjectDetailOut,
     ObjectOut,
     ObjectUpdate,
+    RelationAssert,
+    RelationAssertOut,
     RelationCreate,
     RelationOut,
 )
@@ -104,3 +106,18 @@ async def replace_relation(
 @router.delete("/relations/{relation_id}", status_code=204, operation_id="delete_relation")
 async def delete_relation(relation_id: uuid.UUID, session: DbSession) -> None:
     await service.delete_relation(session, relation_id)
+
+
+@router.post(
+    "/relations/assert",
+    response_model=RelationAssertOut,
+    operation_id="assert_relation",
+    status_code=200,
+)
+async def assert_relation(body: RelationAssert, session: DbSession) -> RelationAssertOut:
+    """Record a computed relation, creating any output objects that don't exist yet.
+
+    200 rather than 201 because it's idempotent: asserting the same thing twice returns the
+    relation that was already there.
+    """
+    return await service.assert_relation(session, body)

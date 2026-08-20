@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from monet_api.core.config import settings
+from monet_api.implementations.router import router as implementations_router
 from monet_api.objects.router import router as objects_router
 
 app = FastAPI(title="Monet API")
@@ -15,6 +16,7 @@ app.add_middleware(
 )
 
 app.include_router(objects_router)
+app.include_router(implementations_router)
 
 
 @app.exception_handler(Exception)

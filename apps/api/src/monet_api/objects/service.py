@@ -3,6 +3,7 @@
 Orchestrates repository.py calls; owns no SQL of its own.
 """
 
+import re
 import uuid
 
 from fastapi import HTTPException
@@ -16,6 +17,8 @@ from monet_api.objects.schemas import (
     ObjectDetailOut,
     ObjectOut,
     ObjectUpdate,
+    RelationAssert,
+    RelationAssertOut,
     RelationCreate,
     RelationOut,
     RelationSlotOut,
@@ -119,8 +122,8 @@ async def delete_object(session: AsyncSession, object_id: uuid.UUID) -> None:
         await session.rollback()
         raise HTTPException(
             status_code=400,
-            detail="object is still used as an operator or as a relation's input/output — "
-            "remove those relations first",
+            detail="object is still used as an operator, as a relation's input/output, "
+            "or as an implementation's operator — remove those first",
         ) from exc
 
 
@@ -194,3 +197,97 @@ async def replace_relation(
 async def delete_relation(session: AsyncSession, relation_id: uuid.UUID) -> None:
     relation = await get_relation_or_404(session, relation_id)
     await repository.delete_relation(session, relation)
+
+
+# ── assert (the commit step behind an implementation run) ──────────────────────────
+
+# Whitespace outside a \text{...} group carries no meaning in LaTeX, so `x^{2} - 4 x + 3` and
+# `x^{2}-4x+3` are the same object and shouldn't become twins. Inside \text{...} it does carry
+# meaning, so runs there are collapsed rather than stripped — otherwise `\text{Is Singular}`
+# would collide with a hypothetical `\text{IsSingular}`. This is whitespace-insensitivity, not
+# the canonical form (equivalent ways of writing the same matrix) that root AGENTS.md defers.
+_TEXT_GROUP = re.compile(r"\\text\{[^{}]*\}")
+
+
+def normalize_latex(latex: str) -> str:
+    parts: list[str] = []
+    last = 0
+    for match in _TEXT_GROUP.finditer(latex):
+        parts.append("".join(latex[last : match.start()].split()))
+        parts.append(" ".join(match.group().split()))
+        last = match.end()
+    parts.append("".join(latex[last:].split()))
+    return "".join(parts)
+
+
+async def _find_or_create_object(
+    session: AsyncSession, latex: str, existing: list[Object]
+) -> tuple[Object, bool]:
+    key = normalize_latex(latex)
+    for obj in existing:
+        if normalize_latex(obj.latex) == key:
+            return obj, False
+    obj = Object(latex=latex, description=None)
+    session.add(obj)
+    await session.flush()
+    existing.append(obj)
+    return obj, True
+
+
+async def _find_matching_relation(
+    session: AsyncSession,
+    operator_id: uuid.UUID,
+    input_ids: list[uuid.UUID],
+    output_ids: list[uuid.UUID],
+) -> Relation | None:
+    for candidate in await repository.list_relations_by_operator(session, operator_id):
+        rows_in = await repository.list_relation_inputs(session, candidate.id)
+        rows_out = await repository.list_relation_outputs(session, candidate.id)
+        if [r.object_id for r in rows_in] == input_ids and [
+            r.object_id for r in rows_out
+        ] == output_ids:
+            return candidate
+    return None
+
+
+async def assert_relation(session: AsyncSession, body: RelationAssert) -> RelationAssertOut:
+    """Record a computed result, creating whatever it needs.
+
+    Find-or-creates each output object, then find-or-creates the relation — so running the
+    same implementation twice is a no-op the second time.
+    """
+    if not body.output_latex:
+        raise HTTPException(status_code=400, detail="a relation needs at least one output")
+
+    await get_object_or_404(session, body.operator_id)
+    for oid in body.input_object_ids:
+        await get_object_or_404(session, oid)
+
+    existing = await repository.list_objects(session)
+    outputs: list[Object] = []
+    created_object_ids: list[uuid.UUID] = []
+    for latex in body.output_latex:
+        obj, was_created = await _find_or_create_object(session, latex, existing)
+        outputs.append(obj)
+        if was_created:
+            created_object_ids.append(obj.id)
+
+    output_ids = [obj.id for obj in outputs]
+    relation = await _find_matching_relation(
+        session, body.operator_id, body.input_object_ids, output_ids
+    )
+    created_relation = relation is None
+    if relation is None:
+        relation = await repository.create_relation(session, body.operator_id)
+        for position, oid in enumerate(body.input_object_ids):
+            repository.add_relation_input(session, relation.id, oid, position)
+        for position, oid in enumerate(output_ids):
+            repository.add_relation_output(session, relation.id, oid, position)
+
+    await session.commit()
+    await session.refresh(relation)
+    return RelationAssertOut(
+        relation=await _load_relation_out(session, relation),
+        created_object_ids=created_object_ids,
+        created_relation=created_relation,
+    )

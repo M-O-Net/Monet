@@ -8,6 +8,8 @@ import { Latex } from "../components/Latex";
 import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
 import { RelationList } from "./-components/RelationList";
+import { ImplementationEditor } from "./-components/ImplementationEditor";
+import { Operations } from "./-components/Operations";
 
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
@@ -22,6 +24,7 @@ function ObjectDetail() {
     params: { path: { object_id: objectId } },
   });
   const allObjects = api.useQuery("get", "/objects");
+  const implementations = api.useQuery("get", "/implementations");
   const updateObject = api.useMutation("patch", "/objects/{object_id}");
   const deleteObject = api.useMutation("delete", "/objects/{object_id}");
   const markTopLevel = api.useMutation("put", "/top-level-objects/{object_id}");
@@ -37,6 +40,7 @@ function ObjectDetail() {
     void queryClient.invalidateQueries({
       queryKey: ["get", "/objects/{object_id}", { params: { path: { object_id: objectId } } }],
     });
+    void queryClient.invalidateQueries({ queryKey: ["get", "/implementations"] });
   };
 
   if (detail.isPending) return <p className="text-sm text-ink-soft">Loading…</p>;
@@ -173,6 +177,21 @@ function ObjectDetail() {
       <RelationList title="Used as operator in" relations={obj.as_operator} />
       <RelationList title="Appears as input in" relations={obj.as_input} />
       <RelationList title="Appears as output in" relations={obj.as_output} />
+
+      {allObjects.data && (
+        <Operations
+          object={{ id: obj.id, latex: obj.latex }}
+          objects={allObjects.data}
+          implementations={implementations.data ?? []}
+          onCommitted={invalidateAll}
+        />
+      )}
+
+      <ImplementationEditor
+        object={{ id: obj.id, latex: obj.latex }}
+        implementations={implementations.data ?? []}
+        onChanged={invalidateAll}
+      />
 
       <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
         Add a relation
