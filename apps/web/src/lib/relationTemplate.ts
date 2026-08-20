@@ -9,6 +9,21 @@ const CURRENT_CLASS = "is-current";
 export const objectHrefMatch = (href: string | null | undefined): string | null =>
   OBJECT_HREF.exec(href ?? "")?.[1] ?? null;
 
+interface TrustContext {
+  command: string;
+  url?: string;
+  protocol?: string;
+  class?: string;
+}
+
+function trustOnlyLinksWeBuiltOurselves(allowedHrefs: ReadonlySet<string>) {
+  return (context: TrustContext) =>
+    (context.command === "\\href" &&
+      context.protocol === "_relative" &&
+      allowedHrefs.has(context.url ?? "")) ||
+    (context.command === "\\htmlClass" && context.class === CURRENT_CLASS);
+}
+
 const renderableCache = new Map<string, boolean>();
 
 function rendersOnItsOwn(latex: string): boolean {
@@ -72,11 +87,7 @@ export function buildTemplateHtml(
             : `\\href{${operatorHref}}{#1}`,
         },
         strict: (code: string) => (code === "htmlExtension" ? "ignore" : "warn"),
-        trust: (context) =>
-          (context.command === "\\href" &&
-            context.protocol === "_relative" &&
-            allowedHrefs.has(context.url)) ||
-          (context.command === "\\htmlClass" && context.class === CURRENT_CLASS),
+        trust: trustOnlyLinksWeBuiltOurselves(allowedHrefs),
       })
       .replace(' aria-hidden="true"', "");
   } catch {
