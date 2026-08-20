@@ -79,6 +79,8 @@ async def seed() -> None:
                 r"$x^{2} - 4 x + 3$ — its own characteristic polynomial closes the loop.",
             ),
             # polynomial specimens
+            # Written the way the sandbox's render() emits it, so computing a characteristic
+            # polynomial lands on this object instead of minting a near-identical twin.
             "P": (r"x^{2} - 4 x + 3", None),
             "Q": (r"x^{2} - 2 x + 1", None),
             "R": (r"x^{2} - 1", None),
