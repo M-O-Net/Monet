@@ -15,4 +15,7 @@ dist
 *.pyc
 .env
 .env.*
+# `.env` alone only matches the context root; app-level ones (apps/api/.env, historically the
+# host-side pytest DB config) would otherwise be baked into the image.
+**/.env
 !.env.example
