@@ -31,7 +31,7 @@ services:
         value: '["https://monet-web.onrender.com"]' # adjust to the actual static site URL
     # Free services get no preDeployCommand, so this is where migrations run — same sequence
     # docker-compose.dev.yml uses locally. Both steps are idempotent.
-    dockerCommand: sh -c "uv run alembic upgrade head && uv run python scripts/seed.py --if-empty && uv run uvicorn monet_api.main:app --host 0.0.0.0 --port 8000"
+    dockerCommand: uv run alembic upgrade head && uv run python scripts/seed.py --if-empty && uv run uvicorn monet_api.main:app --host 0.0.0.0 --port 8000
 
   - type: web
     name: monet-web
