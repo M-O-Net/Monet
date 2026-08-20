@@ -43,14 +43,53 @@ class RelationOutput(SQLModel, table=True):
     position: int
 
 
-class TopLevelObject(SQLModel, table=True):
-    """The homepage's table of contents.
+# ── GUI-only tables ──────────────────────────────────────────────────────────
+# How the network is presented, never what it means. Kept off Object deliberately: an object's
+# latex is mathematics and outlives any interface, whereas everything below is editorial and
+# would be rewritten by a different front end. Both cascade on delete — a presentation row
+# exists only in service of its object, so it must never be what blocks deleting one.
 
-    Which objects are a journal "section" (Matrices, Polynomials, ...) rather than a specimen
-    filed under one. Deliberately just a flag table, not a column on Object: membership here is
-    closer to editorial curation than an intrinsic property of the object itself.
+
+class TopLevelObject(SQLModel, table=True):
+    """The contents page's roots.
+
+    Which objects open the contents page as a section, rather than being reached by browsing
+    into one. Nesting is NOT here: a section sits under another section by way of an ordinary
+    membership relation in the graph (see OperatorDisplay.is_membership), so the hierarchy is
+    the network's own data and this table only records where reading starts.
     """
 
     __tablename__ = "top_level_objects"
 
-    object_id: uuid.UUID = Field(foreign_key="objects.id", primary_key=True)
+    object_id: uuid.UUID = Field(
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), primary_key=True, nullable=False
+        )
+    )
+
+
+class OperatorDisplay(SQLModel, table=True):
+    """How the GUI renders the relations built on one operator.
+
+    Every field is presentation. Nothing here changes what a relation means, and the API never
+    filters on it — `hidden_by_default` is advice the front end acts on, so that the count
+    behind a "show more" disclosure is knowable without a second request.
+    """
+
+    __tablename__ = "operator_displays"
+
+    operator_id: uuid.UUID = Field(
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), primary_key=True, nullable=False
+        )
+    )
+    # A LaTeX template with {in0}/{in1}/{out0} placeholders, e.g. "{in0} + {in1} = {out0}", so
+    # an addition reads as an equation instead of the generic operands-arrow-operator row.
+    template: str | None = None
+    # For operators that will accumulate far more relations than anyone wants listed inline.
+    hidden_by_default: bool = False
+    # Marks an operator as meaning "belongs to": its relations stop being listed as ordinary
+    # rows and become the section tags and member lists instead. A flag rather than a hardcoded
+    # name, so renaming the Element Of object cannot break sectioning. Deliberately not unique
+    # — SubsetOf and InstanceOf are membership-shaped too, and every query already takes a set.
+    is_membership: bool = False

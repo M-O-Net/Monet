@@ -12,8 +12,11 @@ from monet_api.objects.schemas import (
     ObjectDetailOut,
     ObjectOut,
     ObjectUpdate,
+    OperatorDisplayOut,
+    OperatorDisplayUpdate,
     RelationCreate,
     RelationOut,
+    SectionNode,
 )
 
 router = APIRouter()
@@ -72,6 +75,39 @@ async def mark_top_level_object(object_id: uuid.UUID, session: DbSession) -> Non
 )
 async def unmark_top_level_object(object_id: uuid.UUID, session: DbSession) -> None:
     await service.unmark_top_level_object(session, object_id)
+
+
+# ── contents ─────────────────────────────────────────────────────────────────
+# The nested table of contents. Roots come from top_level_objects; the nesting under them is
+# ordinary membership relations in the graph, not a column — see OperatorDisplay.is_membership.
+
+
+@router.get("/contents", response_model=list[SectionNode], operation_id="get_contents")
+async def get_contents(session: DbSession) -> list[SectionNode]:
+    return await service.get_contents(session)
+
+
+# ── operator display ─────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/operator-displays/{operator_id}",
+    response_model=OperatorDisplayOut,
+    operation_id="get_operator_display",
+)
+async def get_operator_display(operator_id: uuid.UUID, session: DbSession) -> OperatorDisplayOut:
+    return await service.get_operator_display(session, operator_id)
+
+
+@router.put(
+    "/operator-displays/{operator_id}",
+    response_model=OperatorDisplayOut,
+    operation_id="set_operator_display",
+)
+async def set_operator_display(
+    operator_id: uuid.UUID, body: OperatorDisplayUpdate, session: DbSession
+) -> OperatorDisplayOut:
+    return await service.set_operator_display(session, operator_id, body)
 
 
 # ── relations ────────────────────────────────────────────────────────────────
