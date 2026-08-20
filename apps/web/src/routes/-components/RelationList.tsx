@@ -9,7 +9,6 @@ import { RelationExpression } from "./RelationExpression";
 const TAG_CLASS = "relation-tag inline-block rounded-sm px-2 py-0.5 text-xs";
 
 function OperatorLink({ operator, isCurrent }: { operator: ObjectOut; isCurrent: boolean }) {
-  // On the operator's own page the tag is not a link either — it would lead back to here.
   if (isCurrent) {
     return (
       <span className={`${TAG_CLASS} is-current`}>
@@ -18,27 +17,12 @@ function OperatorLink({ operator, isCurrent }: { operator: ObjectOut; isCurrent:
     );
   }
   return (
-    <Link
-      to="/objects/$objectId"
-      params={{ objectId: operator.id }}
-      // The card-catalog tag, moved above the mathematics so that every formula in a list starts
-      // at the same left edge whatever its operator is called.
-      //
-      // Set in the operator's own notation, at its own case: an object *is* its rendered
-      // notation here, so uppercasing it restyles the object rather than its label. It carries
-      // no hover styling of its own — the row marks it, so that it and the operator's notation
-      // inside the formula always light up together.
-      className={TAG_CLASS}
-    >
+    <Link to="/objects/$objectId" params={{ objectId: operator.id }} className={TAG_CLASS}>
       <Latex>{operator.latex}</Latex>
     </Link>
   );
 }
 
-// Marks every link in the row that points where the hovered one does — the operator's tag and
-// its notation inside the formula alike. Done to the DOM rather than through state because half
-// of these are anchors KaTeX put into the layout, not elements we render; the tag carries no
-// colour utilities of its own so that this one pass can style it too.
 function markLinked(row: HTMLElement, href: string | null) {
   for (const anchor of row.querySelectorAll("a")) {
     anchor.classList.toggle("is-linked", href !== null && anchor.getAttribute("href") === href);
@@ -52,29 +36,17 @@ function RelationRow({
   relation: RelationOut;
   currentObjectId: string;
 }) {
-  // One rendering path for every relation. A relation with no template of its own gets a
-  // generated one — operands, arrow, results — so the arrow is typeset alongside the
-  // mathematics instead of being drawn next to it out of box-characters, which never did line
-  // up with the baseline either side.
   const html = buildRelationHtml(relation, relation.display?.template ?? null, currentObjectId);
 
-  // The operator is named above rather than beside the mathematics so that every formula in a
-  // list starts at the same left edge, whatever its operator happens to be called.
   return (
     <li
       className="relation-row rounded-sm border border-mist bg-white/40 px-3 pt-2 pb-3 shadow-[0_1px_3px_rgba(35,50,43,0.06)]"
-      // Pointing anywhere at an object marks every link to it in this row — so the operator's
-      // tag and its notation inside the formula light up together, either way round, and a
-      // notation split either side of its operand (det( ... )) reads as the one thing it is.
       onMouseOver={(event) => {
         markLinked(
           event.currentTarget,
           (event.target as HTMLElement).closest("a")?.getAttribute("href") ?? null,
         );
       }}
-      // mouseleave, not mouseout: mouseout bubbles up from each child span KaTeX nests inside
-      // an anchor, so it fired as the pointer crossed between them and cleared the mark that
-      // mouseover had just set.
       onMouseLeave={(event) => {
         markLinked(event.currentTarget, null);
       }}
@@ -101,8 +73,6 @@ export function RelationList({
   title: string;
   relations: RelationOut[];
   currentObjectId: string;
-  // False on the "used as operator in" list: an operator marked hidden-by-default would
-  // otherwise collapse its own page to nothing, and that page is where those rows are the point.
   collapseHidden?: boolean;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -135,8 +105,6 @@ export function RelationList({
           <RelationRow key={relation.id} relation={relation} currentObjectId={currentObjectId} />
         ))}
       </ul>
-      {/* Grouped per operator rather than one lump count: you already decided this particular
-          operator was noise, so the disclosure says which one it is hiding. */}
       {hiddenGroups.map((group) => {
         const open = expanded.has(group.operator.id);
         return (

@@ -1,4 +1,3 @@
-"""Tests for the GUI-only tables: membership sectioning, the contents tree, operator display."""
 
 from httpx import AsyncClient
 
@@ -53,12 +52,10 @@ async def test_membership_relations_become_sections_not_rows(client: AsyncClient
 
     detail = (await client.get(f"/objects/{a}")).json()
     assert [s["id"] for s in detail["sections"]] == [matrices]
-    # Only the Inverse relation is left as an ordinary row.
     assert [r["operator"]["id"] for r in detail["as_input"]] == [inverse]
 
 
 async def test_membership_is_driven_by_the_flag_not_the_name(client: AsyncClient) -> None:
-    """An operator called Element Of but not flagged stays an ordinary relation."""
     element_of = await make_object(client, "\\text{Element Of}")
     matrices = await make_object(client, "\\text{Matrices}")
     a = await make_object(client, "A")
@@ -102,8 +99,6 @@ async def test_contents_tree_nests_sections_and_omits_specimens(client: AsyncCli
     contents = (await client.get("/contents")).json()
     assert [node["id"] for node in contents] == [linear_algebra]
     assert [node["id"] for node in contents[0]["children"]] == [matrices]
-    # The specimen is a member of Matrices, but has no members itself, so it is not a section
-    # and belongs on Matrices' own page rather than in the table of contents.
     assert contents[0]["children"][0]["children"] == []
     assert contents[0]["children"][0]["member_count"] == 1
 
@@ -153,7 +148,6 @@ async def test_operator_display_round_trip(client: AsyncClient) -> None:
     rows = (await client.get("/relations")).json()
     by_operator = {r["operator"]["id"]: r["display"] for r in rows}
     assert by_operator[add]["template"] == "{in0} + {in1} = {out0}"
-    # hidden_by_default is advice, not a filter — the relation is still returned.
     assert by_operator[add]["hidden_by_default"] is True
     assert by_operator[other] is None
 
@@ -176,7 +170,6 @@ async def test_operator_display_requires_an_existing_object(client: AsyncClient)
 
 
 async def test_delete_object_on_contents_page_succeeds(client: AsyncClient) -> None:
-    """A GUI row must never be what blocks deleting its own object."""
     obj = await make_object(client, "\\text{Matrices}")
     await client.put(f"/top-level-objects/{obj}")
     await set_display(client, obj, template="{in0} = {out0}")

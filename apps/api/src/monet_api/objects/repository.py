@@ -27,7 +27,6 @@ async def list_objects(session: AsyncSession) -> list[Object]:
 async def list_objects_by_ids(
     session: AsyncSession, object_ids: Sequence[uuid.UUID]
 ) -> list[Object]:
-    """Load many objects at once, so callers assemble from a dict instead of a query per id."""
     if not object_ids:
         return []
     return list(
@@ -139,15 +138,11 @@ async def list_relation_ids_by_output(
     return list((await session.exec(query)).all())
 
 
-# ── membership edges ─────────────────────────────────────────────────────────
-# A membership relation is exactly one edge, so its relation_id identifies the edge and a
-# single-entity select is enough in each direction — no multi-column select, no tuple typing.
 
 
 async def list_membership_outputs(
     session: AsyncSession, operator_ids: Sequence[uuid.UUID], section_ids: Sequence[uuid.UUID]
 ) -> list[RelationOutput]:
-    """Membership edges pointing at any of `section_ids` — the way in to their members."""
     if not operator_ids or not section_ids:
         return []
     return list(
@@ -165,7 +160,6 @@ async def list_membership_outputs(
 async def list_membership_inputs(
     session: AsyncSession, operator_ids: Sequence[uuid.UUID], member_ids: Sequence[uuid.UUID]
 ) -> list[RelationInput]:
-    """Membership edges leaving any of `member_ids` — the way in to the sections they are in."""
     if not operator_ids or not member_ids:
         return []
     return list(
@@ -180,7 +174,6 @@ async def list_membership_inputs(
     )
 
 
-# ── operator display ─────────────────────────────────────────────────────────
 
 
 async def list_membership_operator_ids(session: AsyncSession) -> list[uuid.UUID]:
@@ -235,7 +228,6 @@ async def upsert_operator_display(
 async def list_relation_inputs_for(
     session: AsyncSession, relation_ids: Sequence[uuid.UUID]
 ) -> list[RelationInput]:
-    """Input slots for many relations at once, ordered so each relation's operands stay in order."""
     if not relation_ids:
         return []
     return list(

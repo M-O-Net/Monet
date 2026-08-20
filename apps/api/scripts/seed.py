@@ -4,13 +4,7 @@ Wipes and reinserts, so it's safe to re-run — `uv run python scripts/seed.py` 
 or `just seed`, always resets to exactly this dataset. Pass --if-empty to skip entirely when
 the objects table already has rows (used by docker-compose.dev.yml's startup command, so a
 fresh `just up` always has demo data without clobbering anything you've since added by hand
-through the GUI on every later restart).
-
-Sectioning is data, not schema: an object belongs to a section because an `Element Of` relation
-says so, and `Element Of` is the membership operator because its `operator_displays` row says
-so — never because of its name. Sections nest the same way, so "Matrices is in Linear Algebra"
-is the same kind of fact as "this matrix is in Matrices". `top_level_objects` then holds only
-the three roots, which is where reading starts.
+through the GUI on every restart).
 """
 
 import asyncio
@@ -47,16 +41,13 @@ async def seed() -> None:
         await session.commit()
 
         # key -> (latex, description | None). Description is optional — most specimens don't
-        # need one, but the sections and the operators benefit from one.
         objects: dict[str, tuple[str, str | None]] = {
-            # roots of the contents page
             "LinearAlgebra": (r"\text{Linear Algebra}", "Matrices and the operations that act "
                               "on them."),
             "PolynomialAlgebra": (r"\text{Polynomial Algebra}", "Single-variable polynomials "
                                   "and the operations that act on them."),
             "Values": (r"\text{Values}", "The plain numbers and truth values that relations "
                        "produce as answers."),
-            # sections nested under those roots
             "Matrices": (r"\text{Matrices}", "Square arrays of numbers."),
             "MatrixOperations": (r"\text{Matrix Operations}", "Operations taking matrices as "
                                  "their input: characteristic polynomials, inverses, "
@@ -86,8 +77,6 @@ async def seed() -> None:
             "two": ("2", None),
             "true": (r"\text{True}", None),
             "false": (r"\text{False}", None),
-            # operators — matrix operations. "Matrix Addition", not "Add": an operator is a
-            # specific mathematical object, and there are many additions in mathematics.
             "CharacteristicPolynomial": (r"\text{Characteristic Polynomial}",
                 "For a matrix A, the polynomial det(xI - A)."),
             "Inverse": (r"\text{Inverse}",
@@ -141,19 +130,9 @@ async def seed() -> None:
 
         relation_count = 11
 
-        # How each operator wants its relations rendered. Purely presentation — see
-        # OperatorDisplay. A template must mention every operand, or the front end falls back
-        # to the plain operands-operator-outputs row rather than show a partial equation.
-        # \op{...} marks the part of a template that IS the operator — the "+" in A + B = E is
-        # Matrix Addition — so it renders as a link to it, exactly as the operands do.
         displays: dict[str, tuple[str | None, bool, bool]] = {
-            # operator -> (template, hidden_by_default, is_membership)
             "ElementOf": (None, False, True),
-            # Every matrix in the network will eventually have sums with every other, so these
-            # rows are collapsed until asked for.
             "MatrixAddition": (r"{in0} \op{+} {in1} = {out0}", True, False),
-            # The brackets belong to the operator's notation as much as the word does, so they
-            # go inside \op too — either side of the operand, highlighting as one thing.
             "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
             "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
             "Degree": (r"\op{\deg(}{in0}\op{)} = {out0}", False, False),
@@ -168,8 +147,6 @@ async def seed() -> None:
                 )
             )
 
-        # Sections. Nesting a section inside another is the same kind of fact as filing a
-        # specimen, so both are Element Of relations; only the three roots are top-level.
         sections = {
             "LinearAlgebra": ["Matrices", "MatrixOperations"],
             "PolynomialAlgebra": ["Polynomials", "PolynomialOperations"],

@@ -16,9 +16,6 @@ import { SectionTags } from "./-components/SectionTags";
 
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
-  // Navigating between two objects only changes the param, and TanStack Router reuses the
-  // component for that — so without this, per-object local state (the edit draft below)
-  // leaks across the navigation: open Edit on A, click through to B, and B shows A's draft.
   remountDeps: ({ params }) => params.objectId,
 });
 
@@ -201,9 +198,6 @@ function ObjectDetail() {
         </p>
       )}
       <MemberList members={obj.members} />
-      {/* collapseHidden is off here on purpose: an operator marked hidden-by-default would
-          otherwise collapse its own page to nothing, and this is the page where those rows are
-          exactly what you came for. */}
       <RelationList
         title="Used as operator in"
         relations={obj.as_operator}

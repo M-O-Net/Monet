@@ -13,8 +13,6 @@ function placeholdersFor(relation: RelationOut): string[] {
   return [
     ...relation.inputs.map((_slot, i) => `{in${String(i)}}`),
     ...relation.outputs.map((_slot, i) => `{out${String(i)}}`),
-    // Wraps whatever notation stands for this operator, making it a link to the operator the
-    // same way the operands link to theirs.
     "\\op{}",
   ];
 }
@@ -34,8 +32,6 @@ function Editor({ operatorId, sample }: { operatorId: string; sample: RelationOu
 
   const template = draft ?? display.data.template ?? "";
   const hidden = hiddenDraft ?? display.data.hidden_by_default;
-  // The preview runs the very function the relation rows run, so it cannot promise something
-  // the page will not deliver.
   const renders = template.trim() === "" || buildTemplateHtml(template, sample) !== null;
 
   return (
@@ -133,11 +129,6 @@ function Editor({ operatorId, sample }: { operatorId: string; sample: RelationOu
   );
 }
 
-/**
- * Editor for how this operator's relations render. Only shown for objects actually used as an
- * operator — there is nothing to configure otherwise, and no real relation to preview against.
- * Mounted only once opened, so the extra request is not paid on every object page.
- */
 export function OperatorDisplayForm({
   operatorId,
   sample,

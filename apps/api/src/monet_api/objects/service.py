@@ -27,9 +27,6 @@ from monet_api.objects.schemas import (
     SectionNode,
 )
 
-# The contents tree walks membership relations, which are ordinary data — nothing stops a user
-# creating "X is in X", or a longer cycle, through the normal relation form. A global visited
-# set makes a cycle harmless; these two caps bound the walk even for a pathological dataset.
 MAX_SECTION_DEPTH = 6
 MAX_SECTION_NODES = 500
 
@@ -51,12 +48,6 @@ async def get_relation_or_404(session: AsyncSession, relation_id: uuid.UUID) -> 
 async def _load_relations_out(
     session: AsyncSession, relations: Sequence[Relation]
 ) -> list[RelationOut]:
-    """Assemble RelationOut for many relations in a fixed number of queries.
-
-    Everything the rows need — both slot tables and every object they mention, operators
-    included — is fetched in one query each and assembled from dicts, so the cost does not
-    grow with the number of relations.
-    """
     if not relations:
         return []
 
@@ -78,8 +69,6 @@ async def _load_relations_out(
     def resolve(object_id: uuid.UUID) -> ObjectOut:
         obj = objects.get(object_id)
         if obj is None:
-            # Foreign keys make this unreachable; if it ever fires the database is
-            # inconsistent, which is ours to answer for, not the caller's.
             raise HTTPException(status_code=500, detail="relation references a missing object")
         return ObjectOut.model_validate(obj)
 
@@ -122,9 +111,6 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
     obj = await get_object_or_404(session, object_id)
     membership_ops = await repository.list_membership_operator_ids(session)
 
-    # Membership relations come back as `sections`/`members` below rather than as rows in the
-    # operand lists, where they would otherwise bury every specimen's actual mathematics. They
-    # stay in as_operator, though: on the membership operator's own page they are the content.
     as_operator = await repository.list_relations_by_operator(session, object_id)
     as_input_ids = await repository.list_relation_ids_by_input(
         session, object_id, exclude_operator_ids=membership_ops
@@ -154,13 +140,11 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
     )
 
 
-# ── membership ───────────────────────────────────────────────────────────────
 
 
 async def _membership_parents(
     session: AsyncSession, membership_ops: Sequence[uuid.UUID], object_ids: Sequence[uuid.UUID]
 ) -> defaultdict[uuid.UUID, list[uuid.UUID]]:
-    """Map each member id to the sections it is filed under."""
     edges = await repository.list_membership_inputs(session, membership_ops, object_ids)
     parents: defaultdict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
     if not edges:
@@ -179,7 +163,6 @@ async def _membership_parents(
 async def _membership_children(
     session: AsyncSession, membership_ops: Sequence[uuid.UUID], section_ids: Sequence[uuid.UUID]
 ) -> defaultdict[uuid.UUID, list[uuid.UUID]]:
-    """Map each section id to the objects filed under it."""
     edges = await repository.list_membership_outputs(session, membership_ops, section_ids)
     children: defaultdict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
     if not edges:
@@ -205,14 +188,6 @@ async def _objects_in_latex_order(
 
 
 async def get_contents(session: AsyncSession) -> list[SectionNode]:
-    """Build the contents page: top-level sections, and the sections nested under them.
-
-    Only members that are themselves sections become children — a section's specimens belong
-    on its own page, so the contents stays a table of contents rather than a listing of the
-    whole network. An object reachable from two places is filed under whichever section the
-    walk reached first, and a pinned object always renders at the top level rather than as
-    someone's child, since that is what pinning it meant.
-    """
     membership_ops = await repository.list_membership_operator_ids(session)
     roots = await repository.list_top_level_objects(session)
 
@@ -259,7 +234,6 @@ async def get_contents(session: AsyncSession) -> list[SectionNode]:
     return [build(root.id) for root in roots]
 
 
-# ── operator display ─────────────────────────────────────────────────────────
 
 
 async def get_operator_display(
@@ -268,8 +242,6 @@ async def get_operator_display(
     await get_object_or_404(session, operator_id)
     row = await repository.get_operator_display(session, operator_id)
     if row is None:
-        # Unconfigured is a normal state, not a missing resource — every operator starts here,
-        # and a 404 would make the editor open on an error for all of them.
         return OperatorDisplayOut(
             operator_id=operator_id, template=None, hidden_by_default=False, is_membership=False
         )

@@ -32,14 +32,11 @@ describe("buildTemplateHtml", () => {
 
   it("keeps binary-operator spacing, which typesetting the pieces separately would lose", () => {
     const html = buildTemplateHtml("{in0} + {in1} = {out0}", addition);
-    // A lone " + " renders as an ordinary symbol with no spacing at all; it is only a binary
-    // operator when KaTeX sees the whole expression at once.
     expect(html).toContain("mbin");
     expect(html).toContain("mspace");
   });
 
   it("substitutes inside a group, which splitting on placeholders cannot express", () => {
-    // Splitting would hand KaTeX the fragment "\frac{" and throw a ParseError.
     const html = buildTemplateHtml("\\frac{{in0}}{{in1}} = {out0}", addition);
     expect(html).not.toBeNull();
     expect(html).toContain("frac");
@@ -68,21 +65,15 @@ describe("buildTemplateHtml", () => {
   });
 
   it("falls back when the template does not mention every operand", () => {
-    // The template belongs to the operator but arity belongs to the relation, so a two-input
-    // template applied to a three-input relation would render an equation that is false.
     expect(buildTemplateHtml("{in0} = {out0}", addition)).toBeNull();
   });
 
   it("falls back when an operand's own latex will not parse", () => {
-    // One unparseable operand otherwise turns the entire row into red error text.
     const broken = relation([object(A, "\\frac{1}"), object(B, "B")], [object(C, "C")]);
     expect(buildTemplateHtml("{in0} + {in1} = {out0}", broken)).toBeNull();
   });
 
   it("refuses to emit a javascript: link smuggled in through an operand's latex", () => {
-    // Object latex is user input and ends up in dangerouslySetInnerHTML. KaTeX's trust option
-    // is the only thing standing between that and script execution, so it is a predicate
-    // admitting nothing but the object links we built ourselves — never `true`.
     const hostile = relation(
       [object(A, "\\href{javascript:alert(1)}{click}"), object(B, "B")],
       [object(C, "C")],

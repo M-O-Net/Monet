@@ -77,9 +77,6 @@ async def unmark_top_level_object(object_id: uuid.UUID, session: DbSession) -> N
     await service.unmark_top_level_object(session, object_id)
 
 
-# ── contents ─────────────────────────────────────────────────────────────────
-# The nested table of contents. Roots come from top_level_objects; the nesting under them is
-# ordinary membership relations in the graph, not a column — see OperatorDisplay.is_membership.
 
 
 @router.get("/contents", response_model=list[SectionNode], operation_id="get_contents")
@@ -87,7 +84,6 @@ async def get_contents(session: DbSession) -> list[SectionNode]:
     return await service.get_contents(session)
 
 
-# ── operator display ─────────────────────────────────────────────────────────
 
 
 @router.get(

@@ -5,13 +5,6 @@ import type { ObjectOut } from "../../lib/types";
 
 const MAX_TAGS = 12;
 
-/**
- * The sections this object is filed under.
- *
- * Rendered as soft chips rather than the operator badge's gold square on purpose: a membership
- * is what the object *is*, not a relation it takes part in, and reusing the badge would put the
- * Element Of rows straight back on the page in a different shape.
- */
 export function SectionTags({ sections }: { sections: ObjectOut[] }) {
   if (sections.length === 0) return null;
   return (

@@ -1,12 +1,6 @@
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type { ReactNode } from "react";
 
-// A trigger that asks before it acts, so no single click can quietly change something. Built
-// on Base UI's AlertDialog (focus trap, escape/outside-click, aria wiring) rather than a
-// hand-rolled popup, for the same reason ObjectPicker is built on Base UI's Select.
-//
-// Domain-agnostic on purpose: it knows nothing about objects or relations, only that some
-// action wants confirming.
 export function ConfirmButton({
   label,
   title,

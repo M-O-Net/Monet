@@ -5,7 +5,6 @@ import type { ObjectOut } from "../../lib/types";
 
 const MAX_MEMBERS = 50;
 
-/** What is filed under this object — the main event on a section's page. */
 export function MemberList({ members }: { members: ObjectOut[] }) {
   if (members.length === 0) return null;
   const shown = members.slice(0, MAX_MEMBERS);

@@ -23,10 +23,6 @@ function toRoman(n: number): string {
   return result;
 }
 
-// Standard outline notation: I, II, III / A, B, C / i, ii, iii. Roman numerals stay at the top
-// level so the contents still reads as a journal's, and the lower two levels are subordinate
-// without needing any extra chrome to say so. Three levels is a table of contents; more is a
-// tree explorer, which is not what this page is for.
 const MARKERS: ((index: number) => string)[] = [
   (index) => toRoman(index + 1),
   (index) => String.fromCharCode(65 + (index % 26)),
@@ -44,8 +40,6 @@ function TreeNode({
   depth: number;
   seen: ReadonlySet<string>;
 }) {
-  // The API already guards its walk, but membership relations are ordinary data and a cycle is
-  // two clicks away in the relation form — a hung tab is not worth the five tokens saved.
   if (seen.has(node.id)) return null;
   const nextSeen = new Set(seen).add(node.id);
   const marker = MARKERS[depth] ?? MARKERS[0];
@@ -54,8 +48,6 @@ function TreeNode({
 
   return (
     <li>
-      {/* The row link and the child list are siblings, not nested: an anchor cannot contain
-          another anchor, so the children cannot live inside the row's own <Link>. */}
       <Link
         to="/objects/$objectId"
         params={{ objectId: node.id }}

@@ -1,7 +1,3 @@
-/* The remote font import has to come first. Vite inlines the two bundled imports below into
-   this file, so anything left as a plain `@import url(...)` after them ends up preceded by
-   thousands of statements — which is a hard postcss error ("@import must precede all other
-   statements") that takes the dev server down on an index.css hot reload. */
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
@@ -43,22 +39,6 @@ body {
   color: var(--color-ink);
 }
 
-/* Links inside a relation row: the operator's tag above, the operands in the formula, and
-   whatever notation the template marked as the operator with \op{...}. The ones in the formula
-   are anchors KaTeX put into the layout rather than elements we render, so they are styled here
-   by descent.
-
-   inline-block is what puts a highlight on the glyph it belongs to. KaTeX lays a matrix out as
-   a tall inline-block and raises a superscript inside its own box, so an inline anchor around
-   either is only as tall as its own line box — the highlight landed as a thin band through the
-   middle of a matrix, or below the "-1" it belonged to. Shrink-wrapping fixes the box without
-   moving the glyph.
-
-   Highlighting is driven by `.is-linked`, set on every link in the row that points where the
-   hovered one does, rather than by :hover on each. That is what lets the operator's tag and its
-   notation inside the formula light up together, and a notation split either side of its
-   operand — \det( ... ) — read as the single thing it is. The border sits there transparent at
-   rest so colouring it cannot nudge the mathematics around it. */
 .relation-formula a {
   display: inline-block;
   border: 1px solid transparent;
@@ -82,22 +62,12 @@ body {
   color: var(--color-ink-soft);
 }
 
-/* Literal rgb rather than color-mix on the theme variable: Tailwind compiles color-mix into a
-   nested @supports inside the rule, and a nested at-rule was the one unusual thing in these
-   declarations. The values are the theme's own gold and pond. */
 .relation-row a.is-linked {
   border-color: rgb(190 143 62 / 0.4);
   background-color: var(--color-gold-soft);
   color: var(--color-ink);
 }
 
-/* The object whose page this is, wherever it turns up in a row. It is marked rather than
-   linked — it is already here, so a link would lead back to where you are.
-
-   At rest that is only a change of colour: pond rather than the gold that means "somewhere to
-   go", and no fill, because the same object can appear several times in a row and filling every
-   occurrence weighed more than the mathematics did. The fill arrives on pointing at that
-   occurrence itself, not at the row around it. */
 .relation-formula .is-current,
 .relation-tag.is-current {
   display: inline-block;
