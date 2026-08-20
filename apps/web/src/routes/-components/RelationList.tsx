@@ -6,16 +6,19 @@ import { buildTemplateHtml } from "../../lib/relationTemplate";
 import type { ObjectOut, RelationOut } from "../../lib/types";
 import { RelationExpression } from "./RelationExpression";
 
-function OperatorLink({ operator, subdued }: { operator: ObjectOut; subdued?: boolean }) {
+function OperatorLink({ operator }: { operator: ObjectOut }) {
   return (
     <Link
       to="/objects/$objectId"
       params={{ objectId: operator.id }}
-      className={
-        subdued
-          ? "shrink-0 rounded-sm px-1 text-[11px] text-ink-soft transition-colors hover:bg-gold-soft/60 hover:text-ink"
-          : "rounded-sm border border-gold/40 bg-gold-soft px-2 py-0.5 text-xs font-medium tracking-wide text-ink transition-colors hover:bg-gold-soft/60"
-      }
+      // The card-catalog tag, kept as it was, moved above the mathematics so that every formula
+      // in a list starts at the same left edge whatever its operator is called.
+      //
+      // Set in the operator's own notation, at its own case: an object *is* its rendered
+      // notation here, so uppercasing it restyles the object rather than its label. The tag is
+      // also where gold belongs — gold ink is #be8f3e on #eaefe4 paper, around 2.4:1, which
+      // small text cannot carry, while ink on a gold-soft tag reads cleanly.
+      className="inline-block rounded-sm border border-gold/40 bg-gold-soft px-2 py-0.5 text-xs text-ink transition-colors hover:bg-gold-soft/60"
     >
       <Latex>{operator.latex}</Latex>
     </Link>
@@ -50,30 +53,29 @@ function RelationRow({ relation }: { relation: RelationOut }) {
   const template = relation.display?.template ?? null;
   const templated = template !== null && buildTemplateHtml(template, relation) !== null;
 
+  // Every row reads the same way: which operator, then what it did. Naming the operator is what
+  // makes a templated row legible at all — "A + B = E" does not say that the plus is Matrix
+  // Addition specifically, and there are many additions in mathematics.
+  //
+  // The name sits above rather than beside the mathematics so that every formula in a list
+  // starts at the same left edge. Beside it, each row's formula began wherever that operator's
+  // name happened to end, and a column of relations no longer lined up to be read down.
   return (
-    <li className="rounded-sm border border-mist bg-white/40 px-3 py-2.5 text-sm shadow-[0_1px_3px_rgba(35,50,43,0.06)]">
-      {templated ? (
-        // The template has no slot for the operator, so it keeps its own link at the end of the
-        // row — otherwise a nicer-looking relation would be the one you could not navigate from.
-        <div className="flex items-baseline justify-between gap-3">
+    <li className="rounded-sm border border-mist bg-white/40 px-3 py-2 shadow-[0_1px_3px_rgba(35,50,43,0.06)]">
+      <OperatorLink operator={relation.operator} />
+      <div className="mt-1 text-sm">
+        {templated ? (
           <RelationExpression relation={relation} template={template} />
-          <OperatorLink operator={relation.operator} subdued />
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-          <Slots relation={relation} slots={relation.inputs} />
-          <span className="mx-1 inline-flex items-center gap-1 text-ink-soft">
-            <span aria-hidden className="text-mist">
-              ──
-            </span>
-            <OperatorLink operator={relation.operator} />
-            <span aria-hidden className="text-mist">
+        ) : (
+          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+            <Slots relation={relation} slots={relation.inputs} />
+            <span aria-hidden className="mx-1 text-mist">
               ──▸
             </span>
+            <Slots relation={relation} slots={relation.outputs} />
           </span>
-          <Slots relation={relation} slots={relation.outputs} />
-        </div>
-      )}
+        )}
+      </div>
     </li>
   );
 }
