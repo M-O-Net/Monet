@@ -1,15 +1,3 @@
-"""The two entry points the sandbox frame calls, layered on top of prelude.py.
-
-Implementations deal in sympy, not strings: this module parses each input LaTeX into a sympy object
-before calling `accepts`/`compute`, and renders whatever comes back. `parse` and `render` stay
-available in the namespace for an implementation that genuinely needs them, but no ordinary one should
-have to mention either.
-
-Arguments and results cross as JSON strings rather than as JS objects: a JsProxy would need
-explicit lifetime management on every call, and implementation output is small enough that the round
-trip through json costs nothing.
-"""
-
 import json
 import sys
 import time
@@ -36,7 +24,6 @@ def _python_line_deadline_trace(seconds):
 
 
 def _load(code):
-    """Exec one implementation against a fresh copy of the prelude namespace."""
     scope = dict(_BASE)
     exec(compile(code, "<implementation>", "exec"), scope)  # noqa: S102
     return scope
@@ -51,21 +38,10 @@ def _with_line_deadline(fn, *args):
 
 
 def _as_latex(value):
-    """An implementation normally returns sympy; a string is taken as LaTeX that's already final."""
     return value if isinstance(value, str) else _render(value)
 
 
 def probe(latex, implementations_json):
-    """Return the ids of the implementations that accept this object.
-
-    Parsed per implementation rather than once: sympy's Matrix is mutable, and handing the same
-    instance to several strangers' `accepts` in turn would let the first one change what the
-    rest see.
-
-    An implementation that raises while reading the object simply doesn't apply to it — that's the
-    normal way `accepts` says no about an object it can't make sense of, including one it can't
-    parse at all, not an error worth surfacing.
-    """
     applicable = []
     for item in json.loads(implementations_json):
         try:
@@ -77,7 +53,6 @@ def probe(latex, implementations_json):
 
 
 def run(code, inputs_json):
-    """Run one implementation over its inputs and return its outputs as LaTeX."""
     inputs = [_parse(latex) for latex in json.loads(inputs_json)]
     result = _with_line_deadline(_load(code)["compute"], *inputs)
     values = list(result) if isinstance(result, (list, tuple)) else [result]

@@ -1,7 +1,4 @@
-"""Seed the v0 demo dataset: objects, relations, and an implementation behind each operator.
-
-Matrices, polynomials, the operators between them, and the sympy implementation of each
-(source in scripts/implementations/).
+"""Seed the demo dataset: objects, relations, and an implementation per operator.
 
 Wipes and reinserts, so it's safe to re-run — `uv run python scripts/seed.py` from apps/api/,
 or `just seed`, always resets to exactly this dataset. Pass --if-empty to skip entirely when

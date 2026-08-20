@@ -32,7 +32,6 @@ async def test_implementation_requires_a_real_operator(client: AsyncClient) -> N
 
 
 async def test_an_operator_may_have_several_implementations(client: AsyncClient) -> None:
-    """Nothing distinguishes them but their code — no name, and no declared arity."""
     operator_id = await _operator(client)
     for code in ("def compute(a):\n    return a\n", "def compute(a, b):\n    return a + b\n"):
         resp = await client.post(
@@ -89,7 +88,6 @@ async def test_assert_creates_the_output_object_and_relation(client: AsyncClient
 
 
 async def test_assert_is_idempotent_and_whitespace_insensitive(client: AsyncClient) -> None:
-    """The seeded LaTeX and sympy's own spacing differ; that must not mint a twin object."""
     operator_id = await _operator(client, "\\text{Characteristic Polynomial}")
     matrix_id = (await client.post("/objects", json={"latex": "A"})).json()["id"]
     existing_id = (await client.post("/objects", json={"latex": "x^{2}-4x+3"})).json()["id"]
@@ -110,7 +108,6 @@ async def test_assert_is_idempotent_and_whitespace_insensitive(client: AsyncClie
 
 
 async def test_assert_keeps_text_labels_distinct(client: AsyncClient) -> None:
-    """Whitespace inside \\text{...} is meaningful, so it is collapsed rather than stripped."""
     operator_id = await _operator(client)
     input_id = (await client.post("/objects", json={"latex": "A"})).json()["id"]
     spaced = await client.post("/objects", json={"latex": "\\text{Is Singular}"})

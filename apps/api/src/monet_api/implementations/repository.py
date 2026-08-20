@@ -1,8 +1,3 @@
-"""Raw SQLModel queries for the implementations domain.
-
-No business logic, no 404s — see service.py.
-"""
-
 import uuid
 
 from sqlmodel import select

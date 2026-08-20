@@ -1,10 +1,3 @@
-"""Business logic for the implementations domain: 404/400 translation and schema assembly.
-
-Orchestrates repository.py calls; owns no SQL of its own. Note that nothing here executes an
-implementation's `code` — it is stored and served as opaque text, and only ever runs in the
-visitor's browser sandbox.
-"""
-
 import uuid
 
 from fastapi import HTTPException

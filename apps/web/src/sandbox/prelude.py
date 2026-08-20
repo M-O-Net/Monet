@@ -1,17 +1,3 @@
-"""The trusted bridge between Monet's LaTeX and sympy.
-
-Shipped with the frontend and run inside the sandbox before any implementation code — deliberately
-NOT stored in the `implementations` table, so implementation authors get `parse`/`render` for free and
-can't redefine what LaTeX Monet writes.
-
-`render` is the single source of truth for Monet's LaTeX conventions; `scripts/seed.py` is
-aligned to whatever it emits, so an implementation run over the seeded dataset lands on the objects
-that are already there instead of minting near-duplicates.
-
-sympy.parsing.latex is deliberately unused: it needs antlr or lark, neither of which is in the
-Pyodide distribution, and it cannot parse matrix environments anyway.
-"""
-
 import re
 
 import sympy
@@ -47,7 +33,6 @@ _STRIP = (
 
 
 def _scalar(latex):
-    """Parse a single non-matrix cell or expression."""
     text = latex.strip()
     for macro in ("\\cdot", "\\times"):
         text = text.replace(macro, "*")
@@ -59,7 +44,6 @@ def _scalar(latex):
 
 
 def parse(latex):
-    """LaTeX in, sympy out. Raises if the string isn't something Monet knows how to read."""
     text = latex.strip()
 
     if text in _BOOLEANS:
@@ -80,7 +64,6 @@ def parse(latex):
 
 
 def render(value):
-    """sympy in, LaTeX out — in exactly the form Monet stores."""
     if isinstance(value, bool) or isinstance(value, sympy.logic.boolalg.BooleanAtom):
         return r"\text{True}" if bool(value) else r"\text{False}"
     if isinstance(value, sympy.MatrixBase):
@@ -89,7 +72,6 @@ def render(value):
 
 
 def namespace():
-    """The globals an implementation is exec'd against: all of sympy, plus parse/render."""
     ns = {name: getattr(sympy, name) for name in sympy.__all__}
     ns["MatrixBase"] = sympy.MatrixBase
     ns["sympy"] = sympy

@@ -13,11 +13,6 @@ class ImplementationOut(ORMModel):
 
 
 class ImplementationDetailOut(BaseModel):
-    """An implementation with its operator inlined.
-
-    Lets an object page label a button without a second round trip per implementation.
-    """
-
     id: uuid.UUID
     operator: ObjectOut
     code: str

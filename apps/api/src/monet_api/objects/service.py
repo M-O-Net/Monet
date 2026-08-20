@@ -250,11 +250,6 @@ async def _find_matching_relation(
 
 
 async def assert_relation(session: AsyncSession, body: RelationAssert) -> RelationAssertOut:
-    """Record a computed result, creating whatever it needs.
-
-    Find-or-creates each output object, then find-or-creates the relation — so running the
-    same implementation twice is a no-op the second time.
-    """
     if not body.output_latex:
         raise HTTPException(status_code=400, detail="a relation needs at least one output")
 
