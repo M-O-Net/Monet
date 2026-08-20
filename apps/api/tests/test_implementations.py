@@ -68,9 +68,6 @@ async def test_deleting_an_object_with_an_implementation_is_blocked(client: Asyn
     assert resp.status_code == 400
 
 
-# ── assert_relation, the commit step behind a run ─────────────────────────────
-
-
 async def test_assert_creates_the_output_object_and_relation(client: AsyncClient) -> None:
     operator_id = await _operator(client, "\\text{Characteristic Polynomial}")
     resp = await client.post("/objects", json={"latex": "\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}"})

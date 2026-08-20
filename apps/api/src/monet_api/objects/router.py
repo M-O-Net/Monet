@@ -62,9 +62,7 @@ async def list_top_level_objects(session: DbSession) -> list[Object]:
     return await service.list_top_level_objects(session)
 
 
-@router.put(
-    "/top-level-objects/{object_id}", status_code=204, operation_id="mark_top_level_object"
-)
+@router.put("/top-level-objects/{object_id}", status_code=204, operation_id="mark_top_level_object")
 async def mark_top_level_object(object_id: uuid.UUID, session: DbSession) -> None:
     await service.mark_top_level_object(session, object_id)
 
@@ -115,9 +113,4 @@ async def delete_relation(relation_id: uuid.UUID, session: DbSession) -> None:
     status_code=200,
 )
 async def assert_relation(body: RelationAssert, session: DbSession) -> RelationAssertOut:
-    """Record a computed relation, creating any output objects that don't exist yet.
-
-    200 rather than 201 because it's idempotent: asserting the same thing twice returns the
-    relation that was already there.
-    """
     return await service.assert_relation(session, body)

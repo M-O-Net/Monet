@@ -27,13 +27,6 @@ def compute(a):
     return a.T
 `;
 
-/**
- * An operator's implementation, on the operator's own page.
- *
- * Operators are objects in Monet, so their sympy belongs with them rather than in an index of its
- * own — a new operation means adding an object and then implementing it right here. An operator
- * may carry more than one implementation; nothing distinguishes them but their code.
- */
 export function ImplementationEditor({
   object,
   implementations,
@@ -128,7 +121,6 @@ function RedoIcon() {
   );
 }
 
-/** A full circle, so it doesn't read as another undo next to the arcs above. */
 function RevertIcon() {
   return (
     <svg {...ICON} aria-hidden>
@@ -157,12 +149,6 @@ function CheckIcon() {
   );
 }
 
-/**
- * An "are you sure" anchored to the button that asked it.
- *
- * Base UI's Popover rather than a hand-rolled one, per the repo's primitive convention — it
- * handles the focus trap, outside-click and Escape that a confirm needs to be dismissible.
- */
 function ConfirmPopover({
   icon,
   label,
@@ -233,8 +219,6 @@ function ImplementationForm({
 
   const dirty = code !== implementation.code;
 
-  // CodeMirror owns the undo history; these drive the same commands as ⌘Z / ⇧⌘Z so the buttons
-  // and the keyboard can't disagree about what "back" means.
   const history = (command: typeof undo) => () => {
     const view = editor.current?.view;
     if (view) {
@@ -253,7 +237,6 @@ function ImplementationForm({
     );
   };
 
-  // Runs the code in the editor, saved or not, in the same sandbox the Operations buttons use.
   const test = () => {
     setTesting(true);
     setScratch(null);
@@ -273,8 +256,6 @@ function ImplementationForm({
 
   return (
     <div className="overflow-hidden rounded-sm border border-mist bg-white/40 shadow-[0_1px_3px_rgba(35,50,43,0.06)]">
-      {/* Toolbar. Delete, Revert and Save sit together, but only Save carries a label — and each
-          destructive one asks first, in a popup anchored to itself. */}
       <div className="flex items-center gap-2 border-b border-mist bg-paper-deep/50 px-3 py-1.5">
         <div className="flex items-center gap-0.5">
           <button

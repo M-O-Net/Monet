@@ -45,8 +45,6 @@ land:
 # installed, instead of carrying over a previous container's (possibly stale) node_modules.
 up:
     mkdir -p apps/web/node_modules packages/api-client/node_modules
-    # The dev container's apps/web bind is read-only, so the sandbox's Python runtime has to
-    # be assembled out here. No-ops once it's in place.
     pnpm --filter @monet/web fetch-pyodide
     {{_dc_dev}} up -d --build -V
 

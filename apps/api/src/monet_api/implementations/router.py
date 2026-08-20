@@ -19,7 +19,6 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
     operation_id="list_implementations",
 )
 async def list_implementations(session: DbSession) -> list[ImplementationDetailOut]:
-    """Every implementation at once — an object page probes them all to see which apply."""
     return await service.list_implementations(session)
 
 

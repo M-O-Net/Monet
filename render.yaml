@@ -34,15 +34,8 @@ services:
   - type: web
     name: monet-web
     runtime: static
-    # The build's `prebuild` hook assembles apps/web/public/pyodide/ (the sandbox's Python
-    # runtime and sympy wheel), so it needs network access at build time — Render build machines
-    # have it.
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @monet/web build
     staticPublishPath: apps/web/dist
-    # The implementation sandbox runs on an opaque origin (see apps/web/src/sandbox/frame.ts), which
-    # makes its own module bundle and every Pyodide asset a cross-origin request. Without this the
-    # sandbox silently fails to start in production only. These are public files with no
-    # credentials, so a blanket allow is safe. Mirrored in vite.config.ts and apps/web/nginx.conf.
     headers:
       - path: /*
         name: Access-Control-Allow-Origin

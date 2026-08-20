@@ -1,9 +1,3 @@
-// App-side handle on the implementation sandbox. One hidden frame per tab, created the first time
-// something actually needs it — nothing is downloaded while you're just browsing the network.
-//
-// The frame is created outside React on purpose: it's a browser resource with tab lifetime, like
-// a service worker, not a piece of the view. See frame.ts for what makes it a boundary.
-
 import {
   isSandboxResponse,
   type ProbeRequest,
@@ -14,14 +8,11 @@ import {
   type ImplementationCode,
 } from "./protocol";
 
-// Omit<> over a union collapses to the shared keys, so the two shapes are spelled out.
 type SandboxRequestBody = Omit<ProbeRequest, "id"> | Omit<RunRequest, "id">;
 
 export type SandboxStatus = "idle" | "starting" | "ready" | "failed";
 
-/** Pyodide boots and loads sympy on first use; everything after that is fast. */
 const BOOT_TIMEOUT_MS = 90_000;
-/** An implementation is a handful of sympy calls. Past this it's looping, and the frame gets killed. */
 const RUN_TIMEOUT_MS = 10_000;
 
 interface Pending {
@@ -104,9 +95,6 @@ function start(): Promise<void> {
   window.addEventListener("message", onMessage);
 
   const element = document.createElement("iframe");
-  // allow-scripts WITHOUT allow-same-origin is the whole boundary: it gives the frame an opaque
-  // origin, so implementation code can't reach this page's storage or DOM, and its requests to the
-  // Monet API are cross-origin and fail the API's CORS allowlist. Do not add allow-same-origin.
   element.setAttribute("sandbox", "allow-scripts");
   element.src = "/sandbox.html";
   element.title = "Implementation sandbox";
@@ -119,7 +107,6 @@ function start(): Promise<void> {
   return booted;
 }
 
-/** Tear the frame down and forget it — the only way to stop an implementation that won't finish. */
 function reset(reason: string) {
   for (const [, entry] of pending) {
     clearTimeout(entry.timer);
@@ -148,7 +135,6 @@ async function request<T>(body: SandboxRequestBody): Promise<T> {
   const id = String(nextId++);
   const result = new Promise<unknown>((resolve, reject) => {
     const timer = setTimeout(() => {
-      // Killing the frame is what actually stops a runaway loop; the next call boots a new one.
       reset("the implementation ran too long and was stopped");
     }, RUN_TIMEOUT_MS);
     pending.set(id, { resolve, reject, timer });
@@ -158,7 +144,6 @@ async function request<T>(body: SandboxRequestBody): Promise<T> {
   return (await result) as T;
 }
 
-/** Which of these implementations accept the given object? */
 export async function probe(
   latex: string,
   implementations: ImplementationCode[],
@@ -168,7 +153,6 @@ export async function probe(
   return result.applicable;
 }
 
-/** Run one implementation over its inputs; returns the output LaTeX. */
 export async function run(code: string, inputs: string[]): Promise<string[]> {
   const result = await request<RunResult>({ kind: "run", code, inputs });
   return result.outputs;

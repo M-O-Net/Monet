@@ -174,13 +174,6 @@ async def seed() -> None:
                 relation_count += 1
             session.add(TopLevelObject(object_id=ids[section]))
 
-        # Implementations: the sympy behind each operator, read from real files in
-        # scripts/implementations/ and stored as text. Nothing here executes them — they run only
-        # in the browser sandbox. Nothing records how many inputs each one takes: an
-        # implementation may genuinely accept several counts, so the GUI offers as many inputs as
-        # you care to give it and the code raises if they don't suit. ElementOf is deliberately
-        # absent — it's structural bookkeeping, not a
-        # mathematical operation, so there's nothing to compute.
         implementation_dir = pathlib.Path(__file__).parent / "implementations"
         implementations = {
             "CharacteristicPolynomial": "characteristic_polynomial",

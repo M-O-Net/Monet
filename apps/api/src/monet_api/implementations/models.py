@@ -20,7 +20,5 @@ class Implementation(SQLModel, table=True):
     __tablename__ = "implementations"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    # No ondelete (RESTRICT, as with relations.operator_id): an object with an implementation
-    # behind it can't be deleted out from under it — see objects/service.py's delete_object.
     operator_id: uuid.UUID = Field(foreign_key="objects.id")
     code: str

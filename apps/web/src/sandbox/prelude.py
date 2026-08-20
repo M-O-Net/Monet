@@ -32,7 +32,6 @@ _TRANSFORMATIONS = (
 _MATRIX_ENV = re.compile(r"\\begin\{([pbv]?matrix)\}(.*?)\\end\{\1\}", re.DOTALL)
 _BOOLEANS = {r"\text{True}": True, r"\text{False}": False}
 
-# Spacing and delimiter macros that carry no meaning for parsing.
 _STRIP = (
     "\\left",
     "\\right",

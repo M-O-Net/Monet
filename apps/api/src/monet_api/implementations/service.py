@@ -53,9 +53,7 @@ async def create_implementation(
     session: AsyncSession, body: ImplementationWrite
 ) -> ImplementationDetailOut:
     await objects_service.get_object_or_404(session, body.operator_id)
-    implementation = await repository.create_implementation(
-        session, body.operator_id, body.code
-    )
+    implementation = await repository.create_implementation(session, body.operator_id, body.code)
     return await _load_detail(session, implementation)
 
 

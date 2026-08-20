@@ -37,8 +37,5 @@ known-first-party = ["monet_api"]
 # TID's banned-api (above) is selected repo-wide via "TID" in `select`; this negated glob confines
 # it to tests/ alone.
 "!tests/**" = ["TID251"]
-# Seed data, not code: these are stored in the `implementations` table and exec'd in the browser
-# sandbox against names the prelude injects (parse/render + all of sympy), so F821's undefined
-# names are the whole point. D: they're user-facing examples, kept as short as possible.
 "scripts/implementations/*.py" = ["F821", "D"]
 

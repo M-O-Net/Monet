@@ -1,8 +1,4 @@
-// Messages crossing the sandbox boundary. The frame runs on an opaque origin, so postMessage
-// is the only channel between it and the app — everything here has to survive structured clone.
-
 export interface ImplementationCode {
-  /** The operator's object id — an implementation has no id of its own. */
   id: string;
   code: string;
 }
@@ -23,12 +19,10 @@ export interface RunRequest {
 
 export type SandboxRequest = ProbeRequest | RunRequest;
 
-/** Ids of the implementations whose `accepts` returned true for the probed object. */
 export interface ProbeResult {
   applicable: string[];
 }
 
-/** LaTeX strings returned by `compute`, in output order. */
 export interface RunResult {
   outputs: string[];
 }

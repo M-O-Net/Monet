@@ -18,13 +18,7 @@ _BASE = namespace()  # noqa: F821 — prelude.py is exec'd into these globals fi
 _parse = _BASE["parse"]
 _render = _BASE["render"]
 
-# Stands in for the Worker.terminate() that would normally bound a runaway implementation. An opaque
-# origin can't load a worker script at all (see frame.ts), so the limit is enforced from inside
-# Python: a trace function fires on every line of implementation code and raises once the deadline
-# passes. `while True: pass` is stopped by this; a single long-running call inside sympy's own C
-# or Python internals is not, since no line event ever fires back in implementation code.
 _TIME_LIMIT_SECONDS = 5.0
-# Checking the clock on literally every line costs more than the check is worth.
 _CHECK_EVERY = 2000
 
 

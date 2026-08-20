@@ -5,7 +5,6 @@
 @theme {
   --font-display: "Fraunces", "Iowan Old Style", serif;
   --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
-  /* Implementation source is the only place Monet shows code. */
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --color-paper: #eaefe4;

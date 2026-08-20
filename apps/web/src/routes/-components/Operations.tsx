@@ -27,16 +27,6 @@ interface Result {
   outputs: string[];
 }
 
-/**
- * The operations that can be performed on one object.
- *
- * Which appear is decided by running each implementation's `accepts` against this object in the
- * sandbox — v0 objects carry no type tag, so an implementation declaring its own domain is what
- * stands in for one.
- *
- * Nothing here knows how many inputs an operation wants: one implementation may genuinely accept
- * several counts, so you add as many as you like and the code raises if they don't suit it.
- */
 export function Operations({
   object,
   objects,
@@ -79,8 +69,6 @@ export function Operations({
     return () => {
       cancelled = true;
     };
-    // `implementations` is rebuilt on every render; its identity would loop. The object and the
-    // set of implementation ids are what actually change the answer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [object.id, object.latex, implementations.map((i) => i.id).join(",")]);
 
@@ -191,8 +179,6 @@ export function Operations({
                 </span>
               ))}
 
-              {/* No arity is recorded anywhere, so the count is yours to choose — add operands
-                  until the operation has what it needs. */}
               <span className="w-52">
                 <ObjectPicker
                   objects={objects}

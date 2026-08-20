@@ -91,9 +91,7 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         r for rid in as_input_ids if (r := await repository.get_relation(session, rid)) is not None
     ]
     as_output_relations = [
-        r
-        for rid in as_output_ids
-        if (r := await repository.get_relation(session, rid)) is not None
+        r for rid in as_output_ids if (r := await repository.get_relation(session, rid)) is not None
     ]
 
     is_top_level = await repository.get_top_level_object(session, object_id) is not None
@@ -199,13 +197,6 @@ async def delete_relation(session: AsyncSession, relation_id: uuid.UUID) -> None
     await repository.delete_relation(session, relation)
 
 
-# ── assert (the commit step behind an implementation run) ──────────────────────────
-
-# Whitespace outside a \text{...} group carries no meaning in LaTeX, so `x^{2} - 4 x + 3` and
-# `x^{2}-4x+3` are the same object and shouldn't become twins. Inside \text{...} it does carry
-# meaning, so runs there are collapsed rather than stripped — otherwise `\text{Is Singular}`
-# would collide with a hypothetical `\text{IsSingular}`. This is whitespace-insensitivity, not
-# the canonical form (equivalent ways of writing the same matrix) that root AGENTS.md defers.
 _TEXT_GROUP = re.compile(r"\\text\{[^{}]*\}")
 
 

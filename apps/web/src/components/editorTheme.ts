@@ -1,14 +1,6 @@
 import { tags as t } from "@lezer/highlight";
 import { createTheme } from "@uiw/codemirror-themes";
 
-/**
- * CodeMirror dressed in Monet's own palette (see index.css's `@theme`).
- *
- * The stock light theme is a white page with browser-blue keywords, which reads as a foreign
- * widget dropped into the journal. These are the same tokens the rest of the app uses: pond for
- * syntax that structures the code, willow for strings, gold for literals, ink-soft for the
- * incidental punctuation that shouldn't compete with either.
- */
 export const monetEditorTheme = createTheme({
   theme: "light",
   settings: {

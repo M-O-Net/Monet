@@ -16,9 +16,6 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 FROM deps AS dev
 WORKDIR /app/apps/web
 EXPOSE 5173
-# `vite` directly rather than `pnpm dev`: the latter fires the `predev` hook, which writes
-# public/pyodide/ — and apps/web is bind-mounted read-only here. Those assets are generated
-# on the host by `just install` (and refreshed by `just up`) and arrive through the bind.
 CMD ["pnpm", "exec", "vite", "--host", "0.0.0.0", "--port", "5173"]
 
 FROM deps AS final
@@ -29,6 +26,5 @@ RUN pnpm run build
 
 FROM nginx:1.27-alpine AS serve
 COPY --from=final /app/apps/web/dist /usr/share/nginx/html
-# Adds the CORS header the opaque-origin translator sandbox needs — see the file itself.
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
