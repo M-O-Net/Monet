@@ -41,10 +41,9 @@ async def seed() -> None:
         await session.exec(delete(Object))
         await session.commit()
 
-        # key -> (latex, description | None). Description is optional — most specimens don't
-        # need one, but the four sections and the operators benefit from one.
-        objects: dict[str, tuple[str, str | None]] = {
-            # sections (see TopLevelObject below)
+        Specimen = tuple[str, str | None]
+
+        section_objects: dict[str, Specimen] = {
             "Matrices": (
                 r"\text{Matrices}",
                 "Square arrays of numbers, and the operations "
@@ -65,7 +64,9 @@ async def seed() -> None:
                 r"\text{Booleans}",
                 "The two truth values a predicate-style relation, like Is Singular, produces.",
             ),
-            # matrix specimens
+        }
+
+        matrices: dict[str, Specimen] = {
             "A": (r"\begin{pmatrix}2&1\\1&2\end{pmatrix}", None),
             "B": (r"\begin{pmatrix}1&0\\0&1\end{pmatrix}", None),
             "D": (r"\begin{pmatrix}0&1\\1&0\end{pmatrix}", None),
@@ -75,20 +76,29 @@ async def seed() -> None:
                 "The companion matrix of "
                 r"$x^{2} - 4 x + 3$ — its own characteristic polynomial closes the loop.",
             ),
-            # polynomial specimens
+        }
+
+        polynomials: dict[str, Specimen] = {
             # Written the way the sandbox's render() emits it, so computing a characteristic
             # polynomial lands on this object instead of minting a near-identical twin.
             "P": (r"x^{2} - 4 x + 3", None),
             "Q": (r"x^{2} - 2 x + 1", None),
             "R": (r"x^{2} - 1", None),
-            # number/boolean specimens
+        }
+
+        integers: dict[str, Specimen] = {
             "one": ("1", None),
             "neg_one": ("-1", None),
             "three": ("3", None),
             "two": ("2", None),
+        }
+
+        booleans: dict[str, Specimen] = {
             "true": (r"\text{True}", None),
             "false": (r"\text{False}", None),
-            # operators — matrix operations
+        }
+
+        matrix_operators: dict[str, Specimen] = {
             "CharacteristicPolynomial": (
                 r"\text{Characteristic Polynomial}",
                 "For a matrix A, the polynomial det(xI - A).",
@@ -100,18 +110,33 @@ async def seed() -> None:
             "Determinant": (r"\text{Determinant}", "The scalar determinant of a matrix."),
             "Add": (r"\text{Add}", "The entrywise sum of two matrices of the same shape."),
             "IsSingular": (r"\text{Is Singular}", "Whether a matrix's determinant is zero."),
-            # operators — polynomial operations
+        }
+
+        polynomial_operators: dict[str, Specimen] = {
             "CompanionMatrix": (
                 r"\text{Companion Matrix}",
                 "For a monic polynomial, the "
                 "matrix whose characteristic polynomial is that polynomial.",
             ),
             "Degree": (r"\text{Degree}", "The highest power of the variable in a polynomial."),
-            # operator — sectioning
+        }
+
+        sectioning_operators: dict[str, Specimen] = {
             "ElementOf": (
                 r"\text{Element Of}",
                 "Marks an object as belonging to one of the top-level sections.",
             ),
+        }
+
+        objects: dict[str, Specimen] = {
+            **section_objects,
+            **matrices,
+            **polynomials,
+            **integers,
+            **booleans,
+            **matrix_operators,
+            **polynomial_operators,
+            **sectioning_operators,
         }
 
         ids: dict[str, uuid.UUID] = {}
