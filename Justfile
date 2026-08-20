@@ -39,14 +39,13 @@ land:
 
 # ── Full stack (Docker) ───────────────────────────────────────────────────────
 
-# Pre-create the anonymous-volume mountpoints (Docker can't mkdir one inside an already
-# read-only bind if the host directory doesn't exist yet — see docker-compose.dev.yml).
-# `-V`/`--renew-anon-volumes` makes those volumes recreate from what the fresh build just
-# installed, instead of carrying over a previous container's (possibly stale) node_modules.
-up:
+# Docker cannot mkdir a mountpoint inside an already read-only bind.
+_create-anon-volume-mountpoints:
     mkdir -p apps/web/node_modules packages/api-client/node_modules
+
+up: _create-anon-volume-mountpoints
     pnpm --filter @monet/web fetch-pyodide
-    {{_dc_dev}} up -d --build -V
+    {{_dc_dev}} up -d --build --renew-anon-volumes
 
 up-prod:
     {{_dc}} up --build
