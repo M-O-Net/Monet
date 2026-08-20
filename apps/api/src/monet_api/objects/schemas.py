@@ -22,7 +22,6 @@ class ObjectUpdate(BaseModel):
 
 
 class RelationDisplayOut(ORMModel):
-
     template: str | None
     hidden_by_default: bool
 
@@ -59,7 +58,6 @@ class ObjectDetailOut(BaseModel):
 
 
 class SectionNode(BaseModel):
-
     id: uuid.UUID
     latex: str
     description: str | None

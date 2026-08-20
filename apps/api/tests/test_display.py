@@ -1,4 +1,3 @@
-
 from httpx import AsyncClient
 
 
@@ -178,3 +177,22 @@ async def test_deleting_an_object_is_never_blocked_by_its_own_gui_rows(
 
     assert (await client.delete(f"/objects/{obj}")).status_code == 204
     assert (await client.get("/top-level-objects")).json() == []
+
+
+async def test_a_membership_relation_carries_every_one_of_its_members(
+    client: AsyncClient,
+) -> None:
+    element_of = await make_object(client, "\\text{Element Of}")
+    matrices = await make_object(client, "\\text{Matrices}")
+    a = await make_object(client, "A")
+    b = await make_object(client, "B")
+
+    await set_display(client, element_of, membership=True)
+    await relate(client, element_of, [a, b], [matrices])
+
+    members = (await client.get(f"/objects/{matrices}")).json()["members"]
+    assert sorted(m["id"] for m in members) == sorted([a, b])
+
+    await client.put(f"/top-level-objects/{matrices}")
+    contents = (await client.get("/contents")).json()
+    assert contents[0]["member_count"] == 2

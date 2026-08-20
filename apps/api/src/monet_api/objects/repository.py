@@ -108,9 +108,7 @@ async def list_relations_by_ids(
     )
 
 
-async def list_relations_by_operator(
-    session: AsyncSession, object_id: uuid.UUID
-) -> list[Relation]:
+async def list_relations_by_operator(session: AsyncSession, object_id: uuid.UUID) -> list[Relation]:
     return list(
         (await session.exec(select(Relation).where(Relation.operator_id == object_id))).all()
     )
@@ -136,8 +134,6 @@ async def list_relation_ids_by_output(
             col(Relation.operator_id).notin_(exclude_operator_ids)
         )
     return list((await session.exec(query)).all())
-
-
 
 
 async def list_membership_outputs(
@@ -172,8 +168,6 @@ async def list_membership_inputs(
             )
         ).all()
     )
-
-
 
 
 async def list_membership_operator_ids(session: AsyncSession) -> list[uuid.UUID]:

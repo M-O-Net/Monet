@@ -42,30 +42,49 @@ async def seed() -> None:
 
         # key -> (latex, description | None). Description is optional — most specimens don't
         objects: dict[str, tuple[str, str | None]] = {
-            "LinearAlgebra": (r"\text{Linear Algebra}", "Matrices and the operations that act "
-                              "on them."),
-            "PolynomialAlgebra": (r"\text{Polynomial Algebra}", "Single-variable polynomials "
-                                  "and the operations that act on them."),
-            "Values": (r"\text{Values}", "The plain numbers and truth values that relations "
-                       "produce as answers."),
+            "LinearAlgebra": (
+                r"\text{Linear Algebra}",
+                "Matrices and the operations that act on them.",
+            ),
+            "PolynomialAlgebra": (
+                r"\text{Polynomial Algebra}",
+                "Single-variable polynomials and the operations that act on them.",
+            ),
+            "Values": (
+                r"\text{Values}",
+                "The plain numbers and truth values that relations produce as answers.",
+            ),
             "Matrices": (r"\text{Matrices}", "Square arrays of numbers."),
-            "MatrixOperations": (r"\text{Matrix Operations}", "Operations taking matrices as "
-                                 "their input: characteristic polynomials, inverses, "
-                                 "determinants, sums."),
+            "MatrixOperations": (
+                r"\text{Matrix Operations}",
+                "Operations taking matrices as "
+                "their input: characteristic polynomials, inverses, "
+                "determinants, sums.",
+            ),
             "Polynomials": (r"\text{Polynomials}", "Single-variable polynomials."),
-            "PolynomialOperations": (r"\text{Polynomial Operations}", "Operations taking "
-                                     "polynomials as their input: companion matrices, degree."),
-            "Integers": (r"\text{Integers}", "Whole numbers, positive and negative — the "
-                         "values relations like Determinant and Degree produce."),
-            "Booleans": (r"\text{Booleans}", "The two truth values a predicate-style relation, "
-                         "like Is Singular, produces."),
+            "PolynomialOperations": (
+                r"\text{Polynomial Operations}",
+                "Operations taking polynomials as their input: companion matrices, degree.",
+            ),
+            "Integers": (
+                r"\text{Integers}",
+                "Whole numbers, positive and negative — the "
+                "values relations like Determinant and Degree produce.",
+            ),
+            "Booleans": (
+                r"\text{Booleans}",
+                "The two truth values a predicate-style relation, like Is Singular, produces.",
+            ),
             # matrix specimens
             "A": (r"\begin{pmatrix}2&1\\1&2\end{pmatrix}", None),
             "B": (r"\begin{pmatrix}1&0\\0&1\end{pmatrix}", None),
             "D": (r"\begin{pmatrix}0&1\\1&0\end{pmatrix}", None),
             "E": (r"\begin{pmatrix}3&1\\1&3\end{pmatrix}", None),
-            "C": (r"\begin{pmatrix}0&-3\\1&4\end{pmatrix}", "The companion matrix of "
-                  r"$x^2 - 4x + 3$ — its own characteristic polynomial closes the loop."),
+            "C": (
+                r"\begin{pmatrix}0&-3\\1&4\end{pmatrix}",
+                "The companion matrix of "
+                r"$x^2 - 4x + 3$ — its own characteristic polynomial closes the loop.",
+            ),
             # polynomial specimens
             "P": (r"x^2 - 4x + 3", None),
             "Q": (r"x^2 - 2x + 1", None),
@@ -77,23 +96,34 @@ async def seed() -> None:
             "two": ("2", None),
             "true": (r"\text{True}", None),
             "false": (r"\text{False}", None),
-            "CharacteristicPolynomial": (r"\text{Characteristic Polynomial}",
-                "For a matrix A, the polynomial det(xI - A)."),
-            "Inverse": (r"\text{Inverse}",
-                        "The multiplicative inverse of a matrix, when one exists."),
+            "CharacteristicPolynomial": (
+                r"\text{Characteristic Polynomial}",
+                "For a matrix A, the polynomial det(xI - A).",
+            ),
+            "Inverse": (
+                r"\text{Inverse}",
+                "The multiplicative inverse of a matrix, when one exists.",
+            ),
             "Determinant": (r"\text{Determinant}", "The scalar determinant of a matrix."),
-            "MatrixAddition": (r"\text{Matrix Addition}",
-                               "The entrywise sum of two matrices of the same shape."),
+            "MatrixAddition": (
+                r"\text{Matrix Addition}",
+                "The entrywise sum of two matrices of the same shape.",
+            ),
             "IsSingular": (r"\text{Is Singular}", "Whether a matrix's determinant is zero."),
             # operators — polynomial operations
-            "CompanionMatrix": (r"\text{Companion Matrix}", "For a monic polynomial, the "
-                                 "matrix whose characteristic polynomial is that polynomial."),
+            "CompanionMatrix": (
+                r"\text{Companion Matrix}",
+                "For a monic polynomial, the "
+                "matrix whose characteristic polynomial is that polynomial.",
+            ),
             "Degree": (r"\text{Degree}", "The highest power of the variable in a polynomial."),
             # operator — sectioning
-            "ElementOf": (r"\text{Element Of}",
-                           "Marks an object as belonging to a section. Flagged as the "
-                           "membership operator, so the GUI renders its relations as tags and "
-                           "member lists rather than as ordinary rows."),
+            "ElementOf": (
+                r"\text{Element Of}",
+                "Marks an object as belonging to a section. Flagged as the "
+                "membership operator, so the GUI renders its relations as tags and "
+                "member lists rather than as ordinary rows.",
+            ),
         }
 
         ids: dict[str, uuid.UUID] = {}
@@ -152,8 +182,13 @@ async def seed() -> None:
             "PolynomialAlgebra": ["Polynomials", "PolynomialOperations"],
             "Values": ["Integers", "Booleans"],
             "Matrices": ["A", "B", "D", "E", "C"],
-            "MatrixOperations": ["CharacteristicPolynomial", "Inverse", "Determinant",
-                                 "MatrixAddition", "IsSingular"],
+            "MatrixOperations": [
+                "CharacteristicPolynomial",
+                "Inverse",
+                "Determinant",
+                "MatrixAddition",
+                "IsSingular",
+            ],
             "Polynomials": ["P", "Q", "R"],
             "PolynomialOperations": ["CompanionMatrix", "Degree"],
             "Integers": ["one", "neg_one", "three", "two"],

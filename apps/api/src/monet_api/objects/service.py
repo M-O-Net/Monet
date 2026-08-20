@@ -140,8 +140,6 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
     )
 
 
-
-
 async def _membership_parents(
     session: AsyncSession, membership_ops: Sequence[uuid.UUID], object_ids: Sequence[uuid.UUID]
 ) -> defaultdict[uuid.UUID, list[uuid.UUID]]:
@@ -152,11 +150,11 @@ async def _membership_parents(
     outputs = await repository.list_relation_outputs_for(
         session, [edge.relation_id for edge in edges]
     )
-    section_of = {row.relation_id: row.object_id for row in outputs}
+    sections_of: defaultdict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+    for row in outputs:
+        sections_of[row.relation_id].append(row.object_id)
     for edge in edges:
-        section_id = section_of.get(edge.relation_id)
-        if section_id is not None:
-            parents[edge.object_id].append(section_id)
+        parents[edge.object_id].extend(sections_of[edge.relation_id])
     return parents
 
 
@@ -170,11 +168,11 @@ async def _membership_children(
     inputs = await repository.list_relation_inputs_for(
         session, [edge.relation_id for edge in edges]
     )
-    member_of = {row.relation_id: row.object_id for row in inputs}
+    members_of: defaultdict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+    for row in inputs:
+        members_of[row.relation_id].append(row.object_id)
     for edge in edges:
-        member_id = member_of.get(edge.relation_id)
-        if member_id is not None:
-            children[edge.object_id].append(member_id)
+        children[edge.object_id].extend(members_of[edge.relation_id])
     return children
 
 
@@ -234,11 +232,7 @@ async def get_contents(session: AsyncSession) -> list[SectionNode]:
     return [build(root.id) for root in roots]
 
 
-
-
-async def get_operator_display(
-    session: AsyncSession, operator_id: uuid.UUID
-) -> OperatorDisplayOut:
+async def get_operator_display(session: AsyncSession, operator_id: uuid.UUID) -> OperatorDisplayOut:
     await get_object_or_404(session, operator_id)
     row = await repository.get_operator_display(session, operator_id)
     if row is None:

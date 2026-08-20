@@ -63,9 +63,7 @@ async def list_top_level_objects(session: DbSession) -> list[Object]:
     return await service.list_top_level_objects(session)
 
 
-@router.put(
-    "/top-level-objects/{object_id}", status_code=204, operation_id="mark_top_level_object"
-)
+@router.put("/top-level-objects/{object_id}", status_code=204, operation_id="mark_top_level_object")
 async def mark_top_level_object(object_id: uuid.UUID, session: DbSession) -> None:
     await service.mark_top_level_object(session, object_id)
 
@@ -77,13 +75,9 @@ async def unmark_top_level_object(object_id: uuid.UUID, session: DbSession) -> N
     await service.unmark_top_level_object(session, object_id)
 
 
-
-
 @router.get("/contents", response_model=list[SectionNode], operation_id="get_contents")
 async def get_contents(session: DbSession) -> list[SectionNode]:
     return await service.get_contents(session)
-
-
 
 
 @router.get(

@@ -10,6 +10,35 @@ specific to Muse being a physical-robot product (no shared-package relock workfl
 multi-tenancy/RLS, no Redis/Celery, no device app). Where a convention is reused near-verbatim,
 that's noted so the reasoning doesn't need re-deriving.
 
+## Writing code
+
+**Keep these docs current, never longer.** A change that makes an AGENTS.md false corrects it in
+the same change — that is a fix, not an addition. New guidance IS an addition: propose it at the
+end of your work and let Ofek decide. These files shrink, not grow.
+
+**Write no new comments, docstrings, or AGENTS.md text.** Default to zero. The urge to comment
+usually means the code should change instead: an explaining variable, an extracted method, a
+better name (`width_in_pixels`), an assertion (`check_argument(height > 0)`). If a line genuinely
+cannot carry itself without one, write it — then list every such addition at the end of your work,
+one by one, for Ofek to approve or cut. Never slip one in silently.
+
+**When you must touch text that already exists, shrink it.** A comment states its reason at the
+smallest scope that owns it — naming another module, table, route, or issue number goes stale
+_silently_ — and describes the code as it is now, not its history. A docstring is a one-line
+imperative summary ending in a period ("Return the pathname.", never "Returns…"), a blank line,
+then `Args:`/`Returns:`/`Raises:` only if earned. Ruff's `D205`/`D401`/`D415` hold the shape;
+`D1*` is off because most functions need none. A failing docstring is badly written, not badly
+formatted — delete it, or cut it back to its summary; a blank line to satisfy the linter changes
+nothing. Never longer coming out of an edit than going in, and never break a backticked span
+across a line wrap.
+
+**Finish the work. Don't write it down as something to do later, anywhere.**
+
+1. No TODO or work-tracking comments in code.
+2. Do NOT open GitHub issues — fix it now, or tell the user and stop. Ofek opens issues; agents
+   close them.
+3. Never report something done, ready, or landed while a gap remains. "Done, except…" is not done.
+
 ## v0 schema
 
 Deliberately bare — four tables, no bookkeeping columns:
@@ -40,6 +69,8 @@ relation_output(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk 
   packaging.
 - **Frontend** (`apps/web`): React + Vite + TanStack Query + TanStack Router (file-based routing),
   Tailwind v4, Base UI for interactive primitives (select, etc.) rather than hand-rolled ones.
+  TypeScript stays on 6.x via the `npm:@typescript/typescript6` alias — TS 7.0 ships no compiler
+  API, which typescript-eslint needs — so the binary is `tsc6`, not `tsc`.
 - **Type boundary**: FastAPI generates `openapi.json` → `openapi-typescript` generates
   `apps/web/src/client/schema.d.ts` (committed, so CI/local dev works without a live API) →
   `packages/api-client` wraps it into typed React Query hooks. No hand-written duplicate types.
@@ -93,8 +124,7 @@ never becomes a route of its own.
   own generated code, not real issues in our code), config in native files (`ruff.toml`,
   `mypy.ini` — **not** `pyproject.toml`, see caching note below), `pytest` for tests.
 - TypeScript: `eslint` flat config with `typescript-eslint`'s `strictTypeChecked` +
-  `stylisticTypeChecked`, `eslint-plugin-react-hooks`, `prettier`, `vitest` +
-  `@testing-library/react` + `msw` for tests.
+  `stylisticTypeChecked`, `eslint-plugin-react-hooks`, `prettier`, `vitest` for tests.
 - Skip Muse's `.importlinter` import-boundary enforcement — it polices boundaries between
   multiple internal domains, and Monet v0 has effectively one (see "Backend domain modules"
   above for the part of that convention Monet keeps anyway).
@@ -113,7 +143,10 @@ and multi-app split.
 - Dockerfiles: a `deps` stage copies only lockfiles and runs
   `uv sync --frozen --no-install-project` / `pnpm install --frozen-lockfile` _before_ any source
   is copied, so the expensive layer is keyed purely on dependencies. `RUN --mount=type=cache` for
-  the uv/pnpm package caches.
+  the uv/pnpm package caches. `apps/api/Dockerfile` adds a `test-deps` stage on the same
+  principle, and both take a `DEPS_IMAGE`/`TEST_DEPS_IMAGE` build arg so CI can substitute a
+  cache-restored image. **`final` must stay the last stage there** — `render.yaml` builds it by
+  path and cannot name a target.
 - CI's `changes` job (`dorny/paths-filter`) gates backend/frontend jobs independently. Frontend
   Docker build uses `cache-from/to: type=gha`; the **backend must use the manual
   build+`docker save`+`actions/cache` tarball technique instead** — BuildKit's GHA cache backend
@@ -158,7 +191,8 @@ operators aren't a distinct type).
 
 Full Docker: `docker-compose.yml` (api + web + postgres) plus `docker-compose.dev.yml` (bind
 mounts, hot reload). `just wt-add <name>` creates a git worktree with its own isolated stack.
-The same Dockerfiles are what Render builds from at deploy time.
+The same Dockerfiles are what Render builds from at deploy time. No service publishes a Postgres
+host port — nothing outside the compose network needs one.
 
 `just up`'s api container always runs migrations, then seeds **only if the objects table is
 empty** (`scripts/seed.py --if-empty`) — so a brand-new worktree/dev env always has the demo

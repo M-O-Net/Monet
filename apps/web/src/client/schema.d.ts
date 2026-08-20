@@ -259,13 +259,7 @@ export interface components {
             /** Output Object Ids */
             output_object_ids: string[];
         };
-        /**
-         * RelationDisplayOut
-         * @description How to render this relation, carried on every row that has an operator configured.
-         *
-         *     `hidden_by_default` is advice, never a filter: the relation is still in the response, so
-         *     the front end can collapse it behind a disclosure that knows its own count.
-         */
+        /** RelationDisplayOut */
         RelationDisplayOut: {
             /** Template */
             template: string | null;
@@ -292,15 +286,7 @@ export interface components {
             position: number;
             object: components["schemas"]["ObjectOut"];
         };
-        /**
-         * SectionNode
-         * @description One entry in the contents tree.
-         *
-         *     `children` holds only those members that are themselves sections (have members of their
-         *     own); a section's specimens live on its own page, so the contents page stays a table of
-         *     contents rather than a dump of the whole network. `member_count` is every member, so the
-         *     UI can say how much is inside without asking again.
-         */
+        /** SectionNode */
         SectionNode: {
             /**
              * Id
