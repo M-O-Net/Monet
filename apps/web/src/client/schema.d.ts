@@ -76,6 +76,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Contents */
+        get: operations["get_contents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/operator-displays/{operator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Operator Display */
+        get: operations["get_operator_display"];
+        /** Set Operator Display */
+        put: operations["set_operator_display"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/relations": {
         parameters: {
             query?: never;
@@ -159,6 +194,10 @@ export interface components {
             description: string | null;
             /** Is Top Level */
             is_top_level: boolean;
+            /** Sections */
+            sections: components["schemas"]["ObjectOut"][];
+            /** Members */
+            members: components["schemas"]["ObjectOut"][];
             /** As Operator */
             as_operator: components["schemas"]["RelationOut"][];
             /** As Input */
@@ -185,6 +224,29 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** OperatorDisplayOut */
+        OperatorDisplayOut: {
+            /**
+             * Operator Id
+             * Format: uuid
+             */
+            operator_id: string;
+            /** Template */
+            template: string | null;
+            /** Hidden By Default */
+            hidden_by_default: boolean;
+            /** Is Membership */
+            is_membership: boolean;
+        };
+        /** OperatorDisplayUpdate */
+        OperatorDisplayUpdate: {
+            /** Template */
+            template: string | null;
+            /** Hidden By Default */
+            hidden_by_default: boolean;
+            /** Is Membership */
+            is_membership: boolean;
+        };
         /** RelationCreate */
         RelationCreate: {
             /**
@@ -196,6 +258,19 @@ export interface components {
             input_object_ids: string[];
             /** Output Object Ids */
             output_object_ids: string[];
+        };
+        /**
+         * RelationDisplayOut
+         * @description How to render this relation, carried on every row that has an operator configured.
+         *
+         *     `hidden_by_default` is advice, never a filter: the relation is still in the response, so
+         *     the front end can collapse it behind a disclosure that knows its own count.
+         */
+        RelationDisplayOut: {
+            /** Template */
+            template: string | null;
+            /** Hidden By Default */
+            hidden_by_default: boolean;
         };
         /** RelationOut */
         RelationOut: {
@@ -209,12 +284,37 @@ export interface components {
             inputs: components["schemas"]["RelationSlotOut"][];
             /** Outputs */
             outputs: components["schemas"]["RelationSlotOut"][];
+            display: components["schemas"]["RelationDisplayOut"] | null;
         };
         /** RelationSlotOut */
         RelationSlotOut: {
             /** Position */
             position: number;
             object: components["schemas"]["ObjectOut"];
+        };
+        /**
+         * SectionNode
+         * @description One entry in the contents tree.
+         *
+         *     `children` holds only those members that are themselves sections (have members of their
+         *     own); a section's specimens live on its own page, so the contents page stays a table of
+         *     contents rather than a dump of the whole network. `member_count` is every member, so the
+         *     UI can say how much is inside without asking again.
+         */
+        SectionNode: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Latex */
+            latex: string;
+            /** Description */
+            description: string | null;
+            /** Member Count */
+            member_count: number;
+            /** Children */
+            children: components["schemas"]["SectionNode"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -452,6 +552,92 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionNode"][];
+                };
+            };
+        };
+    };
+    get_operator_display: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorDisplayOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_operator_display: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatorDisplayUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorDisplayOut"];
+                };
             };
             /** @description Validation Error */
             422: {

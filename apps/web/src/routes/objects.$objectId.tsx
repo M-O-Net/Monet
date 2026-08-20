@@ -8,7 +8,11 @@ import { ConfirmButton } from "../components/ConfirmButton";
 import { Latex } from "../components/Latex";
 import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
+import { invalidateObjectGraph } from "../lib/queries";
+import { MemberList } from "./-components/MemberList";
+import { OperatorDisplayForm } from "./-components/OperatorDisplayForm";
 import { RelationList } from "./-components/RelationList";
+import { SectionTags } from "./-components/SectionTags";
 
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
@@ -37,11 +41,7 @@ function ObjectDetail() {
   const [draftDescription, setDraftDescription] = useState("");
 
   const invalidateAll = () => {
-    void queryClient.invalidateQueries({ queryKey: ["get", "/objects"] });
-    void queryClient.invalidateQueries({ queryKey: ["get", "/top-level-objects"] });
-    void queryClient.invalidateQueries({
-      queryKey: ["get", "/objects/{object_id}", { params: { path: { object_id: objectId } } }],
-    });
+    invalidateObjectGraph(queryClient);
   };
 
   if (detail.isPending) return <p className="text-sm text-ink-soft">Loading…</p>;
@@ -50,7 +50,8 @@ function ObjectDetail() {
   }
   const obj = detail.data;
   const relationCount = obj.as_operator.length + obj.as_input.length + obj.as_output.length;
-  const hasNoRelations = relationCount === 0;
+  const isIsolated = relationCount === 0 && obj.sections.length === 0 && obj.members.length === 0;
+  const firstAsOperator = obj.as_operator.at(0);
 
   return (
     <div>
@@ -122,6 +123,7 @@ function ObjectDetail() {
                 <Latex>{obj.latex}</Latex>
               </h1>
               {obj.description && <p className="mt-1 text-sm text-ink-soft">{obj.description}</p>}
+              <SectionTags sections={obj.sections} />
             </div>
             <div className="flex shrink-0 gap-2">
               {obj.is_top_level ? (
@@ -193,14 +195,24 @@ function ObjectDetail() {
         <p className="mb-4 text-xs text-rust">{formatApiError(deleteObject.error)}</p>
       )}
 
-      {hasNoRelations && (
+      {isIsolated && (
         <p className="mb-7 text-sm text-ink-soft italic">
           Not yet connected to anything else in the valley.
         </p>
       )}
-      <RelationList title="Used as operator in" relations={obj.as_operator} />
+      <MemberList members={obj.members} />
+      {/* collapseHidden is off here on purpose: an operator marked hidden-by-default would
+          otherwise collapse its own page to nothing, and this is the page where those rows are
+          exactly what you came for. */}
+      <RelationList
+        title="Used as operator in"
+        relations={obj.as_operator}
+        collapseHidden={false}
+      />
       <RelationList title="Appears as input in" relations={obj.as_input} />
       <RelationList title="Appears as output in" relations={obj.as_output} />
+
+      {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 
       <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
         Add a relation

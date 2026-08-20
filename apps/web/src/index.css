@@ -1,6 +1,10 @@
+/* The remote font import has to come first. Vite inlines the two bundled imports below into
+   this file, so anything left as a plain `@import url(...)` after them ends up preceded by
+   thousands of statements — which is a hard postcss error ("@import must precede all other
+   statements") that takes the dev server down on an index.css hot reload. */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600;700&display=swap");
 
 @theme {
   --font-display: "Fraunces", "Iowan Old Style", serif;
