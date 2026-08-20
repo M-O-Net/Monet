@@ -1,18 +1,18 @@
 # Render Blueprint — defines all three v0 deployables (API, static frontend, Postgres) together
 # for a one-step deploy from a single account/dashboard. See root AGENTS.md > Deployment.
 #
-# NOT yet deploy-tested against a real Render account (none was available while building this) —
-# field names below match Render's documented blueprint spec as of writing, but verify against
-# https://render.com/docs/blueprint-spec on the first real deploy and adjust if anything's moved.
+# Field names check out against https://render.com/docs/blueprint-spec, but this has never run
+# against a real account. Two things to confirm on the first deploy: that the service names below
+# were still free (Render appends a suffix if not, which would make the two URLs here wrong), and
+# that the static host serves .mjs as JavaScript — if it doesn't, the sandbox alone fails.
 #
-# Render's free Postgres plan auto-deletes after ~30 days + a grace period — `plan: basic-256mb`
-# below is the paid tier specifically to avoid that (see AGENTS.md's Deployment section for the
-# cost breakdown). The API's `plan: free` is fine to change to `starter` later for an always-on
-# service with no cold-start; that's a dashboard-level choice, not something this file forces.
+# Everything here is on a free plan. Render's free Postgres auto-deletes after ~30 days: the
+# dataset is `apps/api/scripts/seed.py`, so losing it costs nothing until there is real data —
+# at which point move the database to `plan: basic-256mb` (see AGENTS.md > Deployment).
 
 databases:
   - name: monet-db
-    plan: basic-256mb
+    plan: free
     postgresMajorVersion: "17"
 
 services:
@@ -29,7 +29,7 @@ services:
           property: connectionString
       - key: CORS_ORIGINS
         value: '["https://monet-web.onrender.com"]' # adjust to the actual static site URL
-    preDeployCommand: uv run alembic upgrade head
+    preDeployCommand: uv run alembic upgrade head && uv run python scripts/seed.py --if-empty
 
   - type: web
     name: monet-web

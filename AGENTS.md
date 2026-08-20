@@ -277,9 +277,9 @@ dataset; the dataset itself is documented where it's defined, in `scripts/seed.p
 
 ## Deployment
 
-Single Render account/dashboard for everything: a Render web service (API), a Render static site
-(the Vite build), and a **paid** Render Postgres instance (Basic-256MB, $6/month — Render's free
-Postgres expires and gets deleted, so the DB tier is the one piece that can't stay free). API tier
-(free-with-cold-start vs. $7/month always-on Starter) is a deploy-time dashboard choice. A
-`render.yaml` blueprint defines all three services together. Alembic migrations run as a
-pre-deploy/release step on Render, not manually.
+Single Render account/dashboard for everything, all on free plans: a web service (API), a static
+site (the Vite build), and a Postgres instance. Free Postgres auto-deletes after ~30 days, which
+costs nothing while `scripts/seed.py` is the only dataset — move it to Basic-256MB ($6/month) once
+that stops being true. The API's free plan cold-starts; Starter ($7/month) is always on. Both are
+one-line changes in `render.yaml`. Migrations and the `--if-empty` seed run as a pre-deploy step,
+not manually.
