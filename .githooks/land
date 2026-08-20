@@ -95,6 +95,9 @@ echo "▶ API: pytest"
 }
 
 stage_web() {
+echo "▶ Web: unit tests"
+(cd "$ROOT" && just test-web)
+
 echo "▶ Web: production build"
 (cd "$ROOT" && just build-web)
 }

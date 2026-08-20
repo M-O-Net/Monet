@@ -171,7 +171,7 @@ function ImplementationForm({
 
   const dirty = code !== implementation.code;
 
-  const history = (command: typeof undo) => () => {
+  const history = (command: typeof undo) => {
     const view = editor.current?.view;
     if (view) {
       command(view);
@@ -211,7 +211,9 @@ function ImplementationForm({
       <div className="flex items-center gap-2 border-b border-mist bg-paper-deep/50 px-3 py-1.5">
         <div className="flex items-center gap-0.5">
           <button
-            onClick={history(undo)}
+            onClick={() => {
+              history(undo);
+            }}
             className={TOOL_BUTTON}
             title="Undo (⌘Z)"
             aria-label="Undo"
@@ -219,7 +221,9 @@ function ImplementationForm({
             <UndoIcon />
           </button>
           <button
-            onClick={history(redo)}
+            onClick={() => {
+              history(redo);
+            }}
             className={TOOL_BUTTON}
             title="Redo (⇧⌘Z)"
             aria-label="Redo"

@@ -18,6 +18,7 @@ from monet_api.core.db import async_session
 from monet_api.implementations.models import Implementation
 from monet_api.objects.models import (
     Object,
+    OperatorDisplay,
     Relation,
     RelationInput,
     RelationOutput,
@@ -34,6 +35,7 @@ async def seed() -> None:
                 return
 
         await session.exec(delete(Implementation))
+        await session.exec(delete(OperatorDisplay))
         await session.exec(delete(TopLevelObject))
         await session.exec(delete(RelationOutput))
         await session.exec(delete(RelationInput))
@@ -44,16 +46,29 @@ async def seed() -> None:
         Specimen = tuple[str, str | None]
 
         section_objects: dict[str, Specimen] = {
-            "Matrices": (
-                r"\text{Matrices}",
-                "Square arrays of numbers, and the operations "
-                "that act on them: characteristic polynomials, inverses, "
+            "LinearAlgebra": (
+                r"\text{Linear Algebra}",
+                "Matrices and the operations that act on them.",
+            ),
+            "PolynomialAlgebra": (
+                r"\text{Polynomial Algebra}",
+                "Single-variable polynomials and the operations that act on them.",
+            ),
+            "Values": (
+                r"\text{Values}",
+                "The plain numbers and truth values that relations produce as answers.",
+            ),
+            "Matrices": (r"\text{Matrices}", "Square arrays of numbers."),
+            "MatrixOperations": (
+                r"\text{Matrix Operations}",
+                "Operations taking matrices as "
+                "their input: characteristic polynomials, inverses, "
                 "determinants, sums.",
             ),
-            "Polynomials": (
-                r"\text{Polynomials}",
-                "Single-variable polynomials, and the "
-                "operations that act on them: companion matrices, degree.",
+            "Polynomials": (r"\text{Polynomials}", "Single-variable polynomials."),
+            "PolynomialOperations": (
+                r"\text{Polynomial Operations}",
+                "Operations taking polynomials as their input: companion matrices, degree.",
             ),
             "Integers": (
                 r"\text{Integers}",
@@ -79,8 +94,8 @@ async def seed() -> None:
         }
 
         polynomials: dict[str, Specimen] = {
-            # Written the way the sandbox's render() emits it, so computing a characteristic
-            # polynomial lands on this object instead of minting a near-identical twin.
+            # Spelled the way sandbox/prelude.py's render() emits it, so a computed
+            # characteristic polynomial lands here instead of minting a near-identical twin.
             "P": (r"x^{2} - 4 x + 3", None),
             "Q": (r"x^{2} - 2 x + 1", None),
             "R": (r"x^{2} - 1", None),
@@ -124,7 +139,9 @@ async def seed() -> None:
         sectioning_operators: dict[str, Specimen] = {
             "ElementOf": (
                 r"\text{Element Of}",
-                "Marks an object as belonging to one of the top-level sections.",
+                "Marks an object as belonging to a section. Flagged as the "
+                "membership operator, so the GUI renders its relations as tags and "
+                "member lists rather than as ordinary rows.",
             ),
         }
 
@@ -173,22 +190,37 @@ async def seed() -> None:
 
         relation_count = 11
 
-        # Sections: every specimen and operator gets an Element Of relation to its section, and
-        # the four section objects themselves are flagged as top-level (see TopLevelObject).
+        displays: dict[str, tuple[str | None, bool, bool]] = {
+            "ElementOf": (None, False, True),
+            "Add": (r"{in0} \op{+} {in1} = {out0}", True, False),
+            "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
+            "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
+            "Degree": (r"\op{\deg(}{in0}\op{)} = {out0}", False, False),
+        }
+        for operator, (template, hidden, membership) in displays.items():
+            session.add(
+                OperatorDisplay(
+                    operator_id=ids[operator],
+                    template=template,
+                    hidden_by_default=hidden,
+                    is_membership=membership,
+                )
+            )
+
         sections = {
-            "Matrices": [
-                "A",
-                "B",
-                "D",
-                "E",
-                "C",
+            "LinearAlgebra": ["Matrices", "MatrixOperations"],
+            "PolynomialAlgebra": ["Polynomials", "PolynomialOperations"],
+            "Values": ["Integers", "Booleans"],
+            "Matrices": ["A", "B", "D", "E", "C"],
+            "MatrixOperations": [
                 "CharacteristicPolynomial",
                 "Inverse",
                 "Determinant",
                 "Add",
                 "IsSingular",
             ],
-            "Polynomials": ["P", "Q", "R", "CompanionMatrix", "Degree"],
+            "Polynomials": ["P", "Q", "R"],
+            "PolynomialOperations": ["CompanionMatrix", "Degree"],
             "Integers": ["one", "neg_one", "three", "two"],
             "Booleans": ["true", "false"],
         }
@@ -196,7 +228,9 @@ async def seed() -> None:
             for member in members:
                 await add_relation("ElementOf", [member], [section])
                 relation_count += 1
-            session.add(TopLevelObject(object_id=ids[section]))
+
+        for root in ("LinearAlgebra", "PolynomialAlgebra", "Values"):
+            session.add(TopLevelObject(object_id=ids[root]))
 
         implementation_dir = pathlib.Path(__file__).parent / "implementations"
         implementations = {

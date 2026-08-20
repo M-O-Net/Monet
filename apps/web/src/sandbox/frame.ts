@@ -56,6 +56,7 @@ function handle(request: SandboxRequest, pyodide: PyodideApi): unknown {
 }
 
 window.addEventListener("message", (event: MessageEvent<SandboxRequest>) => {
+  if (event.source !== parent) return;
   const request = event.data;
   void (async () => {
     try {

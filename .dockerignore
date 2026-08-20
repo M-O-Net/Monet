@@ -15,4 +15,5 @@ dist
 *.pyc
 .env
 .env.*
+**/.env
 !.env.example

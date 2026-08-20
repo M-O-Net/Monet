@@ -1,12 +1,20 @@
 """Raw SQLModel queries for the objects domain. No business logic, no 404s — see service.py."""
 
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy import or_
-from sqlmodel import delete, select
+from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from monet_api.objects.models import Object, Relation, RelationInput, RelationOutput, TopLevelObject
+from monet_api.objects.models import (
+    Object,
+    OperatorDisplay,
+    Relation,
+    RelationInput,
+    RelationOutput,
+    TopLevelObject,
+)
 
 
 async def get_object(session: AsyncSession, object_id: uuid.UUID) -> Object | None:
@@ -14,12 +22,32 @@ async def get_object(session: AsyncSession, object_id: uuid.UUID) -> Object | No
 
 
 async def list_objects(session: AsyncSession) -> list[Object]:
-    return list((await session.exec(select(Object))).all())
+    return list((await session.exec(select(Object).order_by(col(Object.latex)))).all())
+
+
+async def list_objects_by_ids(
+    session: AsyncSession, object_ids: Sequence[uuid.UUID]
+) -> list[Object]:
+    if not object_ids:
+        return []
+    return list(
+        (
+            await session.exec(
+                select(Object).where(col(Object.id).in_(object_ids)).order_by(col(Object.latex))
+            )
+        ).all()
+    )
+
+
+async def add_object(session: AsyncSession, latex: str, description: str | None) -> Object:
+    obj = Object(latex=latex, description=description)
+    session.add(obj)
+    await session.flush()
+    return obj
 
 
 async def create_object(session: AsyncSession, latex: str, description: str | None) -> Object:
-    obj = Object(latex=latex, description=description)
-    session.add(obj)
+    obj = await add_object(session, latex, description)
     await session.commit()
     await session.refresh(obj)
     return obj
@@ -47,8 +75,16 @@ async def get_top_level_object(
     return await session.get(TopLevelObject, object_id)
 
 
-async def list_top_level_object_ids(session: AsyncSession) -> list[uuid.UUID]:
-    return list((await session.exec(select(TopLevelObject.object_id))).all())
+async def list_top_level_objects(session: AsyncSession) -> list[Object]:
+    return list(
+        (
+            await session.exec(
+                select(Object)
+                .join(TopLevelObject, col(TopLevelObject.object_id) == col(Object.id))
+                .order_by(col(Object.latex))
+            )
+        ).all()
+    )
 
 
 async def add_top_level_object(session: AsyncSession, object_id: uuid.UUID) -> None:
@@ -69,6 +105,16 @@ async def list_relations(session: AsyncSession) -> list[Relation]:
     return list((await session.exec(select(Relation))).all())
 
 
+async def list_relations_by_ids(
+    session: AsyncSession, relation_ids: Sequence[uuid.UUID]
+) -> list[Relation]:
+    if not relation_ids:
+        return []
+    return list(
+        (await session.exec(select(Relation).where(col(Relation.id).in_(relation_ids)))).all()
+    )
+
+
 async def list_relations_by_operator(session: AsyncSession, object_id: uuid.UUID) -> list[Relation]:
     return list(
         (await session.exec(select(Relation).where(Relation.operator_id == object_id))).all()
@@ -76,52 +122,137 @@ async def list_relations_by_operator(session: AsyncSession, object_id: uuid.UUID
 
 
 async def list_relation_ids_by_input(
-    session: AsyncSession, object_id: uuid.UUID
+    session: AsyncSession, object_id: uuid.UUID, *, exclude_operator_ids: Sequence[uuid.UUID] = ()
 ) -> list[uuid.UUID]:
-    return list(
-        (
-            await session.exec(
-                select(RelationInput.relation_id).where(RelationInput.object_id == object_id)
-            )
-        ).all()
-    )
+    query = select(RelationInput.relation_id).where(RelationInput.object_id == object_id)
+    if exclude_operator_ids:
+        query = query.join(Relation, col(Relation.id) == col(RelationInput.relation_id)).where(
+            col(Relation.operator_id).notin_(exclude_operator_ids)
+        )
+    return list((await session.exec(query)).all())
 
 
 async def list_relation_ids_by_output(
-    session: AsyncSession, object_id: uuid.UUID
+    session: AsyncSession, object_id: uuid.UUID, *, exclude_operator_ids: Sequence[uuid.UUID] = ()
 ) -> list[uuid.UUID]:
-    return list(
-        (
-            await session.exec(
-                select(RelationOutput.relation_id).where(RelationOutput.object_id == object_id)
-            )
-        ).all()
-    )
+    query = select(RelationOutput.relation_id).where(RelationOutput.object_id == object_id)
+    if exclude_operator_ids:
+        query = query.join(Relation, col(Relation.id) == col(RelationOutput.relation_id)).where(
+            col(Relation.operator_id).notin_(exclude_operator_ids)
+        )
+    return list((await session.exec(query)).all())
 
 
-async def list_relation_inputs(
-    session: AsyncSession, relation_id: uuid.UUID
-) -> list[RelationInput]:
-    return list(
-        (
-            await session.exec(
-                select(RelationInput)
-                .where(RelationInput.relation_id == relation_id)
-                .order_by(RelationInput.position)  # type: ignore[arg-type]
-            )
-        ).all()
-    )
-
-
-async def list_relation_outputs(
-    session: AsyncSession, relation_id: uuid.UUID
+async def list_membership_outputs(
+    session: AsyncSession, operator_ids: Sequence[uuid.UUID], section_ids: Sequence[uuid.UUID]
 ) -> list[RelationOutput]:
+    if not operator_ids or not section_ids:
+        return []
     return list(
         (
             await session.exec(
                 select(RelationOutput)
-                .where(RelationOutput.relation_id == relation_id)
-                .order_by(RelationOutput.position)  # type: ignore[arg-type]
+                .join(Relation, col(Relation.id) == col(RelationOutput.relation_id))
+                .where(col(Relation.operator_id).in_(operator_ids))
+                .where(col(RelationOutput.object_id).in_(section_ids))
+            )
+        ).all()
+    )
+
+
+async def list_membership_inputs(
+    session: AsyncSession, operator_ids: Sequence[uuid.UUID], member_ids: Sequence[uuid.UUID]
+) -> list[RelationInput]:
+    if not operator_ids or not member_ids:
+        return []
+    return list(
+        (
+            await session.exec(
+                select(RelationInput)
+                .join(Relation, col(Relation.id) == col(RelationInput.relation_id))
+                .where(col(Relation.operator_id).in_(operator_ids))
+                .where(col(RelationInput.object_id).in_(member_ids))
+            )
+        ).all()
+    )
+
+
+async def list_membership_operator_ids(session: AsyncSession) -> list[uuid.UUID]:
+    return list(
+        (
+            await session.exec(
+                select(OperatorDisplay.operator_id).where(col(OperatorDisplay.is_membership))
+            )
+        ).all()
+    )
+
+
+async def get_operator_display(
+    session: AsyncSession, operator_id: uuid.UUID
+) -> OperatorDisplay | None:
+    return await session.get(OperatorDisplay, operator_id)
+
+
+async def list_operator_displays(
+    session: AsyncSession, operator_ids: Sequence[uuid.UUID]
+) -> list[OperatorDisplay]:
+    if not operator_ids:
+        return []
+    return list(
+        (
+            await session.exec(
+                select(OperatorDisplay).where(col(OperatorDisplay.operator_id).in_(operator_ids))
+            )
+        ).all()
+    )
+
+
+async def upsert_operator_display(
+    session: AsyncSession,
+    operator_id: uuid.UUID,
+    template: str | None,
+    hidden_by_default: bool,
+    is_membership: bool,
+) -> OperatorDisplay:
+    row = await session.get(OperatorDisplay, operator_id)
+    if row is None:
+        row = OperatorDisplay(operator_id=operator_id)
+    row.template = template
+    row.hidden_by_default = hidden_by_default
+    row.is_membership = is_membership
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+async def list_relation_inputs_for(
+    session: AsyncSession, relation_ids: Sequence[uuid.UUID]
+) -> list[RelationInput]:
+    if not relation_ids:
+        return []
+    return list(
+        (
+            await session.exec(
+                select(RelationInput)
+                .where(col(RelationInput.relation_id).in_(relation_ids))
+                .order_by(col(RelationInput.relation_id), col(RelationInput.position))
+            )
+        ).all()
+    )
+
+
+async def list_relation_outputs_for(
+    session: AsyncSession, relation_ids: Sequence[uuid.UUID]
+) -> list[RelationOutput]:
+    if not relation_ids:
+        return []
+    return list(
+        (
+            await session.exec(
+                select(RelationOutput)
+                .where(col(RelationOutput.relation_id).in_(relation_ids))
+                .order_by(col(RelationOutput.relation_id), col(RelationOutput.position))
             )
         ).all()
     )
@@ -147,9 +278,9 @@ def add_relation_output(
 
 
 async def clear_relation_slots(session: AsyncSession, relation_id: uuid.UUID) -> None:
-    for input_row in await list_relation_inputs(session, relation_id):
+    for input_row in await list_relation_inputs_for(session, [relation_id]):
         await session.delete(input_row)
-    for output_row in await list_relation_outputs(session, relation_id):
+    for output_row in await list_relation_outputs_for(session, [relation_id]):
         await session.delete(output_row)
     await session.flush()
 

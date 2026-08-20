@@ -10,6 +10,35 @@ specific to Muse being a physical-robot product (no shared-package relock workfl
 multi-tenancy/RLS, no Redis/Celery, no device app). Where a convention is reused near-verbatim,
 that's noted so the reasoning doesn't need re-deriving.
 
+## Writing code
+
+**Keep these docs current, never longer.** A change that makes an AGENTS.md false corrects it in
+the same change — that is a fix, not an addition. New guidance IS an addition: propose it at the
+end of your work and let Ofek decide. These files shrink, not grow.
+
+**Write no new comments, docstrings, or AGENTS.md text.** Default to zero. The urge to comment
+usually means the code should change instead: an explaining variable, an extracted method, a
+better name (`width_in_pixels`), an assertion (`check_argument(height > 0)`). If a line genuinely
+cannot carry itself without one, write it — then list every such addition at the end of your work,
+one by one, for Ofek to approve or cut. Never slip one in silently.
+
+**When you must touch text that already exists, shrink it.** A comment states its reason at the
+smallest scope that owns it — naming another module, table, route, or issue number goes stale
+_silently_ — and describes the code as it is now, not its history. A docstring is a one-line
+imperative summary ending in a period ("Return the pathname.", never "Returns…"), a blank line,
+then `Args:`/`Returns:`/`Raises:` only if earned. Ruff's `D205`/`D401`/`D415` hold the shape;
+`D1*` is off because most functions need none. A failing docstring is badly written, not badly
+formatted — delete it, or cut it back to its summary; a blank line to satisfy the linter changes
+nothing. Never longer coming out of an edit than going in, and never break a backticked span
+across a line wrap.
+
+**Finish the work. Don't write it down as something to do later, anywhere.**
+
+1. No TODO or work-tracking comments in code.
+2. Do NOT open GitHub issues — fix it now, or tell the user and stop. Ofek opens issues; agents
+   close them.
+3. Never report something done, ready, or landed while a gap remains. "Done, except…" is not done.
+
 ## v0 schema
 
 Deliberately bare — four tables, no bookkeeping columns:
@@ -38,27 +67,14 @@ relation_output(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk 
 
 ### implementations (added after v0)
 
-```
-implementations(id uuid pk, operator_id uuid fk -> objects, code text)
-```
-
 The one deliberate departure from the list above: code _does_ now run behind an operator. It is
-sympy, it is written and edited through the GUI rather than living in this repo, and — this is the
-load-bearing part — **it never executes on the server**. `apps/api` stores and serves `code` as
-opaque text and has no sympy dependency; execution happens in the visitor's browser. See
-"Implementations" below.
+sympy, written and edited through the GUI rather than living in this repo, and — the load-bearing
+part — **it never executes on the server**. `apps/api` stores and serves it as opaque text and has
+no sympy dependency; execution happens in the visitor's browser. See "Implementations" below.
 
-Three columns, and the absences are the design:
-
-- **No name.** The operator names it. An operator may carry more than one implementation and
-  nothing distinguishes them but their code, which is why `operator_id` isn't unique.
-- **No arity, stored or derived.** One implementation may genuinely accept two, three or more
-  inputs, so there is no single number to record — and reading `compute`'s signature is no better,
-  since `def compute(*inputs)` answers "how many?" with "any". The GUI lets you hand an operation
-  as many inputs as you like and the code raises if they don't suit. Arity is also _not_ a
-  property of the operator or the object: a 2×2 matrix takes four inputs (its elements) and isn't
-  an operator at all, so putting it on either would be the wrong home.
-- **No timestamps, author or versioning**, same as the rest of v0.
+An implementation carries nothing but its operator and its code: no name (the operator names it),
+no arity (`def compute(*inputs)` answers "how many?" with "any", and arity belongs to neither the
+operator nor the object), and no timestamps, author or versioning, same as the rest of v0.
 
 ## Stack
 
@@ -66,6 +82,8 @@ Three columns, and the absences are the design:
   packaging.
 - **Frontend** (`apps/web`): React + Vite + TanStack Query + TanStack Router (file-based routing),
   Tailwind v4, Base UI for interactive primitives (select, etc.) rather than hand-rolled ones.
+  TypeScript stays on 6.x via the `npm:@typescript/typescript6` alias — TS 7.0 ships no compiler
+  API, which typescript-eslint needs — so the binary is `tsc6`, not `tsc`.
 - **Type boundary**: FastAPI generates `openapi.json` → `openapi-typescript` generates
   `apps/web/src/client/schema.d.ts` (committed, so CI/local dev works without a live API) →
   `packages/api-client` wraps it into typed React Query hooks. No hand-written duplicate types.
@@ -102,9 +120,8 @@ applies it even to its own single-concern modules, and so does Monet.
 `packages/api-client` is a **generic factory**, not one hand-written hook per endpoint:
 `createApiClient<Paths>(basePath)` returns `openapi-react-query`'s client bound against the
 generated `paths` type — call sites use `api.useQuery(method, path, init?)` and
-`api.useMutation(method, path)`. (There is no `useSuspenseApiQuery`/`useApiMutation` wrapper; this
-file used to claim otherwise. The app uses no Suspense and no error boundaries — branch on
-`isPending`/`isError` the way every existing route does.) Monet's version drops Muse's
+`api.useMutation(method, path)`. The app uses no Suspense and no error boundaries — branch on
+`isPending`/`isError` the way every existing route does. Monet's version drops Muse's
 WebSocket/realtime machinery (device-specific) and its auth-token plumbing (Monet v0 has no auth).
 No zod or other runtime validation layer on top — generated types are trusted as-is.
 
@@ -122,8 +139,7 @@ never becomes a route of its own.
   own generated code, not real issues in our code), config in native files (`ruff.toml`,
   `mypy.ini` — **not** `pyproject.toml`, see caching note below), `pytest` for tests.
 - TypeScript: `eslint` flat config with `typescript-eslint`'s `strictTypeChecked` +
-  `stylisticTypeChecked`, `eslint-plugin-react-hooks`, `prettier`, `vitest` +
-  `@testing-library/react` + `msw` for tests.
+  `stylisticTypeChecked`, `eslint-plugin-react-hooks`, `prettier`, `vitest` for tests.
 - Skip Muse's `.importlinter` import-boundary enforcement — it polices boundaries between
   multiple internal domains, and Monet v0 has effectively one (see "Backend domain modules"
   above for the part of that convention Monet keeps anyway).
@@ -142,7 +158,10 @@ and multi-app split.
 - Dockerfiles: a `deps` stage copies only lockfiles and runs
   `uv sync --frozen --no-install-project` / `pnpm install --frozen-lockfile` _before_ any source
   is copied, so the expensive layer is keyed purely on dependencies. `RUN --mount=type=cache` for
-  the uv/pnpm package caches.
+  the uv/pnpm package caches. `apps/api/Dockerfile` adds a `test-deps` stage on the same
+  principle, and both take a `DEPS_IMAGE`/`TEST_DEPS_IMAGE` build arg so CI can substitute a
+  cache-restored image. **`final` must stay the last stage there** — `render.yaml` builds it by
+  path and cannot name a target.
 - CI's `changes` job (`dorny/paths-filter`) gates backend/frontend jobs independently. Frontend
   Docker build uses `cache-from/to: type=gha`; the **backend must use the manual
   build+`docker save`+`actions/cache` tarball technique instead** — BuildKit's GHA cache backend
@@ -184,10 +203,17 @@ without re-deciding both:
 **Execution is client-side, always.** Pyodide (CPython compiled to WebAssembly) runs inside
 `<iframe sandbox="allow-scripts">` in `apps/web/src/sandbox/`, deliberately **without**
 `allow-same-origin`. That gives the frame an opaque origin: no access to the app's `localStorage`
-or DOM, and every request to the API is cross-origin, so `CORS_ORIGINS` rejects it at preflight.
-The server therefore needs no sandbox, no subprocess, and no sympy. Language-level sandboxes
-(RestrictedPython, `safe_eval`) were rejected outright — they leak, and sympy is full of `eval`
-anyway.
+or DOM, and every request to the API is cross-origin, so the `CORS_ORIGINS` allowlist keeps it
+from reading any response. The server therefore needs no sandbox, no subprocess, and no sympy.
+Language-level sandboxes (RestrictedPython, `safe_eval`) were rejected outright — they leak, and
+sympy is full of `eval` anyway.
+
+That boundary is about confidentiality, not integrity. Implementation code runs with unrestricted
+builtins, so `import js` reaches `parent.postMessage`, and `probe()` evaluates every
+implementation's `accepts` in one interpreter — one hostile implementation can therefore forge
+another's result, which the visitor is then invited to add to the network. Closing that needs a
+Worker per implementation, which an opaque origin cannot have (below). Nothing it forges is more
+than the visitor could assert by hand.
 
 Consequences worth knowing before touching this code:
 
@@ -195,32 +221,27 @@ Consequences worth knowing before touching this code:
   worker script at all: Chrome refuses to construct a module worker from one, and `importScripts`
   on a `blob:null` worker is blocked regardless of CORS. The time limit a Worker's `terminate()`
   would have given is enforced from inside Python instead, by the trace-function deadline guard in
-  `sandbox/runner.py`. It stops `while True: pass`; it cannot stop a single long call inside
-  sympy's own internals.
+  `sandbox/runner.py`. Everything a deadline must cover — loading the code, parsing, computing —
+  has to be called _inside_ `_with_line_deadline`, never evaluated as an argument to it. It cannot
+  stop a single long call inside sympy's own internals.
 - **Every asset the frame loads needs `Access-Control-Allow-Origin`**, including its own bundled
   module script — opaque-origin subresource loads are cross-origin, and `type="module"` scripts are
   always CORS-checked. Set in three places that must stay in step: `apps/web/vite.config.ts` (dev),
-  `apps/web/nginx.conf` (Docker), `render.yaml` (deploy). Omitting one fails only in that one
-  environment, and fails silently.
-- **Pyodide's runtime is a `.mjs` file, and it must be served as JavaScript.** nginx's bundled
-  `mime.types` has no `.mjs` entry and would send `application/octet-stream`, which a browser
-  refuses to execute as a module — the Docker build hit exactly this. `apps/web/nginx.conf` fixes
-  it; if the sandbox ever fails to start in a new serving environment with "Failed to fetch
-  dynamically imported module", check the `Content-Type` on `/pyodide/pyodide.mjs` first (worth
-  confirming on Render's static host on the first real deploy).
+  `apps/web/nginx.conf` (Docker), `render.yaml` (deploy); `scripts/fetch-pyodide.mjs` asserts all
+  three. Omitting one fails only in that environment, and fails silently. `nginx.conf` also has to
+  name `.mjs` as JavaScript — nginx's bundled `mime.types` doesn't, and a browser won't execute a
+  module served as `application/octet-stream` (unverified on Render's static host).
 - **`render()` in `sandbox/prelude.py` is the single source of truth for Monet's LaTeX.**
-  `scripts/seed.py` is aligned to what it emits, so running an implementation over the seeded dataset
-  lands on the objects already there instead of minting near-duplicates. Change `render` and the
-  seed changes with it.
+  `scripts/seed.py` is aligned to what it emits, so running an implementation over the seeded
+  dataset lands on the objects already there instead of minting near-duplicates.
 - Objects still carry no type tag, so **an implementation declares its own domain** via
   `accepts(x) -> bool`, evaluated in the sandbox. That is what decides which buttons an object
   page shows.
-- **Implementations deal in sympy, not strings.** `sandbox/runner.py` parses each input's LaTeX
-  before calling `accepts`/`compute` and renders whatever `compute` returns, so an ordinary
-  implementation never mentions LaTeX. `parse`/`render` stay in scope for one that needs them.
+- **Implementations deal in sympy, not strings.** `runner.py` parses each input's LaTeX before
+  calling `accepts`/`compute` and renders what `compute` returns; `parse`/`render` stay in scope
+  for one that needs them.
 - **An implementation is edited on its operator's own object page**, not in an index of its own —
-  operators are objects, so a separate list would be a second taxonomy for things already in the
-  first one. `routes/-components/ImplementationEditor.tsx`.
+  operators are objects, so a separate list would be a second taxonomy.
 
 **The server trusts arithmetic it did not perform.** `POST /relations/assert` records whatever the
 browser computed. This is no weaker than `POST /relations`, which already lets anyone assert
@@ -245,7 +266,8 @@ runs the unsaved code against a sample input.
 
 Full Docker: `docker-compose.yml` (api + web + postgres) plus `docker-compose.dev.yml` (bind
 mounts, hot reload). `just wt-add <name>` creates a git worktree with its own isolated stack.
-The same Dockerfiles are what Render builds from at deploy time.
+The same Dockerfiles are what Render builds from at deploy time. No service publishes a Postgres
+host port — nothing outside the compose network needs one.
 
 `just up`'s api container always runs migrations, then seeds **only if the objects table is
 empty** (`scripts/seed.py --if-empty`) — so a brand-new worktree/dev env always has the demo

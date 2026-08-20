@@ -54,5 +54,20 @@ class TopLevelObject(SQLModel, table=True):
     __tablename__ = "top_level_objects"
 
     object_id: uuid.UUID = Field(
-        sa_column=sa.Column(sa.ForeignKey("objects.id", ondelete="CASCADE"), primary_key=True)
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), primary_key=True, nullable=False
+        )
     )
+
+
+class OperatorDisplay(SQLModel, table=True):
+    __tablename__ = "operator_displays"
+
+    operator_id: uuid.UUID = Field(
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), primary_key=True, nullable=False
+        )
+    )
+    template: str | None = None
+    hidden_by_default: bool = False
+    is_membership: bool = False

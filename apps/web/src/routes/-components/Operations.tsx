@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { formatApiError } from "@monet/api-client";
 
@@ -48,17 +48,17 @@ export function Operations({
   const [result, setResult] = useState<Result | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
 
+  const probeKey = implementations.map((i) => `${i.id}:${i.code}`).join("\u0000");
+  const payload = useMemo(
+    () => implementations.map((i) => ({ id: i.id, code: i.code })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [probeKey],
+  );
+
   useEffect(() => {
-    if (implementations.length === 0) return;
+    if (payload.length === 0) return;
     let cancelled = false;
-    setApplicable(null);
-    setProbeError(null);
-    setResult(null);
-    setExtraInputs({});
-    probe(
-      object.latex,
-      implementations.map((i) => ({ id: i.id, code: i.code })),
-    ).then(
+    probe(object.latex, payload).then(
       (ids) => {
         if (!cancelled) setApplicable(ids);
       },
@@ -69,8 +69,7 @@ export function Operations({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [object.id, object.latex, implementations.map((i) => i.id).join(",")]);
+  }, [object.latex, payload]);
 
   const start = (implementation: Implementation) => {
     const inputIds = [object.id, ...(extraInputs[implementation.id] ?? [])];
