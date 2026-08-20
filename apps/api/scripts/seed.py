@@ -18,6 +18,7 @@ from monet_api.core.db import async_session
 from monet_api.implementations.models import Implementation
 from monet_api.objects.models import (
     Object,
+    ObjectReference,
     OperatorDisplay,
     Relation,
     RelationInput,
@@ -35,6 +36,7 @@ async def seed() -> None:
                 return
 
         await session.exec(delete(Implementation))
+        await session.exec(delete(ObjectReference))
         await session.exec(delete(OperatorDisplay))
         await session.exec(delete(TopLevelObject))
         await session.exec(delete(RelationOutput))
@@ -225,12 +227,65 @@ async def seed() -> None:
             **sectioning_operators,
         }
 
+        images: dict[str, str] = {
+            "K3": "/knots/2-3.svg",
+            "K5": "/knots/2-5.svg",
+            "K7": "/knots/2-7.svg",
+        }
+
+        oeis = ("OEIS A013595", "https://oeis.org/A013595")
+        cyclotomic_wiki = ("Wikipedia", "https://en.wikipedia.org/wiki/Cyclotomic_polynomial")
+
+        references: dict[str, list[tuple[str, str]]] = {
+            "K3": [
+                ("Knot Atlas", "https://katlas.org/wiki/3_1"),
+                ("Wikipedia", "https://en.wikipedia.org/wiki/Trefoil_knot"),
+            ],
+            "K5": [
+                ("Knot Atlas", "https://katlas.org/wiki/5_1"),
+                ("Wikipedia", "https://en.wikipedia.org/wiki/Cinquefoil_knot"),
+            ],
+            "K7": [
+                ("Knot Atlas", "https://katlas.org/wiki/7_1"),
+                ("Wikipedia", "https://en.wikipedia.org/wiki/7_1_knot"),
+            ],
+            # LMFDB names the last two by Q(zeta_5) and Q(zeta_7): Q(zeta_2m) = Q(zeta_m) for odd
+            # m, so they are the same fields under a different name. Each page's defining
+            # polynomial is exactly the object it is filed under here.
+            "Phi6": [
+                ("LMFDB 2.0.3.1", "https://www.lmfdb.org/NumberField/2.0.3.1"),
+                oeis,
+                cyclotomic_wiki,
+            ],
+            "Phi10": [
+                ("LMFDB 4.0.125.1", "https://www.lmfdb.org/NumberField/4.0.125.1"),
+                oeis,
+                cyclotomic_wiki,
+            ],
+            "Phi14": [
+                ("LMFDB 6.0.16807.1", "https://www.lmfdb.org/NumberField/6.0.16807.1"),
+                oeis,
+                cyclotomic_wiki,
+            ],
+            "SeifertMatrix": [("Wikipedia", "https://en.wikipedia.org/wiki/Seifert_surface")],
+            "AlexanderPolynomial": [
+                ("Wikipedia", "https://en.wikipedia.org/wiki/Alexander_polynomial")
+            ],
+            "CyclotomicPolynomial": [cyclotomic_wiki],
+        }
+
         ids: dict[str, uuid.UUID] = {}
         for key, (latex, description) in objects.items():
-            obj = Object(latex=latex, description=description)
+            obj = Object(latex=latex, description=description, image_url=images.get(key))
             session.add(obj)
             await session.flush()
             ids[key] = obj.id
+
+        for key, entries in references.items():
+            for position, (label, url) in enumerate(entries):
+                session.add(
+                    ObjectReference(object_id=ids[key], label=label, url=url, position=position)
+                )
 
         async def add_relation(operator: str, inputs: list[str], outputs: list[str]) -> None:
             rel = Relation(operator_id=ids[operator])
@@ -339,9 +394,11 @@ async def seed() -> None:
             )
 
         await session.commit()
+        reference_count = sum(len(entries) for entries in references.values())
         print(
             f"seeded {len(objects)} objects, {relation_count} relations, "
-            f"and {len(implementations)} implementations"
+            f"{len(implementations)} implementations, {len(images)} images "
+            f"and {reference_count} references"
         )
 
 

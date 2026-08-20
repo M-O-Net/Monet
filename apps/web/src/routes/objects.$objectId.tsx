@@ -9,8 +9,11 @@ import { Latex } from "../components/Latex";
 import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
 import { invalidateObjectGraph } from "../lib/queries";
+import type { ObjectReferenceIn } from "../lib/types";
 import { MemberList } from "./-components/MemberList";
 import { OperatorDisplayForm } from "./-components/OperatorDisplayForm";
+import { ReferenceEditor } from "./-components/ReferenceEditor";
+import { ReferenceList } from "./-components/ReferenceList";
 import { RelationList } from "./-components/RelationList";
 import { ImplementationEditor } from "./-components/ImplementationEditor";
 import { Operations } from "./-components/Operations";
@@ -39,6 +42,8 @@ function ObjectDetail() {
   const [editing, setEditing] = useState(false);
   const [draftLatex, setDraftLatex] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
+  const [draftImageUrl, setDraftImageUrl] = useState("");
+  const [draftReferences, setDraftReferences] = useState<ObjectReferenceIn[]>([]);
 
   const invalidateAll = () => {
     invalidateObjectGraph(queryClient);
@@ -73,7 +78,14 @@ function ObjectDetail() {
               updateObject.mutate(
                 {
                   params: { path: { object_id: objectId } },
-                  body: { latex: draftLatex, description: draftDescription.trim() || null },
+                  body: {
+                    latex: draftLatex,
+                    description: draftDescription.trim() || null,
+                    image_url: draftImageUrl.trim() || null,
+                    references: draftReferences.filter(
+                      (reference) => reference.url.trim() !== "",
+                    ),
+                  },
                 },
                 {
                   onSuccess: () => {
@@ -117,6 +129,15 @@ function ObjectDetail() {
               placeholder="Description (optional)"
               className="rounded-sm border border-mist bg-paper px-2 py-1 text-xs text-ink placeholder:text-ink-soft/60 focus:border-pond focus:outline-none"
             />
+            <input
+              value={draftImageUrl}
+              onChange={(e) => {
+                setDraftImageUrl(e.target.value);
+              }}
+              placeholder="Image URL (optional)"
+              className="rounded-sm border border-mist bg-paper px-2 py-1 text-xs text-ink placeholder:text-ink-soft/60 focus:border-pond focus:outline-none"
+            />
+            <ReferenceEditor references={draftReferences} onChange={setDraftReferences} />
           </form>
         ) : (
           <>
@@ -164,6 +185,13 @@ function ObjectDetail() {
                 onClick={() => {
                   setDraftLatex(obj.latex);
                   setDraftDescription(obj.description ?? "");
+                  setDraftImageUrl(obj.image_url ?? "");
+                  setDraftReferences(
+                    obj.references.map((reference) => ({
+                      label: reference.label,
+                      url: reference.url,
+                    })),
+                  );
                   setEditing(true);
                 }}
                 className="rounded-sm border border-mist px-2 py-1 text-xs text-ink-soft hover:bg-paper-deep"
@@ -197,6 +225,14 @@ function ObjectDetail() {
         <p className="mb-4 text-xs text-rust">{formatApiError(deleteObject.error)}</p>
       )}
 
+      {obj.image_url !== null && obj.image_url !== "" && (
+        <img
+          src={obj.image_url}
+          alt={obj.description ?? "Diagram of this object"}
+          className="mb-7 max-h-56 w-auto max-w-full"
+        />
+      )}
+
       {isIsolated && (
         <p className="mb-7 text-sm text-ink-soft italic">
           Not yet connected to anything else in the valley.
@@ -219,6 +255,7 @@ function ObjectDetail() {
         relations={obj.as_output}
         currentObjectId={objectId}
       />
+      <ReferenceList references={obj.references} />
 
       {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 

@@ -255,6 +255,10 @@ export interface components {
             latex: string;
             /** Description */
             description?: string | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** References */
+            references?: components["schemas"]["ObjectReferenceIn"][];
         };
         /** ObjectDetailOut */
         ObjectDetailOut: {
@@ -267,6 +271,10 @@ export interface components {
             latex: string;
             /** Description */
             description: string | null;
+            /** Image Url */
+            image_url: string | null;
+            /** References */
+            references: components["schemas"]["ObjectReferenceOut"][];
             /** Is Top Level */
             is_top_level: boolean;
             /** Sections */
@@ -292,12 +300,30 @@ export interface components {
             /** Description */
             description: string | null;
         };
+        /** ObjectReferenceIn */
+        ObjectReferenceIn: {
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+        };
+        /** ObjectReferenceOut */
+        ObjectReferenceOut: {
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+        };
         /** ObjectUpdate */
         ObjectUpdate: {
             /** Latex */
             latex: string;
             /** Description */
             description?: string | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** References */
+            references?: components["schemas"]["ObjectReferenceIn"][];
         };
         /** OperatorDisplayOut */
         OperatorDisplayOut: {

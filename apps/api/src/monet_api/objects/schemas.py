@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from monet_api.core.schemas import ORMModel
 
@@ -11,14 +11,28 @@ class ObjectOut(ORMModel):
     description: str | None
 
 
+class ObjectReferenceIn(BaseModel):
+    label: str
+    url: str
+
+
+class ObjectReferenceOut(ORMModel):
+    label: str
+    url: str
+
+
 class ObjectCreate(BaseModel):
     latex: str
     description: str | None = None
+    image_url: str | None = None
+    references: list[ObjectReferenceIn] = Field(default_factory=list)
 
 
 class ObjectUpdate(BaseModel):
     latex: str
     description: str | None = None
+    image_url: str | None = None
+    references: list[ObjectReferenceIn] = Field(default_factory=list)
 
 
 class RelationDisplayOut(ORMModel):
@@ -49,6 +63,8 @@ class ObjectDetailOut(BaseModel):
     id: uuid.UUID
     latex: str
     description: str | None
+    image_url: str | None
+    references: list[ObjectReferenceOut]
     is_top_level: bool
     sections: list[ObjectOut]
     members: list[ObjectOut]
