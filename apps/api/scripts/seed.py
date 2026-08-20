@@ -79,6 +79,16 @@ async def seed() -> None:
                 r"\text{Booleans}",
                 "The two truth values a predicate-style relation, like Is Singular, produces.",
             ),
+            "KnotTheory": (
+                r"\text{Knot Theory}",
+                "Knots, and the matrices and polynomials that identify them.",
+            ),
+            "Knots": (r"\text{Knots}", "Specific knots, named the standard way."),
+            "KnotOperations": (
+                r"\text{Knot Operations}",
+                "Operations taking a knot or its Seifert matrix as input: Seifert matrices, "
+                "Alexander polynomials.",
+            ),
         }
 
         matrices: dict[str, Specimen] = {
@@ -91,6 +101,24 @@ async def seed() -> None:
                 "The companion matrix of "
                 r"$x^{2} - 4 x + 3$ — its own characteristic polynomial closes the loop.",
             ),
+            "V3": (
+                r"\begin{pmatrix}-1&1\\0&-1\end{pmatrix}",
+                "The Seifert matrix of the trefoil.",
+            ),
+            "V5": (
+                r"\begin{pmatrix}-1&1&0&0\\0&-1&1&0\\0&0&-1&1\\0&0&0&-1\end{pmatrix}",
+                r"The Seifert matrix of $5_1$.",
+            ),
+            "V7": (
+                r"\begin{pmatrix}-1&1&0&0&0&0\\0&-1&1&0&0&0\\0&0&-1&1&0&0"
+                r"\\0&0&0&-1&1&0\\0&0&0&0&-1&1\\0&0&0&0&0&-1\end{pmatrix}",
+                r"The Seifert matrix of $7_1$.",
+            ),
+            "CompPhi6": (
+                r"\begin{pmatrix}0&-1\\1&1\end{pmatrix}",
+                r"The companion matrix of $x^{2} - x + 1$ — the trefoil's polynomial, "
+                "back in linear algebra.",
+            ),
         }
 
         polynomials: dict[str, Specimen] = {
@@ -99,6 +127,18 @@ async def seed() -> None:
             "P": (r"x^{2} - 4 x + 3", None),
             "Q": (r"x^{2} - 2 x + 1", None),
             "R": (r"x^{2} - 1", None),
+            "Phi6": (
+                r"x^{2} - x + 1",
+                "The 6th cyclotomic polynomial — and the Alexander polynomial of the trefoil.",
+            ),
+            "Phi10": (
+                r"x^{4} - x^{3} + x^{2} - x + 1",
+                r"The 10th cyclotomic polynomial — and the Alexander polynomial of $5_1$.",
+            ),
+            "Phi14": (
+                r"x^{6} - x^{5} + x^{4} - x^{3} + x^{2} - x + 1",
+                r"The 14th cyclotomic polynomial — and the Alexander polynomial of $7_1$.",
+            ),
         }
 
         integers: dict[str, Specimen] = {
@@ -106,11 +146,33 @@ async def seed() -> None:
             "neg_one": ("-1", None),
             "three": ("3", None),
             "two": ("2", None),
+            "six": ("6", None),
+            "ten": ("10", None),
+            "fourteen": ("14", None),
         }
 
         booleans: dict[str, Specimen] = {
             "true": (r"\text{True}", None),
             "false": (r"\text{False}", None),
+        }
+
+        # \mathrm{} stops sympy reading these as the integers 31, 51 and 71.
+        knots: dict[str, Specimen] = {
+            "K3": (r"\mathrm{3}_{1}", "The trefoil — the simplest knot that cannot be untied."),
+            "K5": (r"\mathrm{5}_{1}", "The (2, 5) torus knot: two strands, five crossings."),
+            "K7": (r"\mathrm{7}_{1}", "The (2, 7) torus knot: two strands, seven crossings."),
+        }
+
+        knot_operators: dict[str, Specimen] = {
+            "SeifertMatrix": (
+                r"\text{Seifert Matrix}",
+                "For a knot, the integer matrix recording how a surface spanning it twists. "
+                "Asserted rather than computed: it depends on a choice of surface.",
+            ),
+            "AlexanderPolynomial": (
+                r"\text{Alexander Polynomial}",
+                r"For a Seifert matrix $V$, the polynomial $\det(V - xV^{T})$.",
+            ),
         }
 
         matrix_operators: dict[str, Specimen] = {
@@ -134,6 +196,11 @@ async def seed() -> None:
                 "matrix whose characteristic polynomial is that polynomial.",
             ),
             "Degree": (r"\text{Degree}", "The highest power of the variable in a polynomial."),
+            "CyclotomicPolynomial": (
+                r"\text{Cyclotomic Polynomial}",
+                r"For $n$, the monic factor of $x^{n} - 1$ whose roots are exactly the "
+                r"primitive $n$th roots of unity.",
+            ),
         }
 
         sectioning_operators: dict[str, Specimen] = {
@@ -151,8 +218,10 @@ async def seed() -> None:
             **polynomials,
             **integers,
             **booleans,
+            **knots,
             **matrix_operators,
             **polynomial_operators,
+            **knot_operators,
             **sectioning_operators,
         }
 
@@ -187,8 +256,19 @@ async def seed() -> None:
         await add_relation("Determinant", ["A"], ["three"])
         await add_relation("IsSingular", ["A"], ["false"])
         await add_relation("Degree", ["P"], ["two"])
+        await add_relation("SeifertMatrix", ["K3"], ["V3"])
+        await add_relation("SeifertMatrix", ["K5"], ["V5"])
+        await add_relation("SeifertMatrix", ["K7"], ["V7"])
+        await add_relation("AlexanderPolynomial", ["V3"], ["Phi6"])
+        await add_relation("AlexanderPolynomial", ["V5"], ["Phi10"])
+        await add_relation("AlexanderPolynomial", ["V7"], ["Phi14"])
+        await add_relation("CyclotomicPolynomial", ["six"], ["Phi6"])
+        await add_relation("CyclotomicPolynomial", ["ten"], ["Phi10"])
+        await add_relation("CyclotomicPolynomial", ["fourteen"], ["Phi14"])
+        await add_relation("CompanionMatrix", ["Phi6"], ["CompPhi6"])
+        await add_relation("CharacteristicPolynomial", ["CompPhi6"], ["Phi6"])
 
-        relation_count = 11
+        relation_count = 22
 
         displays: dict[str, tuple[str | None, bool, bool]] = {
             "ElementOf": (None, False, True),
@@ -196,6 +276,9 @@ async def seed() -> None:
             "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
             "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
             "Degree": (r"\op{\deg(}{in0}\op{)} = {out0}", False, False),
+            "SeifertMatrix": (r"\op{V(}{in0}\op{)} = {out0}", False, False),
+            "AlexanderPolynomial": (r"\op{\Delta(}{in0}\op{)} = {out0}", False, False),
+            "CyclotomicPolynomial": (r"\op{\Phi}_{{in0}}(x) = {out0}", False, False),
         }
         for operator, (template, hidden, membership) in displays.items():
             session.add(
@@ -211,7 +294,7 @@ async def seed() -> None:
             "LinearAlgebra": ["Matrices", "MatrixOperations"],
             "PolynomialAlgebra": ["Polynomials", "PolynomialOperations"],
             "Values": ["Integers", "Booleans"],
-            "Matrices": ["A", "B", "D", "E", "C"],
+            "Matrices": ["A", "B", "D", "E", "C", "V3", "V5", "V7", "CompPhi6"],
             "MatrixOperations": [
                 "CharacteristicPolynomial",
                 "Inverse",
@@ -219,17 +302,20 @@ async def seed() -> None:
                 "Add",
                 "IsSingular",
             ],
-            "Polynomials": ["P", "Q", "R"],
-            "PolynomialOperations": ["CompanionMatrix", "Degree"],
-            "Integers": ["one", "neg_one", "three", "two"],
+            "Polynomials": ["P", "Q", "R", "Phi6", "Phi10", "Phi14"],
+            "PolynomialOperations": ["CompanionMatrix", "Degree", "CyclotomicPolynomial"],
+            "Integers": ["one", "neg_one", "three", "two", "six", "ten", "fourteen"],
             "Booleans": ["true", "false"],
+            "KnotTheory": ["Knots", "KnotOperations"],
+            "Knots": ["K3", "K5", "K7"],
+            "KnotOperations": ["SeifertMatrix", "AlexanderPolynomial"],
         }
         for section, members in sections.items():
             for member in members:
                 await add_relation("ElementOf", [member], [section])
                 relation_count += 1
 
-        for root in ("LinearAlgebra", "PolynomialAlgebra", "Values"):
+        for root in ("LinearAlgebra", "PolynomialAlgebra", "KnotTheory", "Values"):
             session.add(TopLevelObject(object_id=ids[root]))
 
         implementation_dir = pathlib.Path(__file__).parent / "implementations"
@@ -241,6 +327,8 @@ async def seed() -> None:
             "IsSingular": "is_singular",
             "CompanionMatrix": "companion_matrix",
             "Degree": "degree",
+            "AlexanderPolynomial": "alexander_polynomial",
+            "CyclotomicPolynomial": "cyclotomic_polynomial",
         }
         for operator, filename in implementations.items():
             session.add(
