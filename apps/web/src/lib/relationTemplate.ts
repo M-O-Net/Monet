@@ -41,9 +41,15 @@ function isRenderable(latex: string): boolean {
  *
  * Operands stay individually clickable because each is wrapped in \href, which KaTeX emits as a
  * real anchor inside the layout — so cmd-click and "copy link address" work as they should.
+ *
+ * A template marks its own operator notation with \op{...}: "{in0} \op{+} {in1} = {out0}" makes
+ * the plus a link to Matrix Addition, which is what the plus denotes. It is a KaTeX macro that
+ * expands to the same \href, so the operator comes out as an ordinary anchor — styled, placed
+ * and click-handled exactly like an operand, with no special-casing anywhere downstream.
  */
 export function buildTemplateHtml(template: string, relation: RelationOut): string | null {
-  const allowedHrefs = new Set<string>();
+  const operatorHref = `/objects/${relation.operator.id}`;
+  const allowedHrefs = new Set<string>([operatorHref]);
   const covered = new Set<string>();
   // A list rather than a boolean: TypeScript does not track assignments made inside the
   // replacer closure, so a flag would read as permanently false to the type checker.
@@ -81,6 +87,8 @@ export function buildTemplateHtml(template: string, relation: RelationOut): stri
         // KaTeX wraps its visual output in — a focusable link no screen reader can reach is
         // the worse trade. Screen readers then read the glyph run in DOM order.
         output: "html",
+        // \op{...} is how a template says "this notation is the operator itself".
+        macros: { "\\op": `\\href{${operatorHref}}{#1}` },
         // NEVER `trust: true`. Object LaTeX is user input, and blanket trust would enable
         // \href{javascript:...}, \includegraphics and \htmlStyle from anything typed into the
         // latex field. Only the relative object links built just above are allowed through.

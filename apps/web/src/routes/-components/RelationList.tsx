@@ -13,7 +13,7 @@ function OperatorLink({ operator, subdued }: { operator: ObjectOut; subdued?: bo
       params={{ objectId: operator.id }}
       className={
         subdued
-          ? "shrink-0 text-[11px] text-ink-soft transition-colors hover:text-pond"
+          ? "shrink-0 rounded-sm px-1 text-[11px] text-ink-soft transition-colors hover:bg-gold-soft/60 hover:text-ink"
           : "rounded-sm border border-gold/40 bg-gold-soft px-2 py-0.5 text-xs font-medium tracking-wide text-ink transition-colors hover:bg-gold-soft/60"
       }
     >

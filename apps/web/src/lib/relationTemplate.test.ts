@@ -50,6 +50,19 @@ describe("buildTemplateHtml", () => {
     expect(buildTemplateHtml("{in0} \\cdot {in0} = {out0}", square)).not.toBeNull();
   });
 
+  it("links the operator's own notation when the template marks it with \\op", () => {
+    const html = buildTemplateHtml("{in0} \\op{+} {in1} = {out0}", addition);
+    expect(html).not.toBeNull();
+    expect(html).toContain(`href="/objects/${addition.operator.id}"`);
+  });
+
+  it("renders \\op inside a superscript, where the notation is not a top-level run", () => {
+    const inverse = relation([object(A, "A")], [object(C, "C")]);
+    const html = buildTemplateHtml("{in0}^{\\op{-1}} = {out0}", inverse);
+    expect(html).not.toBeNull();
+    expect(html).toContain(`href="/objects/${inverse.operator.id}"`);
+  });
+
   it("falls back when a placeholder is out of range", () => {
     expect(buildTemplateHtml("{in0} + {in7} = {out0}", addition)).toBeNull();
   });

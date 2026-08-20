@@ -144,15 +144,17 @@ async def seed() -> None:
         # How each operator wants its relations rendered. Purely presentation — see
         # OperatorDisplay. A template must mention every operand, or the front end falls back
         # to the plain operands-operator-outputs row rather than show a partial equation.
+        # \op{...} marks the part of a template that IS the operator — the "+" in A + B = E is
+        # Matrix Addition — so it renders as a link to it, exactly as the operands do.
         displays: dict[str, tuple[str | None, bool, bool]] = {
             # operator -> (template, hidden_by_default, is_membership)
             "ElementOf": (None, False, True),
             # Every matrix in the network will eventually have sums with every other, so these
             # rows are collapsed until asked for.
-            "MatrixAddition": (r"{in0} + {in1} = {out0}", True, False),
-            "Determinant": (r"\det({in0}) = {out0}", False, False),
-            "Inverse": (r"{in0}^{-1} = {out0}", False, False),
-            "Degree": (r"\deg({in0}) = {out0}", False, False),
+            "MatrixAddition": (r"{in0} \op{+} {in1} = {out0}", True, False),
+            "Determinant": (r"\op{\det}({in0}) = {out0}", False, False),
+            "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
+            "Degree": (r"\op{\deg}({in0}) = {out0}", False, False),
         }
         for operator, (template, hidden, membership) in displays.items():
             session.add(

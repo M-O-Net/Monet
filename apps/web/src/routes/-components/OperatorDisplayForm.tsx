@@ -13,6 +13,9 @@ function placeholdersFor(relation: RelationOut): string[] {
   return [
     ...relation.inputs.map((_slot, i) => `{in${String(i)}}`),
     ...relation.outputs.map((_slot, i) => `{out${String(i)}}`),
+    // Wraps whatever notation stands for this operator, making it a link to the operator the
+    // same way the operands link to theirs.
+    "\\op{}",
   ];
 }
 
