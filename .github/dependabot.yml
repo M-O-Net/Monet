@@ -3,7 +3,7 @@ updates:
   - package-ecosystem: "uv"
     directory: "/apps/api"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     groups:
       python:
@@ -17,20 +17,20 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     groups:
       web:
         patterns: ["*"]
 
-  # One combined weekly PR across both service images, so a shared base-image bump lands once
+  # One combined monthly PR across both service images, so a shared base-image bump lands once
   # instead of once per Dockerfile.
   - package-ecosystem: "docker"
     directories:
       - "/apps/api"
       - "/apps/web"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     groups:
       docker:
@@ -39,4 +39,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    groups:
+      actions:
+        patterns: ["*"]
