@@ -1,8 +1,3 @@
-"""Drop and recreate the dedicated test database.
-
-Run by tests/docker-entry.sh before every suite invocation, never by hand.
-"""
-
 import asyncio
 from urllib.parse import urlparse
 
@@ -14,7 +9,6 @@ TEST_DB_NAME = "monet_test"
 
 
 async def main() -> None:
-    """Recreate `monet_test` from empty, refusing to touch any other database."""
     url = urlparse(settings.database_url.replace("postgresql+asyncpg", "postgresql"))
     dbname = url.path.lstrip("/")
     if dbname != TEST_DB_NAME:
