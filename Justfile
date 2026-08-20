@@ -189,7 +189,7 @@ lint-api:
     cd apps/api && uv run ruff check . && uv run mypy src
 
 lint-web:
-    cd apps/web && pnpm exec eslint . && pnpm exec tsc -b
+    cd apps/web && pnpm exec eslint . && pnpm exec tsc6 -b
 
 lint-config:
     pnpm exec prettier --check .

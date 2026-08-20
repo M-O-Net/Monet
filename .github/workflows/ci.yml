@@ -41,9 +41,14 @@ jobs:
           filters: |
             api:
               - 'apps/api/**'
+              - '.github/workflows/ci.yml'
             web:
               - 'apps/web/**'
               - 'packages/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/ci.yml'
             code:
               - '!**/*.md'
 
@@ -151,6 +156,7 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
 
@@ -160,11 +166,20 @@ jobs:
       - name: Build
         run: just build-web
 
+      # `vite build` regenerates this file in place. It is committed (eslint and tsc read it
+      # before any build has run), so a diff here means the pinned router-plugin no longer emits
+      # what is checked in — typically after a plugin bump whose PR did not regenerate it.
+      - name: Route tree is up to date
+        run: git diff --exit-code -- apps/web/src/routeTree.gen.ts
+
+      - uses: docker/setup-buildx-action@v4
+
       - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/web/Dockerfile
           push: false
+          tags: monet-web:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
