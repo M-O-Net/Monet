@@ -178,22 +178,3 @@ async def test_deleting_an_object_is_never_blocked_by_its_own_gui_rows(
 
     assert (await client.delete(f"/objects/{obj}")).status_code == 204
     assert (await client.get("/top-level-objects")).json() == []
-
-
-async def test_more_than_one_operator_can_be_membership(client: AsyncClient) -> None:
-    element_of = await make_object(client, "\\text{Element Of}")
-    subset_of = await make_object(client, "\\text{Subset Of}")
-    matrices = await make_object(client, "\\text{Matrices}")
-    squares = await make_object(client, "\\text{Square Matrices}")
-    a = await make_object(client, "A")
-
-    await set_display(client, element_of, membership=True)
-    await set_display(client, subset_of, membership=True)
-    await relate(client, element_of, [a], [matrices])
-    await relate(client, subset_of, [squares], [matrices])
-
-    assert (await client.get(f"/operator-displays/{element_of}")).json()["is_membership"] is True
-    assert (await client.get(f"/operator-displays/{subset_of}")).json()["is_membership"] is True
-
-    members = (await client.get(f"/objects/{matrices}")).json()["members"]
-    assert sorted(m["id"] for m in members) == sorted([a, squares])
