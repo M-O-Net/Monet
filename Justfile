@@ -153,12 +153,6 @@ migrate-status:
 # Model↔migration drift gate: fails if a SQLModel table has no matching migration, or a
 # migration doesn't match the models, so drift is caught here rather than as a runtime
 # schema mismatch.
-#
-# Not made redundant by `just test-api` also running `alembic check` (see
-# apps/api/tests/docker-entry.sh): that one checks a freshly-migrated monet_test, which answers
-# "do the models match the migration chain?". This one checks the DEV database, which additionally
-# answers "is the schema my running stack is actually using still in step?" — the case where a
-# branch switch or a hand-run migration left the dev DB somewhere the migration chain didn't put it.
 migrate-check:
     {{_dc_dev}} exec api uv run alembic check
 
@@ -183,19 +177,6 @@ gen-client:
 
 test: test-api build-web
 
-# Runs the backend suite inside the Docker stack, against a dedicated `monet_test` database that
-# the `test` service's entrypoint drops, recreates, migrates and drift-checks (`alembic check`)
-# on every run — see apps/api/tests/docker-entry.sh. Never the dev DB: the suite's autouse
-# `_clean_db` fixture DELETEs every row, so the old host-side `uv run pytest` (pointed at the dev
-# DB by apps/api/.env) wiped the seeded dataset every time it ran.
-#
-# Running in the stack is also what removes the need for a hand-written apps/api/.env per
-# worktree, and what let docker-compose.yml stop publishing a Postgres host port (which every
-# worktree collided on).
-#
-# `--build` keeps the image in step with the lockfile; src/tests/alembic are bind-mounted, so a
-# code edit needs no rebuild — but editing them mid-run invalidates the run in progress, so
-# discard the result rather than trust it if you do.
 test-api:
     {{_dc_dev}} run --rm --build test
 

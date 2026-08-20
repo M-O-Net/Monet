@@ -23,12 +23,6 @@ services:
              uv run python scripts/seed.py --if-empty &&
              uv run uvicorn monet_api.main:app --host 0.0.0.0 --port 8000 --reload"
 
-  # Backend test runner — `just test-api` does `docker compose run --rm --build test`.
-  # `profiles: ["test"]` keeps it out of `just up`: a profiled service only starts when its
-  # profile is selected or when it's named directly on a `run`/`build`.
-  #
-  # It exists in the DEV override rather than the base file for the same reason the bind mounts
-  # below do — it's a developer/CI tool, not part of the deployable stack.
   test:
     build:
       context: .
@@ -36,18 +30,8 @@ services:
       target: test
     profiles: ["test"]
     environment:
-      # `monet_test`, NOT the dev `monet` database. The suite's autouse `_clean_db` fixture
-      # DELETEs every row in every table, so pointing it at the dev DB (which is what host-side
-      # pytest + apps/api/.env used to do) wiped the seeded demo dataset on every run. The test
-      # DB is a per-run artifact: tests/docker-entry.sh drops and recreates it, migrates it from
-      # empty, and drift-checks it before pytest starts — and it hard-refuses to do any of that
-      # to a database not named monet_test.
       DATABASE_URL: postgresql+asyncpg://monet:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — see .env.example}@postgres:5432/monet_test
     volumes:
-      # Same individually-mounted-paths approach as `api` above (never the whole /app, so the
-      # image's venv isn't shadowed): a source or test edit is picked up without a rebuild; a
-      # dependency bump needs one, which `just test-api`'s own `--build` handles.
-      # `tests` is mounted read-write, unlike the rest — pytest writes __pycache__ into it.
       - ./apps/api/src:/app/src:ro
       - ./apps/api/tests:/app/tests
       - ./apps/api/alembic:/app/alembic:ro

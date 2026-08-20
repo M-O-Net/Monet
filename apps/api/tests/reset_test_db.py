@@ -17,15 +17,11 @@ async def main() -> None:
     """Recreate `monet_test` from empty, refusing to touch any other database."""
     url = urlparse(settings.database_url.replace("postgresql+asyncpg", "postgresql"))
     dbname = url.path.lstrip("/")
-    # Second, independent copy of docker-entry.sh's guard. This module is the one that issues the
-    # DROP, so it verifies its own target rather than trusting the caller to have checked.
     if dbname != TEST_DB_NAME:
         raise SystemExit(
             f"refusing to drop {dbname!r}: this script recreates {TEST_DB_NAME!r} and nothing "
             "else. Run `just test-api`, which points the test service at it."
         )
-    # Connect to `postgres`, not to the database being dropped — you cannot DROP the database
-    # your own session is attached to.
     admin = await asyncpg.connect(
         host=url.hostname,
         port=url.port or 5432,
@@ -34,10 +30,6 @@ async def main() -> None:
         database="postgres",
     )
     try:
-        # FORCE terminates any backend still attached. Only this suite ever connects to
-        # monet_test, so the realistic case isn't a concurrent run — it's a dead connection left
-        # by a killed container, which without FORCE wedges every later run until Postgres reaps
-        # the socket.
         await admin.execute(f'DROP DATABASE IF EXISTS "{dbname}" WITH (FORCE)')
         await admin.execute(f'CREATE DATABASE "{dbname}"')
         print(f"recreated database {dbname}")

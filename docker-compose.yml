@@ -8,14 +8,6 @@ services:
       POSTGRES_USER: monet
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — see .env.example}
       POSTGRES_DB: monet
-    # Deliberately publishes NO host port. The only thing that ever wanted one was host-side
-    # pytest reaching the dev DB; tests now run inside the stack against `monet_test` (see
-    # docker-compose.dev.yml's `test` service), so nothing outside the compose network needs
-    # Postgres. It also removes a real collision: `just wt-add` allocates API_PORT/WEB_PORT per
-    # worktree but never allocated a PG port, so every worktree's stack fought for the same one
-    # and the second to start failed to bind. Muse's infra/docker-compose.yml publishes none
-    # either. Need a psql shell? Go in through the container:
-    # `docker compose --env-file .env --env-file .env.local exec postgres psql -U monet monet`.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,9 +20,6 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-      # Named explicitly even though `final` is the Dockerfile's last stage anyway — the file
-      # also carries `test-deps`/`test` stages now, and an unqualified build would follow
-      # whatever ends up last.
       target: final
     environment:
       DATABASE_URL: postgresql+asyncpg://monet:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — see .env.example}@postgres:5432/monet

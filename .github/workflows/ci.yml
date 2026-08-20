@@ -39,9 +39,6 @@ jobs:
         id: filter
         with:
           filters: |
-            # The compose files and this workflow are part of how the API is tested now (the
-            # suite runs as the `test` compose service, not host-side pytest), so a change to
-            # either has to be able to trigger this job on its own.
             api:
               - 'apps/api/**'
               - 'docker-compose*.yml'
@@ -87,15 +84,6 @@ jobs:
       - name: Lint
         run: just lint-api
 
-      # No `Migrate` step any more, and no GitHub `services: postgres` above: the suite runs as
-      # the `test` compose service, which brings up its own Postgres and whose entrypoint
-      # recreates + migrates + `alembic check`s the monet_test DB itself. See the run step below.
-
-      # Compose interpolates POSTGRES_PASSWORD out of `.env`, which is gitignored. Starting from
-      # the checked-in template rather than writing the keys out again here: a variable the
-      # compose files newly require reaches CI by being added to `.env.example` (which whoever
-      # adds it has to touch anyway), instead of via a second hand-maintained list that drifts
-      # silently and surfaces as an interpolation error on some unrelated PR.
       - name: Write CI .env
         run: cp .env.example .env
 
@@ -131,10 +119,6 @@ jobs:
           path: /tmp/monet-api-deps.tar
           key: ${{ steps.deps-key.outputs.key }}
 
-      # `test-deps` (the dev dependency group on top of `deps`) gets the same tarball treatment,
-      # and for the same reason: it too installs through `--mount=type=cache`, which `type=gha`
-      # would not export. Layering it on the already-loaded `monet-api-deps:cache` rather than
-      # rebuilding `deps` from scratch is what the --build-arg below is for.
       - name: Compute test-deps cache key
         id: test-deps-key
         run: echo "key=monet-api-test-deps-${{ hashFiles('apps/api/pyproject.toml', 'apps/api/uv.lock', 'apps/api/Dockerfile') }}" >> "$GITHUB_OUTPUT"
@@ -163,10 +147,6 @@ jobs:
           path: /tmp/monet-api-test-deps.tar
           key: ${{ steps.test-deps-key.outputs.key }}
 
-      # Built as an explicit step, separate from running it, purely so the two --build-arg values
-      # can be threaded in: `just test-api`'s own `--build` passes neither, so it would rebuild
-      # `deps`/`test-deps` from their in-file fallback stages and throw away the two
-      # cache-restored images the steps above just loaded — the entire point of caching them.
       - name: Build test image
         run: >
           docker compose --env-file .env
@@ -174,9 +154,6 @@ jobs:
           build --build-arg DEPS_IMAGE=monet-api-deps:cache --build-arg TEST_DEPS_IMAGE=monet-api-test-deps:cache
           test
 
-      # The image is already built by the step above, so this only runs it (no `--build`, unlike
-      # `just test-api`). Starts postgres via the service's own `depends_on`, drops/recreates and
-      # migrates monet_test, runs `alembic check`, then pytest.
       - name: Test
         run: >
           docker compose --env-file .env
