@@ -27,3 +27,8 @@ apps/web/openapi.json
 .DS_Store
 .vscode/
 .idea/
+
+apps/web/public/pyodide/
+
+.claude/worktrees/
+

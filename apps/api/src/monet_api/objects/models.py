@@ -16,9 +16,9 @@ class Relation(SQLModel, table=True):
     __tablename__ = "relations"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    # No ondelete here (defaults to RESTRICT): deleting an object still used as an
-    # operator somewhere is blocked, not silently cascaded — see router's delete_object.
-    operator_id: uuid.UUID = Field(foreign_key="objects.id")
+    operator_id: uuid.UUID = Field(
+        sa_column=sa.Column(sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False)
+    )
 
 
 class RelationInput(SQLModel, table=True):

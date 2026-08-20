@@ -14,6 +14,8 @@ from monet_api.objects.schemas import (
     ObjectUpdate,
     OperatorDisplayOut,
     OperatorDisplayUpdate,
+    RelationAssert,
+    RelationAssertOut,
     RelationCreate,
     RelationOut,
     SectionNode,
@@ -130,3 +132,13 @@ async def replace_relation(
 @router.delete("/relations/{relation_id}", status_code=204, operation_id="delete_relation")
 async def delete_relation(relation_id: uuid.UUID, session: DbSession) -> None:
     await service.delete_relation(session, relation_id)
+
+
+@router.post(
+    "/relations/assert",
+    response_model=RelationAssertOut,
+    operation_id="assert_relation",
+    status_code=200,
+)
+async def assert_relation(body: RelationAssert, session: DbSession) -> RelationAssertOut:
+    return await service.assert_relation(session, body)

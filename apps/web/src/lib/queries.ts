@@ -7,6 +7,8 @@ export function invalidateObjectGraph(queryClient: QueryClient): void {
     ["get", "/contents"],
     ["get", "/top-level-objects"],
     ["get", "/operator-displays/{operator_id}"],
+    ["get", "/relations"],
+    ["get", "/implementations"],
   ]) {
     void queryClient.invalidateQueries({ queryKey: key });
   }

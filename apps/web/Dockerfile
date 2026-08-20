@@ -16,14 +16,16 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 FROM deps AS dev
 WORKDIR /app/apps/web
 EXPOSE 5173
-CMD ["pnpm", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+CMD ["pnpm", "exec", "vite", "--host", "0.0.0.0", "--port", "5173"]
 
 FROM deps AS final
 COPY packages/api-client packages/api-client
 COPY apps/web apps/web
+COPY render.yaml render.yaml
 WORKDIR /app/apps/web
 RUN pnpm run build
 
 FROM nginx:1.30-alpine AS serve
 COPY --from=final /app/apps/web/dist /usr/share/nginx/html
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

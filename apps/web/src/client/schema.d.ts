@@ -148,6 +148,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/relations/assert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assert Relation */
+        post: operations["assert_relation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/implementations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Implementations */
+        get: operations["list_implementations"];
+        put?: never;
+        /** Create Implementation */
+        post: operations["create_implementation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/implementations/{implementation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Implementation */
+        get: operations["get_implementation"];
+        put?: never;
+        post?: never;
+        /** Delete Implementation */
+        delete: operations["delete_implementation"];
+        options?: never;
+        head?: never;
+        /** Update Implementation */
+        patch: operations["update_implementation"];
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -173,6 +227,27 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** ImplementationDetailOut */
+        ImplementationDetailOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            operator: components["schemas"]["ObjectOut"];
+            /** Code */
+            code: string;
+        };
+        /** ImplementationWrite */
+        ImplementationWrite: {
+            /**
+             * Operator Id
+             * Format: uuid
+             */
+            operator_id: string;
+            /** Code */
+            code: string;
         };
         /** ObjectCreate */
         ObjectCreate: {
@@ -246,6 +321,29 @@ export interface components {
             hidden_by_default: boolean;
             /** Is Membership */
             is_membership: boolean;
+        };
+        /**
+         * RelationAssert
+         * @description Record a computed result; outputs are LaTeX because they may not exist as objects yet.
+         */
+        RelationAssert: {
+            /**
+             * Operator Id
+             * Format: uuid
+             */
+            operator_id: string;
+            /** Input Object Ids */
+            input_object_ids: string[];
+            /** Output Latex */
+            output_latex: string[];
+        };
+        /** RelationAssertOut */
+        RelationAssertOut: {
+            relation: components["schemas"]["RelationOut"];
+            /** Created Object Ids */
+            created_object_ids: string[];
+            /** Created Relation */
+            created_relation: boolean;
         };
         /** RelationCreate */
         RelationCreate: {
@@ -772,6 +870,187 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assert_relation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelationAssert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationAssertOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_implementations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImplementationDetailOut"][];
+                };
+            };
+        };
+    };
+    create_implementation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImplementationWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImplementationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_implementation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                implementation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImplementationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_implementation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                implementation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_implementation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                implementation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImplementationWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImplementationDetailOut"];
+                };
             };
             /** @description Validation Error */
             422: {

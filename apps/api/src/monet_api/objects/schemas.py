@@ -57,6 +57,20 @@ class ObjectDetailOut(BaseModel):
     as_output: list[RelationOut]
 
 
+class RelationAssert(BaseModel):
+    """Record a computed result; outputs are LaTeX because they may not exist as objects yet."""
+
+    operator_id: uuid.UUID
+    input_object_ids: list[uuid.UUID]
+    output_latex: list[str]
+
+
+class RelationAssertOut(BaseModel):
+    relation: RelationOut
+    created_object_ids: list[uuid.UUID]
+    created_relation: bool
+
+
 class SectionNode(BaseModel):
     id: uuid.UUID
     latex: str

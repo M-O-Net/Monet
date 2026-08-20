@@ -62,22 +62,26 @@ added; see below for how it's staged.
 
 ## Where this is going
 
-**v0** (this release) is intentionally small: a database and a browsing/editing interface,
-covering only matrices and polynomials, with every object and relation entered and edited by
-hand. No computation happens automatically — the point of v0 is to prove the data model and the
-experience of exploring the network, including the closed-loop example above, without needing any
-of the machinery that makes the network _grow itself_.
+**v0** was intentionally small: a database and a browsing/editing interface, covering only
+matrices and polynomials, with every object and relation entered and edited by hand. No
+computation happened automatically — the point was to prove the data model and the experience of
+exploring the network, including the closed-loop example above.
 
-**v1** adds that machinery: real implementations behind each operator (so applying
-`CharacteristicPolynomial` to a matrix actually computes one), starting in one language and
-designed to eventually support several, plus a canonical representation for each object type so
-those implementations have something concrete to compute over.
+**Implementations** (see below) are the first piece of machinery that lets the network compute rather
+than only record.
 
-**Beyond v1**, staged in roughly this order:
+**Still ahead**: a canonical representation for each object type, so that two ways of writing the
+same matrix are recognised as one object rather than two — today identity is exact-string, give or
+take whitespace. And operator implementations in more than one language.
+
+**Beyond that**, staged in roughly this order:
 
 - **Verification badges** — recording _how_ a relation was established (an exact computation, a
-  citation, a bare assertion) and _by whom_, human or machine. Not meaningful until v1 gives
-  computation something to vary between.
+  citation, a bare assertion) and _by whom_, human or machine. Sharpened rather than settled by
+  implementations: because an implementation runs in the reader's browser, the server records a result it
+  did not witness, so "computed by an implementation" cannot yet mean "verified". Making it mean that
+  needs a second, server-side execution site — which the data model already allows, since a
+  implementation is just stored text against a fixed contract.
 - **Corroboration** — recording when a fact has been established more than one independent way,
   strengthening confidence in it.
 - **A metered growth mechanism**, so that automatic computation can run across the network without
@@ -94,7 +98,25 @@ those implementations have something concrete to compute over.
 Monet does not prove theorems — it records the epistemic status of claims, and is not in the
 business of presenting a numerical or finite check as a proof. It does not aim for completeness
 within any single domain — it is not a replacement for LMFDB, OEIS, or a domain-specific atlas.
-And it is not a general-purpose computer algebra system: v1's operator implementations call into
-existing math libraries (a matrix's characteristic polynomial via a linear-algebra library, say)
-rather than reimplementing the algorithms themselves — Monet's own code is the network and the
-orchestration around it, never a second copy of the computation.
+And it is not a general-purpose computer algebra system: implementations call into existing math
+libraries (sympy) rather than reimplementing the algorithms themselves — Monet's own code is the
+network and the orchestration around it, never a second copy of the computation.
+
+## Implementations
+
+An **implementation** is the sympy behind an operator: a short Python function that takes an object and
+returns what the operator produces from it. Open a matrix and the operations that apply to it
+appear as buttons — Characteristic Polynomial, Inverse, Determinant, Is Singular. Press one and
+Monet computes the answer, shows you what it would add, and waits for you to confirm before
+anything is written. Often the answer is already in the network, and pressing the button just
+confirms a fact that was entered by hand.
+
+Implementations are **not part of Monet's source code**. They live in the database and are written and
+edited in the browser, so the set of operations Monet can perform grows without a deploy. That is
+the groundwork for the long-term thesis above: machinery added rather than hand-written in advance.
+
+Because anyone can write one, implementation code is treated as hostile. It never runs on the server.
+It runs in your own browser, as Python compiled to WebAssembly, inside a sandboxed frame that
+cannot read the page it is embedded in, cannot reach Monet's API, and cannot touch your machine —
+the same isolation a browser uses for any untrusted page. Running one costs Monet nothing; the
+computation is yours.

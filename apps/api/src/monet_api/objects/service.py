@@ -3,16 +3,16 @@
 Orchestrates repository.py calls; owns no SQL of its own.
 """
 
+import re
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
 
 from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.objects import repository
-from monet_api.objects.models import Object, Relation
+from monet_api.objects.models import Object, Relation, RelationInput, RelationOutput
 from monet_api.objects.schemas import (
     ObjectCreate,
     ObjectDetailOut,
@@ -20,6 +20,8 @@ from monet_api.objects.schemas import (
     ObjectUpdate,
     OperatorDisplayOut,
     OperatorDisplayUpdate,
+    RelationAssert,
+    RelationAssertOut,
     RelationCreate,
     RelationDisplayOut,
     RelationOut,
@@ -259,15 +261,8 @@ async def update_object(session: AsyncSession, object_id: uuid.UUID, body: Objec
 
 async def delete_object(session: AsyncSession, object_id: uuid.UUID) -> None:
     obj = await get_object_or_404(session, object_id)
-    try:
-        await repository.delete_object(session, obj)
-    except IntegrityError as exc:
-        await session.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="object is still used as an operator or as a relation's input/output — "
-            "remove those relations first",
-        ) from exc
+    await repository.delete_relations_referencing_object(session, object_id)
+    await repository.delete_object(session, obj)
 
 
 async def list_top_level_objects(session: AsyncSession) -> list[Object]:
@@ -338,3 +333,106 @@ async def replace_relation(
 async def delete_relation(session: AsyncSession, relation_id: uuid.UUID) -> None:
     relation = await get_relation_or_404(session, relation_id)
     await repository.delete_relation(session, relation)
+
+
+_TEXT_GROUP = re.compile(r"\\text\{[^{}]*\}")
+
+
+def _without_whitespace(latex: str) -> str:
+    return "".join(latex.split())
+
+
+def _with_whitespace_collapsed(latex: str) -> str:
+    return " ".join(latex.split())
+
+
+def normalize_latex(latex: str) -> str:
+    parts: list[str] = []
+    last = 0
+    for match in _TEXT_GROUP.finditer(latex):
+        parts.append(_without_whitespace(latex[last : match.start()]))
+        parts.append(_with_whitespace_collapsed(match.group()))
+        last = match.end()
+    parts.append(_without_whitespace(latex[last:]))
+    return "".join(parts)
+
+
+async def _find_or_create_object(
+    session: AsyncSession, latex: str, existing: list[Object]
+) -> tuple[Object, bool]:
+    key = normalize_latex(latex)
+    for obj in existing:
+        if normalize_latex(obj.latex) == key:
+            return obj, False
+    obj = await repository.add_object(session, latex, None)
+    existing.append(obj)
+    return obj, True
+
+
+def _operands_by_relation(
+    rows: Sequence[RelationInput] | Sequence[RelationOutput],
+) -> defaultdict[uuid.UUID, list[uuid.UUID]]:
+    operands: defaultdict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+    for row in rows:
+        operands[row.relation_id].append(row.object_id)
+    return operands
+
+
+async def _find_matching_relation(
+    session: AsyncSession,
+    operator_id: uuid.UUID,
+    input_ids: list[uuid.UUID],
+    output_ids: list[uuid.UUID],
+) -> Relation | None:
+    candidates = await repository.list_relations_by_operator(session, operator_id)
+    if not candidates:
+        return None
+    candidate_ids = [candidate.id for candidate in candidates]
+    operands_in = _operands_by_relation(
+        await repository.list_relation_inputs_for(session, candidate_ids)
+    )
+    operands_out = _operands_by_relation(
+        await repository.list_relation_outputs_for(session, candidate_ids)
+    )
+    for candidate in candidates:
+        if operands_in[candidate.id] == input_ids and operands_out[candidate.id] == output_ids:
+            return candidate
+    return None
+
+
+async def assert_relation(session: AsyncSession, body: RelationAssert) -> RelationAssertOut:
+    if not body.output_latex:
+        raise HTTPException(status_code=400, detail="a relation needs at least one output")
+
+    await get_object_or_404(session, body.operator_id)
+    for oid in body.input_object_ids:
+        await get_object_or_404(session, oid)
+
+    existing = await repository.list_objects(session)
+    outputs: list[Object] = []
+    created_object_ids: list[uuid.UUID] = []
+    for latex in body.output_latex:
+        obj, was_created = await _find_or_create_object(session, latex, existing)
+        outputs.append(obj)
+        if was_created:
+            created_object_ids.append(obj.id)
+
+    output_ids = [obj.id for obj in outputs]
+    relation = await _find_matching_relation(
+        session, body.operator_id, body.input_object_ids, output_ids
+    )
+    created_relation = relation is None
+    if relation is None:
+        relation = await repository.create_relation(session, body.operator_id)
+        for position, oid in enumerate(body.input_object_ids):
+            repository.add_relation_input(session, relation.id, oid, position)
+        for position, oid in enumerate(output_ids):
+            repository.add_relation_output(session, relation.id, oid, position)
+
+    await session.commit()
+    await session.refresh(relation)
+    return RelationAssertOut(
+        relation=await _load_relation_out(session, relation),
+        created_object_ids=created_object_ids,
+        created_relation=created_relation,
+    )

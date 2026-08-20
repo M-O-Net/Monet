@@ -39,10 +39,7 @@ want() {  # want <area> → should this area's checks run?
         web)      grep -qE '^(apps/web/|packages/)' <<<"$changed";;
         config)   grep -qE '(\.ya?ml|\.json|\.config\.[a-z]+)$' <<<"$changed";;
         justfile) grep -qE '^Justfile$' <<<"$changed";;
-        # An unmatched bash case falls through returning 0 (true), not false — see Muse's own
-        # documented gotcha for the same pattern. Every real area above is explicit, so this
-        # only catches a typo'd/new area name added to the `for a in ...` loop without also
-        # adding a case arm here — fail closed (don't run) rather than silently always-run.
+        # Without this arm an unmatched case returns 0, not 1.
         *)        return 1;;
     esac
 }

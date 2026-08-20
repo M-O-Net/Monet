@@ -12,6 +12,8 @@ import { invalidateObjectGraph } from "../lib/queries";
 import { MemberList } from "./-components/MemberList";
 import { OperatorDisplayForm } from "./-components/OperatorDisplayForm";
 import { RelationList } from "./-components/RelationList";
+import { ImplementationEditor } from "./-components/ImplementationEditor";
+import { Operations } from "./-components/Operations";
 import { SectionTags } from "./-components/SectionTags";
 
 export const Route = createFileRoute("/objects/$objectId")({
@@ -28,6 +30,7 @@ function ObjectDetail() {
     params: { path: { object_id: objectId } },
   });
   const allObjects = api.useQuery("get", "/objects");
+  const implementations = api.useQuery("get", "/implementations");
   const updateObject = api.useMutation("patch", "/objects/{object_id}");
   const deleteObject = api.useMutation("delete", "/objects/{object_id}");
   const markTopLevel = api.useMutation("put", "/top-level-objects/{object_id}");
@@ -46,8 +49,10 @@ function ObjectDetail() {
     return <p className="text-sm text-rust">{formatApiError(detail.error)}</p>;
   }
   const obj = detail.data;
-  const relationCount = obj.as_operator.length + obj.as_input.length + obj.as_output.length;
-  const isIsolated = relationCount === 0 && obj.sections.length === 0 && obj.members.length === 0;
+  const edgeCount = new Set(
+    [...obj.as_operator, ...obj.as_input, ...obj.as_output].map((r) => r.id),
+  ).size;
+  const isIsolated = edgeCount === 0 && obj.sections.length === 0 && obj.members.length === 0;
   const firstAsOperator = obj.as_operator.at(0);
 
   return (
@@ -169,9 +174,9 @@ function ObjectDetail() {
                 label="Delete"
                 title="Delete this object?"
                 description={
-                  relationCount === 0
+                  edgeCount === 0
                     ? "It takes part in no relations, so nothing else is affected. This cannot be undone."
-                    : `It takes part in ${String(relationCount)} relation${relationCount === 1 ? "" : "s"}. Deleting is blocked while any of them still reference it — remove those first. This cannot be undone.`
+                    : `The ${edgeCount === 1 ? "relation" : `${String(edgeCount)} relations`} it takes part in ${edgeCount === 1 ? "goes" : "go"} with it, and will disappear from the other objects involved. This cannot be undone.`
                 }
                 confirmLabel="Delete"
                 tone="danger"
@@ -216,6 +221,24 @@ function ObjectDetail() {
       />
 
       {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
+
+      {allObjects.data && implementations.data && (
+        <Operations
+          key={`${obj.id}:${obj.latex}`}
+          object={{ id: obj.id, latex: obj.latex }}
+          objects={allObjects.data}
+          implementations={implementations.data}
+          onCommitted={invalidateAll}
+        />
+      )}
+
+      {implementations.data && (
+        <ImplementationEditor
+          object={{ id: obj.id, latex: obj.latex }}
+          implementations={implementations.data}
+          onChanged={invalidateAll}
+        />
+      )}
 
       <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
         Add a relation

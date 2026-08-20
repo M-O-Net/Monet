@@ -1,4 +1,4 @@
-"""Seeds the v0 demo dataset defined below: matrices, polynomials, and the operators between them.
+"""Seed the demo dataset: objects, relations, and an implementation per operator.
 
 Wipes and reinserts, so it's safe to re-run — `uv run python scripts/seed.py` from apps/api/,
 or `just seed`, always resets to exactly this dataset. Pass --if-empty to skip entirely when
@@ -8,12 +8,14 @@ through the GUI on every restart).
 """
 
 import asyncio
+import pathlib
 import sys
 import uuid
 
 from sqlmodel import delete, func, select
 
 from monet_api.core.db import async_session
+from monet_api.implementations.models import Implementation
 from monet_api.objects.models import (
     Object,
     OperatorDisplay,
@@ -32,6 +34,7 @@ async def seed() -> None:
                 print(f"objects table already has {count} rows, skipping (--if-empty)")
                 return
 
+        await session.exec(delete(Implementation))
         await session.exec(delete(OperatorDisplay))
         await session.exec(delete(TopLevelObject))
         await session.exec(delete(RelationOutput))
@@ -40,8 +43,9 @@ async def seed() -> None:
         await session.exec(delete(Object))
         await session.commit()
 
-        # key -> (latex, description | None). Description is optional — most specimens don't
-        objects: dict[str, tuple[str, str | None]] = {
+        Specimen = tuple[str, str | None]
+
+        section_objects: dict[str, Specimen] = {
             "LinearAlgebra": (
                 r"\text{Linear Algebra}",
                 "Matrices and the operations that act on them.",
@@ -75,7 +79,9 @@ async def seed() -> None:
                 r"\text{Booleans}",
                 "The two truth values a predicate-style relation, like Is Singular, produces.",
             ),
-            # matrix specimens
+        }
+
+        matrices: dict[str, Specimen] = {
             "A": (r"\begin{pmatrix}2&1\\1&2\end{pmatrix}", None),
             "B": (r"\begin{pmatrix}1&0\\0&1\end{pmatrix}", None),
             "D": (r"\begin{pmatrix}0&1\\1&0\end{pmatrix}", None),
@@ -83,19 +89,31 @@ async def seed() -> None:
             "C": (
                 r"\begin{pmatrix}0&-3\\1&4\end{pmatrix}",
                 "The companion matrix of "
-                r"$x^2 - 4x + 3$ — its own characteristic polynomial closes the loop.",
+                r"$x^{2} - 4 x + 3$ — its own characteristic polynomial closes the loop.",
             ),
-            # polynomial specimens
-            "P": (r"x^2 - 4x + 3", None),
-            "Q": (r"x^2 - 2x + 1", None),
-            "R": (r"x^2 - 1", None),
-            # number/boolean specimens
+        }
+
+        polynomials: dict[str, Specimen] = {
+            # Spelled the way sandbox/prelude.py's render() emits it, so a computed
+            # characteristic polynomial lands here instead of minting a near-identical twin.
+            "P": (r"x^{2} - 4 x + 3", None),
+            "Q": (r"x^{2} - 2 x + 1", None),
+            "R": (r"x^{2} - 1", None),
+        }
+
+        integers: dict[str, Specimen] = {
             "one": ("1", None),
             "neg_one": ("-1", None),
             "three": ("3", None),
             "two": ("2", None),
+        }
+
+        booleans: dict[str, Specimen] = {
             "true": (r"\text{True}", None),
             "false": (r"\text{False}", None),
+        }
+
+        matrix_operators: dict[str, Specimen] = {
             "CharacteristicPolynomial": (
                 r"\text{Characteristic Polynomial}",
                 "For a matrix A, the polynomial det(xI - A).",
@@ -105,25 +123,37 @@ async def seed() -> None:
                 "The multiplicative inverse of a matrix, when one exists.",
             ),
             "Determinant": (r"\text{Determinant}", "The scalar determinant of a matrix."),
-            "MatrixAddition": (
-                r"\text{Matrix Addition}",
-                "The entrywise sum of two matrices of the same shape.",
-            ),
+            "Add": (r"\text{Add}", "The entrywise sum of two matrices of the same shape."),
             "IsSingular": (r"\text{Is Singular}", "Whether a matrix's determinant is zero."),
-            # operators — polynomial operations
+        }
+
+        polynomial_operators: dict[str, Specimen] = {
             "CompanionMatrix": (
                 r"\text{Companion Matrix}",
                 "For a monic polynomial, the "
                 "matrix whose characteristic polynomial is that polynomial.",
             ),
             "Degree": (r"\text{Degree}", "The highest power of the variable in a polynomial."),
-            # operator — sectioning
+        }
+
+        sectioning_operators: dict[str, Specimen] = {
             "ElementOf": (
                 r"\text{Element Of}",
                 "Marks an object as belonging to a section. Flagged as the "
                 "membership operator, so the GUI renders its relations as tags and "
                 "member lists rather than as ordinary rows.",
             ),
+        }
+
+        objects: dict[str, Specimen] = {
+            **section_objects,
+            **matrices,
+            **polynomials,
+            **integers,
+            **booleans,
+            **matrix_operators,
+            **polynomial_operators,
+            **sectioning_operators,
         }
 
         ids: dict[str, uuid.UUID] = {}
@@ -153,7 +183,7 @@ async def seed() -> None:
         await add_relation("Inverse", ["D"], ["D"])
         await add_relation("CharacteristicPolynomial", ["B"], ["Q"])
         await add_relation("CharacteristicPolynomial", ["D"], ["R"])
-        await add_relation("MatrixAddition", ["A", "B"], ["E"])
+        await add_relation("Add", ["A", "B"], ["E"])
         await add_relation("Determinant", ["A"], ["three"])
         await add_relation("IsSingular", ["A"], ["false"])
         await add_relation("Degree", ["P"], ["two"])
@@ -162,7 +192,7 @@ async def seed() -> None:
 
         displays: dict[str, tuple[str | None, bool, bool]] = {
             "ElementOf": (None, False, True),
-            "MatrixAddition": (r"{in0} \op{+} {in1} = {out0}", True, False),
+            "Add": (r"{in0} \op{+} {in1} = {out0}", True, False),
             "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
             "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
             "Degree": (r"\op{\deg(}{in0}\op{)} = {out0}", False, False),
@@ -186,7 +216,7 @@ async def seed() -> None:
                 "CharacteristicPolynomial",
                 "Inverse",
                 "Determinant",
-                "MatrixAddition",
+                "Add",
                 "IsSingular",
             ],
             "Polynomials": ["P", "Q", "R"],
@@ -202,8 +232,29 @@ async def seed() -> None:
         for root in ("LinearAlgebra", "PolynomialAlgebra", "Values"):
             session.add(TopLevelObject(object_id=ids[root]))
 
+        implementation_dir = pathlib.Path(__file__).parent / "implementations"
+        implementations = {
+            "CharacteristicPolynomial": "characteristic_polynomial",
+            "Inverse": "inverse",
+            "Determinant": "determinant",
+            "Add": "add",
+            "IsSingular": "is_singular",
+            "CompanionMatrix": "companion_matrix",
+            "Degree": "degree",
+        }
+        for operator, filename in implementations.items():
+            session.add(
+                Implementation(
+                    operator_id=ids[operator],
+                    code=(implementation_dir / f"{filename}.py").read_text(),
+                )
+            )
+
         await session.commit()
-        print(f"seeded {len(objects)} objects and {relation_count} relations")
+        print(
+            f"seeded {len(objects)} objects, {relation_count} relations, "
+            f"and {len(implementations)} implementations"
+        )
 
 
 if __name__ == "__main__":

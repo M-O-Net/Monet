@@ -36,6 +36,10 @@ services:
     runtime: static
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @monet/web build
     staticPublishPath: apps/web/dist
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
     envVars:
       - key: VITE_API_URL
         value: https://monet-api.onrender.com # adjust to the actual API URL

@@ -5,6 +5,7 @@
 @theme {
   --font-display: "Fraunces", "Iowan Old Style", serif;
   --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --color-paper: #eaefe4;
   --color-paper-deep: #e1e8db;

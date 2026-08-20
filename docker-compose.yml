@@ -2,9 +2,6 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      # No `:-default` here: a weak default a real deploy might silently inherit isn't
-      # a default worth having. `.env.example` documents this; `.env` must set it for
-      # real (see Muse's infra/docker-compose.yml for the same pattern).
       POSTGRES_USER: monet
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — see .env.example}
       POSTGRES_DB: monet

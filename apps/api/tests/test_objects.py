@@ -68,7 +68,7 @@ async def test_relation_closes_a_loop(client: AsyncClient) -> None:
     assert detail["as_output"][0]["inputs"][0]["object"]["id"] == c
 
 
-async def test_delete_object_blocked_while_referenced(client: AsyncClient) -> None:
+async def test_deleting_an_object_deletes_the_relations_it_is_in(client: AsyncClient) -> None:
     async def make(latex: str) -> str:
         resp = await client.post("/objects", json={"latex": latex})
         result: str = resp.json()["id"]
@@ -81,6 +81,41 @@ async def test_delete_object_blocked_while_referenced(client: AsyncClient) -> No
         "/relations",
         json={"operator_id": op, "input_object_ids": [a], "output_object_ids": [b]},
     )
+    assert len((await client.get("/relations")).json()) == 1
 
-    resp = await client.delete(f"/objects/{a}")
-    assert resp.status_code == 400
+    assert (await client.delete(f"/objects/{a}")).status_code == 204
+
+    assert (await client.get("/relations")).json() == []
+    assert (await client.get(f"/objects/{a}")).status_code == 404
+    assert (await client.get(f"/objects/{b}")).status_code == 200
+    assert (await client.get(f"/objects/{op}")).status_code == 200
+
+
+async def test_deleting_an_operator_deletes_the_relations_it_operates(
+    client: AsyncClient,
+) -> None:
+    async def make(latex: str) -> str:
+        resp = await client.post("/objects", json={"latex": latex})
+        result: str = resp.json()["id"]
+        return result
+
+    a, op, b = await make("A"), await make("Inverse"), await make("B")
+    await client.post(
+        "/relations",
+        json={"operator_id": op, "input_object_ids": [a], "output_object_ids": [b]},
+    )
+
+    assert (await client.delete(f"/objects/{op}")).status_code == 204
+
+    assert (await client.get("/relations")).json() == []
+    assert (await client.get(f"/objects/{a}")).status_code == 200
+
+
+async def test_deleting_a_section_object_clears_its_contents_entry(client: AsyncClient) -> None:
+    resp = await client.post("/objects", json={"latex": "\\text{Matrices}"})
+    section = resp.json()["id"]
+    await client.put(f"/top-level-objects/{section}")
+    assert len((await client.get("/top-level-objects")).json()) == 1
+
+    assert (await client.delete(f"/objects/{section}")).status_code == 204
+    assert (await client.get("/top-level-objects")).json() == []
