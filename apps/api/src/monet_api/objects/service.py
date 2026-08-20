@@ -200,14 +200,22 @@ async def delete_relation(session: AsyncSession, relation_id: uuid.UUID) -> None
 _TEXT_GROUP = re.compile(r"\\text\{[^{}]*\}")
 
 
+def _without_whitespace(latex: str) -> str:
+    return "".join(latex.split())
+
+
+def _with_whitespace_collapsed(latex: str) -> str:
+    return " ".join(latex.split())
+
+
 def normalize_latex(latex: str) -> str:
     parts: list[str] = []
     last = 0
     for match in _TEXT_GROUP.finditer(latex):
-        parts.append("".join(latex[last : match.start()].split()))
-        parts.append(" ".join(match.group().split()))
+        parts.append(_without_whitespace(latex[last : match.start()]))
+        parts.append(_with_whitespace_collapsed(match.group()))
         last = match.end()
-    parts.append("".join(latex[last:].split()))
+    parts.append(_without_whitespace(latex[last:]))
     return "".join(parts)
 
 

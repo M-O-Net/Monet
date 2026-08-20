@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const webRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = join(webRoot, "..", "..");
 const src = join(webRoot, "node_modules", "pyodide");
 const dest = join(webRoot, "public", "pyodide");
 
@@ -26,6 +27,34 @@ const sameFile = async (a, b) => {
   const [x, y] = await Promise.all([stat(a).catch(() => null), stat(b).catch(() => null)]);
   return x !== null && y !== null && x.size === y.size;
 };
+
+// The sandbox frame runs on an opaque origin, so it can only load these assets if every serving
+// environment sets Access-Control-Allow-Origin and serves .mjs as JavaScript. Each environment
+// configures that separately, and a missing one fails only there, silently, at runtime. Assert it
+// here instead — this runs whenever the assets themselves are assembled.
+const SERVING_REQUIREMENTS = [
+  { file: join(webRoot, "vite.config.ts"), needs: ["Access-Control-Allow-Origin"], env: "dev" },
+  {
+    file: join(webRoot, "nginx.conf"),
+    needs: ["Access-Control-Allow-Origin", "\\.mjs$"],
+    env: "Docker",
+  },
+  { file: join(repoRoot, "render.yaml"), needs: ["Access-Control-Allow-Origin"], env: "Render" },
+];
+
+for (const { file, needs, env } of SERVING_REQUIREMENTS) {
+  const config = await readFile(file, "utf8").catch(() => null);
+  if (config === null) throw new Error(`pyodide: ${env} serving config is missing: ${file}`);
+  for (const needle of needs) {
+    if (!config.includes(needle)) {
+      throw new Error(
+        `pyodide: ${file} no longer sets ${needle}. The translator sandbox loads its assets from ` +
+          `an opaque origin, so without it the sandbox fails to start in ${env} only, with ` +
+          `"Failed to fetch dynamically imported module" and nothing else to go on.`,
+      );
+    }
+  }
+}
 
 const { version } = JSON.parse(await readFile(join(src, "package.json"), "utf8"));
 const lock = JSON.parse(await readFile(join(src, "pyodide-lock.json"), "utf8"));

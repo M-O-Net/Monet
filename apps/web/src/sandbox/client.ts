@@ -12,6 +12,8 @@ type SandboxRequestBody = Omit<ProbeRequest, "id"> | Omit<RunRequest, "id">;
 
 export type SandboxStatus = "idle" | "starting" | "ready" | "failed";
 
+const SANDBOX_FLAGS_WITHOUT_SAME_ORIGIN = "allow-scripts";
+
 const BOOT_TIMEOUT_MS = 90_000;
 const RUN_TIMEOUT_MS = 10_000;
 
@@ -95,7 +97,7 @@ function start(): Promise<void> {
   window.addEventListener("message", onMessage);
 
   const element = document.createElement("iframe");
-  element.setAttribute("sandbox", "allow-scripts");
+  element.setAttribute("sandbox", SANDBOX_FLAGS_WITHOUT_SAME_ORIGIN);
   element.src = "/sandbox.html";
   element.title = "Implementation sandbox";
   element.setAttribute("aria-hidden", "true");

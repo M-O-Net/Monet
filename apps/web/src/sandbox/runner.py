@@ -18,17 +18,17 @@ _BASE = namespace()  # noqa: F821 — prelude.py is exec'd into these globals fi
 _parse = _BASE["parse"]
 _render = _BASE["render"]
 
-_TIME_LIMIT_SECONDS = 5.0
-_CHECK_EVERY = 2000
+_PYTHON_LINE_DEADLINE_SECONDS = 5.0
+_CHECK_CLOCK_EVERY_N_LINES = 2000
 
 
-def _deadline_trace(seconds):
+def _python_line_deadline_trace(seconds):
     deadline = time.monotonic() + seconds
     counter = [0]
 
     def trace(frame, event, arg):
         counter[0] += 1
-        if counter[0] % _CHECK_EVERY == 0 and time.monotonic() > deadline:
+        if counter[0] % _CHECK_CLOCK_EVERY_N_LINES == 0 and time.monotonic() > deadline:
             raise TimeoutError(f"implementation ran longer than {seconds:g}s and was stopped")
         return trace
 
@@ -42,8 +42,8 @@ def _load(code):
     return scope
 
 
-def _guarded(fn, *args):
-    sys.settrace(_deadline_trace(_TIME_LIMIT_SECONDS))
+def _with_line_deadline(fn, *args):
+    sys.settrace(_python_line_deadline_trace(_PYTHON_LINE_DEADLINE_SECONDS))
     try:
         return fn(*args)
     finally:
@@ -69,7 +69,7 @@ def probe(latex, implementations_json):
     applicable = []
     for item in json.loads(implementations_json):
         try:
-            if _guarded(_load(item["code"])["accepts"], _parse(latex)):
+            if _with_line_deadline(_load(item["code"])["accepts"], _parse(latex)):
                 applicable.append(item["id"])
         except Exception:  # noqa: BLE001, S110
             pass
@@ -79,7 +79,7 @@ def probe(latex, implementations_json):
 def run(code, inputs_json):
     """Run one implementation over its inputs and return its outputs as LaTeX."""
     inputs = [_parse(latex) for latex in json.loads(inputs_json)]
-    result = _guarded(_load(code)["compute"], *inputs)
+    result = _with_line_deadline(_load(code)["compute"], *inputs)
     values = list(result) if isinstance(result, (list, tuple)) else [result]
     outputs = [_as_latex(value) for value in values]
     if not outputs:
