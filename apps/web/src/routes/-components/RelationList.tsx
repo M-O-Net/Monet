@@ -6,22 +6,13 @@ import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { ObjectOut, RelationOut } from "../../lib/types";
 import { RelationExpression } from "./RelationExpression";
 
-const TAG_CLASS =
-  "relation-tag inline-block rounded-sm border px-2 py-0.5 text-xs transition-colors";
+const TAG_CLASS = "relation-tag inline-block rounded-sm px-2 py-0.5 text-xs";
 
-function OperatorLink({
-  operator,
-  isCurrent,
-  isLinked,
-}: {
-  operator: ObjectOut;
-  isCurrent: boolean;
-  isLinked: boolean;
-}) {
+function OperatorLink({ operator, isCurrent }: { operator: ObjectOut; isCurrent: boolean }) {
   // On the operator's own page the tag is not a link either — it would lead back to here.
   if (isCurrent) {
     return (
-      <span className={`${TAG_CLASS} is-current border-transparent`}>
+      <span className={`${TAG_CLASS} is-current`}>
         <Latex>{operator.latex}</Latex>
       </span>
     );
@@ -37,20 +28,19 @@ function OperatorLink({
       // notation here, so uppercasing it restyles the object rather than its label. It carries
       // no hover styling of its own — the row marks it, so that it and the operator's notation
       // inside the formula always light up together.
-      className={`${TAG_CLASS} ${
-        isLinked ? "border-gold/40 bg-gold-soft text-ink" : "border-transparent text-ink-soft"
-      }`}
+      className={TAG_CLASS}
     >
       <Latex>{operator.latex}</Latex>
     </Link>
   );
 }
 
-// The formula's links are anchors KaTeX put into the layout, not elements we render, so they
-// are marked directly. The operator's tag above is a React element and takes state instead: a
-// stylesheet rule would have to outrank the Tailwind utilities it already carries, and does not.
+// Marks every link in the row that points where the hovered one does — the operator's tag and
+// its notation inside the formula alike. Done to the DOM rather than through state because half
+// of these are anchors KaTeX put into the layout, not elements we render; the tag carries no
+// colour utilities of its own so that this one pass can style it too.
 function markLinked(row: HTMLElement, href: string | null) {
-  for (const anchor of row.querySelectorAll(".relation-formula a")) {
+  for (const anchor of row.querySelectorAll("a")) {
     anchor.classList.toggle("is-linked", href !== null && anchor.getAttribute("href") === href);
   }
 }
@@ -67,8 +57,6 @@ function RelationRow({
   // mathematics instead of being drawn next to it out of box-characters, which never did line
   // up with the baseline either side.
   const html = buildRelationHtml(relation, relation.display?.template ?? null, currentObjectId);
-  const [linkedHref, setLinkedHref] = useState<string | null>(null);
-  const operatorHref = `/objects/${relation.operator.id}`;
 
   // The operator is named above rather than beside the mathematics so that every formula in a
   // list starts at the same left edge, whatever its operator happens to be called.
@@ -79,15 +67,15 @@ function RelationRow({
       // tag and its notation inside the formula light up together, either way round, and a
       // notation split either side of its operand (det( ... )) reads as the one thing it is.
       onMouseOver={(event) => {
-        const href = (event.target as HTMLElement).closest("a")?.getAttribute("href") ?? null;
-        setLinkedHref(href);
-        markLinked(event.currentTarget, href);
+        markLinked(
+          event.currentTarget,
+          (event.target as HTMLElement).closest("a")?.getAttribute("href") ?? null,
+        );
       }}
       // mouseleave, not mouseout: mouseout bubbles up from each child span KaTeX nests inside
       // an anchor, so it fired as the pointer crossed between them and cleared the mark that
       // mouseover had just set.
       onMouseLeave={(event) => {
-        setLinkedHref(null);
         markLinked(event.currentTarget, null);
       }}
     >
@@ -95,7 +83,6 @@ function RelationRow({
         <OperatorLink
           operator={relation.operator}
           isCurrent={relation.operator.id === currentObjectId}
-          isLinked={linkedHref === operatorHref}
         />
       </div>
       <div className="mt-1 text-sm">

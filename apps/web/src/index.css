@@ -34,11 +34,7 @@ body {
       color-mix(in srgb, var(--color-gold-soft) 55%, transparent),
       transparent
     ),
-    radial-gradient(
-      ellipse 70% 60% at 100% 10%,
-      color-mix(in srgb, var(--color-pond) 12%, transparent),
-      transparent
-    );
+    radial-gradient(ellipse 70% 60% at 100% 10%, rgb(62 110 120 / 0.12), transparent);
   background-attachment: fixed;
 }
 
@@ -72,15 +68,25 @@ body {
   cursor: pointer;
 }
 
-.relation-formula a {
+.relation-row a,
+.relation-tag {
+  border: 1px solid transparent;
+  border-radius: 2px;
   transition:
     background-color 150ms ease,
     border-color 150ms ease,
     color 150ms ease;
 }
 
-.relation-formula a.is-linked {
-  border-color: color-mix(in srgb, var(--color-gold) 40%, transparent);
+.relation-tag {
+  color: var(--color-ink-soft);
+}
+
+/* Literal rgb rather than color-mix on the theme variable: Tailwind compiles color-mix into a
+   nested @supports inside the rule, and a nested at-rule was the one unusual thing in these
+   declarations. The values are the theme's own gold and pond. */
+.relation-row a.is-linked {
+  border-color: rgb(190 143 62 / 0.4);
   background-color: var(--color-gold-soft);
   color: var(--color-ink);
 }
@@ -90,8 +96,8 @@ body {
 
    At rest that is only a change of colour: pond rather than the gold that means "somewhere to
    go", and no fill, because the same object can appear several times in a row and filling every
-   occurrence weighed more than the mathematics did. The fill arrives on hovering the row, which
-   is when showing where else it occurs is worth the weight. */
+   occurrence weighed more than the mathematics did. The fill arrives on pointing at that
+   occurrence itself, not at the row around it. */
 .relation-formula .is-current,
 .relation-tag.is-current {
   display: inline-block;
@@ -104,7 +110,8 @@ body {
     border-color 150ms ease;
 }
 
-.relation-row:hover .is-current {
-  border-color: color-mix(in srgb, var(--color-pond) 30%, transparent);
-  background-color: color-mix(in srgb, var(--color-pond) 12%, transparent);
+.relation-formula .is-current:hover,
+.relation-tag.is-current:hover {
+  border-color: rgb(62 110 120 / 0.3);
+  background-color: rgb(62 110 120 / 0.12);
 }
