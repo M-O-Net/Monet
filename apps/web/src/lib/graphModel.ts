@@ -26,24 +26,22 @@ export interface Graph {
   edges: GraphEdge[];
 }
 
-export function buildGraph(
-  relations: readonly RelationOut[],
-  objects: readonly ObjectOut[],
-): Graph {
-  const computational = relations.filter((relation) => !isMembership(relation));
-
-  const nodes: GraphNode[] = objects.map((object) => ({ kind: "object", id: object.id, object }));
-  const known = new Set(objects.map((object) => object.id));
+export function buildGraph(relations: readonly RelationOut[]): Graph {
+  const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
+  const known = new Set<string>();
 
-  for (const relation of computational) {
+  const remember = (object: ObjectOut) => {
+    if (known.has(object.id)) return;
+    known.add(object.id);
+    nodes.push({ kind: "object", id: object.id, object });
+  };
+
+  for (const relation of relations) {
+    if (isMembership(relation)) continue;
     nodes.push({ kind: "relation", id: relation.id, relation });
-    for (const slot of [...relation.inputs, ...relation.outputs]) {
-      if (known.has(slot.object.id)) continue;
-      known.add(slot.object.id);
-      nodes.push({ kind: "object", id: slot.object.id, object: slot.object });
-    }
     for (const input of relation.inputs) {
+      remember(input.object);
       edges.push({
         id: `${relation.id}:in:${String(input.position)}`,
         source: input.object.id,
@@ -51,6 +49,7 @@ export function buildGraph(
       });
     }
     for (const output of relation.outputs) {
+      remember(output.object);
       edges.push({
         id: `${relation.id}:out:${String(output.position)}`,
         source: relation.id,

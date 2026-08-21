@@ -239,6 +239,16 @@ function ObjectDetail() {
           Not yet connected to anything else in the valley.
         </p>
       )}
+      <p className="mt-5 text-sm">
+        <Link
+          to="/map"
+          search={{ focus: objectId }}
+          className="text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
+        >
+          see it on the network map →
+        </Link>
+      </p>
+
       {allRelations.data && (
         <LoopCallout relations={allRelations.data} currentObjectId={objectId} />
       )}

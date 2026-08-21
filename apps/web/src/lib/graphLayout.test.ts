@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { layoutBounds, layoutGraph } from "./graphLayout";
+import { layoutBounds, layoutGraph, nodeSize } from "./graphLayout";
 import { buildGraph } from "./graphModel";
 import type { ObjectOut, RelationOut } from "./types";
 
@@ -19,10 +19,12 @@ const relation = (inputs: ObjectOut[], outputs: ObjectOut[]): RelationOut => ({
 });
 
 const objects = Array.from({ length: 8 }, (_unused, i) => object(i, `x_{${String(i)}}`));
-const joined = buildGraph(
-  [relation([objects[0]], [objects[1]]), relation([objects[1]], [objects[2]])],
-  objects,
-);
+const joined = buildGraph([
+  relation([objects[0]], [objects[1]]),
+  relation([objects[1]], [objects[2]]),
+  relation([objects[5]], [objects[7]]),
+  relation([objects[6]], [objects[4]]),
+]);
 
 function at(layout: Map<string, { x: number; y: number }>, nodeId: string) {
   const point = layout.get(nodeId);
@@ -85,5 +87,41 @@ describe("layoutGraph", () => {
       expect(point.y).toBeGreaterThanOrEqual(bounds.minY);
       expect(point.y).toBeLessThanOrEqual(bounds.maxY);
     }
+  });
+});
+
+describe("layoutGraph on a network the size Monet actually serves", () => {
+  const wide = "\\begin{pmatrix}-1&1&0&0\\\\0&-1&1&0\\\\0&0&-1&1\\\\0&0&0&-1\\end{pmatrix}";
+  const many = Array.from({ length: 24 }, (_unused, i) =>
+    object(200 + i, i % 3 === 0 ? wide : `\\text{Characteristic Polynomial ${String(i)}}`),
+  );
+  const dense = buildGraph(many.slice(0, -1).map((from, i) => relation([from], [many[i + 1]])));
+
+  it("draws every node clear of every other", () => {
+    const layout = layoutGraph(dense);
+    let overlaps = 0;
+    for (let i = 0; i < dense.nodes.length; i += 1) {
+      for (let j = i + 1; j < dense.nodes.length; j += 1) {
+        const a = at(layout, dense.nodes[i].id);
+        const b = at(layout, dense.nodes[j].id);
+        const sa = nodeSize(dense.nodes[i]);
+        const sb = nodeSize(dense.nodes[j]);
+        const clearX = Math.abs(a.x - b.x) >= (sa.width + sb.width) / 2;
+        const clearY = Math.abs(a.y - b.y) >= (sa.height + sb.height) / 2;
+        if (!clearX && !clearY) overlaps += 1;
+      }
+    }
+    expect(overlaps).toBe(0);
+  });
+
+  it("never leaves two nodes sitting on the same point", () => {
+    const layout = layoutGraph(dense);
+    const nearest = (nodeId: string) =>
+      Math.min(
+        ...dense.nodes
+          .filter((other) => other.id !== nodeId)
+          .map((other) => distance(at(layout, nodeId), at(layout, other.id))),
+      );
+    for (const node of dense.nodes) expect(nearest(node.id)).toBeGreaterThan(0);
   });
 });
