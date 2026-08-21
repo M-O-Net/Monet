@@ -91,6 +91,10 @@ async def seed() -> None:
                 "Operations taking a knot or its Seifert matrix as input: Seifert matrices, "
                 "Alexander polynomials.",
             ),
+            "NumberOperations": (
+                r"\text{Number Operations}",
+                "Operations taking a whole number as input.",
+            ),
         }
 
         matrices: dict[str, Specimen] = {
@@ -115,6 +119,10 @@ async def seed() -> None:
                 r"\begin{pmatrix}-1&1&0&0&0&0\\0&-1&1&0&0&0\\0&0&-1&1&0&0"
                 r"\\0&0&0&-1&1&0\\0&0&0&0&-1&1\\0&0&0&0&0&-1\end{pmatrix}",
                 r"The Seifert matrix of $7_1$.",
+            ),
+            "S": (
+                r"\begin{pmatrix}1&2\\2&4\end{pmatrix}",
+                "Singular: its rows are proportional, so it collapses the plane onto a line.",
             ),
             "CompPhi6": (
                 r"\begin{pmatrix}0&-1\\1&1\end{pmatrix}",
@@ -144,11 +152,15 @@ async def seed() -> None:
         }
 
         integers: dict[str, Specimen] = {
+            "zero": ("0", None),
             "one": ("1", None),
             "neg_one": ("-1", None),
-            "three": ("3", None),
             "two": ("2", None),
+            "three": ("3", None),
+            "four": ("4", None),
+            "five": ("5", None),
             "six": ("6", None),
+            "seven": ("7", None),
             "ten": ("10", None),
             "fourteen": ("14", None),
         }
@@ -171,6 +183,11 @@ async def seed() -> None:
                 "For a knot, the integer matrix recording how a surface spanning it twists. "
                 "Asserted rather than computed: it depends on a choice of surface.",
             ),
+            "KnotDeterminant": (
+                r"\text{Knot Determinant}",
+                r"For a Seifert matrix $V$, the value $|\det(V + V^{T})|$. For the $(2, n)$ "
+                r"torus knots seeded here it comes out as $n$ itself.",
+            ),
             "AlexanderPolynomial": (
                 r"\text{Alexander Polynomial}",
                 r"For a Seifert matrix $V$, the polynomial $\det(V - xV^{T})$.",
@@ -188,6 +205,15 @@ async def seed() -> None:
             ),
             "Determinant": (r"\text{Determinant}", "The scalar determinant of a matrix."),
             "Add": (r"\text{Add}", "The entrywise sum of two matrices of the same shape."),
+            "MatrixOrder": (
+                r"\text{Matrix Order}",
+                "How many times a matrix must be multiplied by itself to reach the identity. "
+                "Only some matrices ever get there.",
+            ),
+            "Eigenvalues": (
+                r"\text{Eigenvalues}",
+                "The values a matrix merely scales its eigenvectors by, one output each.",
+            ),
             "IsSingular": (r"\text{Is Singular}", "Whether a matrix's determinant is zero."),
         }
 
@@ -198,10 +224,22 @@ async def seed() -> None:
                 "matrix whose characteristic polynomial is that polynomial.",
             ),
             "Degree": (r"\text{Degree}", "The highest power of the variable in a polynomial."),
+            "Roots": (
+                r"\text{Roots}",
+                "Every value at which a polynomial vanishes, one output each.",
+            ),
             "CyclotomicPolynomial": (
                 r"\text{Cyclotomic Polynomial}",
                 r"For $n$, the monic factor of $x^{n} - 1$ whose roots are exactly the "
                 r"primitive $n$th roots of unity.",
+            ),
+        }
+
+        number_operators: dict[str, Specimen] = {
+            "EulerTotient": (
+                r"\text{Euler Totient}",
+                r"How many of $1 \dots n$ share no factor with $n$. It is also the degree of "
+                r"the $n$th cyclotomic polynomial.",
             ),
         }
 
@@ -224,6 +262,7 @@ async def seed() -> None:
             **matrix_operators,
             **polynomial_operators,
             **knot_operators,
+            **number_operators,
             **sectioning_operators,
         }
 
@@ -322,8 +361,25 @@ async def seed() -> None:
         await add_relation("CyclotomicPolynomial", ["fourteen"], ["Phi14"])
         await add_relation("CompanionMatrix", ["Phi6"], ["CompPhi6"])
         await add_relation("CharacteristicPolynomial", ["CompPhi6"], ["Phi6"])
+        await add_relation("CompanionMatrix", ["R"], ["D"])
+        await add_relation("MatrixOrder", ["CompPhi6"], ["six"])
+        await add_relation("MatrixOrder", ["B"], ["one"])
+        await add_relation("MatrixOrder", ["D"], ["two"])
+        await add_relation("KnotDeterminant", ["V3"], ["three"])
+        await add_relation("KnotDeterminant", ["V5"], ["five"])
+        await add_relation("KnotDeterminant", ["V7"], ["seven"])
+        await add_relation("Roots", ["P"], ["one", "three"])
+        await add_relation("Eigenvalues", ["A"], ["one", "three"])
+        await add_relation("Determinant", ["B"], ["one"])
+        await add_relation("Determinant", ["D"], ["neg_one"])
+        await add_relation("Determinant", ["C"], ["three"])
+        await add_relation("Determinant", ["S"], ["zero"])
+        await add_relation("IsSingular", ["S"], ["true"])
+        await add_relation("EulerTotient", ["six"], ["two"])
+        await add_relation("EulerTotient", ["ten"], ["four"])
+        await add_relation("EulerTotient", ["fourteen"], ["six"])
 
-        relation_count = 22
+        relation_count = 39
 
         displays: dict[str, tuple[str | None, bool, bool]] = {
             "ElementOf": (None, False, True),
@@ -334,6 +390,9 @@ async def seed() -> None:
             "SeifertMatrix": (r"\op{V(}{in0}\op{)} = {out0}", False, False),
             "AlexanderPolynomial": (r"\op{\Delta(}{in0}\op{)} = {out0}", False, False),
             "CyclotomicPolynomial": (r"\op{\Phi}_{{in0}}(x) = {out0}", False, False),
+            "KnotDeterminant": (r"\op{\det{}_{K}(}{in0}\op{)} = {out0}", False, False),
+            "MatrixOrder": (r"\op{\mathrm{ord}(}{in0}\op{)} = {out0}", False, False),
+            "EulerTotient": (r"\op{\varphi(}{in0}\op{)} = {out0}", False, False),
         }
         for operator, (template, hidden, membership) in displays.items():
             session.add(
@@ -348,22 +407,42 @@ async def seed() -> None:
         sections = {
             "LinearAlgebra": ["Matrices", "MatrixOperations"],
             "PolynomialAlgebra": ["Polynomials", "PolynomialOperations"],
-            "Values": ["Integers", "Booleans"],
-            "Matrices": ["A", "B", "D", "E", "C", "V3", "V5", "V7", "CompPhi6"],
+            "Values": ["Integers", "Booleans", "NumberOperations"],
+            "Matrices": ["A", "B", "D", "E", "C", "S", "V3", "V5", "V7", "CompPhi6"],
             "MatrixOperations": [
                 "CharacteristicPolynomial",
                 "Inverse",
                 "Determinant",
                 "Add",
                 "IsSingular",
+                "MatrixOrder",
+                "Eigenvalues",
             ],
             "Polynomials": ["P", "Q", "R", "Phi6", "Phi10", "Phi14"],
-            "PolynomialOperations": ["CompanionMatrix", "Degree", "CyclotomicPolynomial"],
-            "Integers": ["one", "neg_one", "three", "two", "six", "ten", "fourteen"],
+            "PolynomialOperations": [
+                "CompanionMatrix",
+                "Degree",
+                "Roots",
+                "CyclotomicPolynomial",
+            ],
+            "Integers": [
+                "zero",
+                "one",
+                "neg_one",
+                "two",
+                "three",
+                "four",
+                "five",
+                "six",
+                "seven",
+                "ten",
+                "fourteen",
+            ],
             "Booleans": ["true", "false"],
+            "NumberOperations": ["EulerTotient"],
             "KnotTheory": ["Knots", "KnotOperations"],
             "Knots": ["K3", "K5", "K7"],
-            "KnotOperations": ["SeifertMatrix", "AlexanderPolynomial"],
+            "KnotOperations": ["SeifertMatrix", "AlexanderPolynomial", "KnotDeterminant"],
         }
         for section, members in sections.items():
             for member in members:
@@ -383,7 +462,12 @@ async def seed() -> None:
             "CompanionMatrix": "companion_matrix",
             "Degree": "degree",
             "AlexanderPolynomial": "alexander_polynomial",
+            "KnotDeterminant": "knot_determinant",
             "CyclotomicPolynomial": "cyclotomic_polynomial",
+            "MatrixOrder": "matrix_order",
+            "Eigenvalues": "eigenvalues",
+            "Roots": "roots",
+            "EulerTotient": "euler_totient",
         }
         for operator, filename in implementations.items():
             session.add(
