@@ -68,8 +68,8 @@ stack's database.
   from `\text{IsSingular}`. It is whitespace-insensitivity, not the canonical form (equivalent
   ways of writing the same matrix) that root `AGENTS.md` still defers.
 - Deleting an object deletes its edges. Foreign keys do nearly all of it: `ON DELETE CASCADE`
-  carries away its contents-page entry, its implementation, the relations it operates, and those
-  relations' slots. The one case a foreign key cannot express is an object used as a relation's
+  carries away its contents-page entry, its implementation, its references, the relations it
+  operates, and those relations' slots. The one case a foreign key cannot express is an object used as a relation's
   input or output — cascading `relation_input.object_id` would delete the slot and leave the
   relation with a hole — so `delete_object` issues one statement for that, and those two foreign
   keys stay blocking as a backstop.

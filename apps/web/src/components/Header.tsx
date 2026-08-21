@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
+import { ObjectSearch } from "./ObjectSearch";
+
 export function Header() {
   return (
     <header className="mb-10">
@@ -51,9 +53,20 @@ export function Header() {
             </span>
           </Link>
         </div>
-        <span className="font-display text-sm italic text-ink-soft">
-          a field journal of mathematics
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className="font-display text-sm italic text-ink-soft">
+            The field journal of mathematics
+          </span>
+          <div className="flex items-center gap-3">
+            <ObjectSearch />
+            <Link
+              to="/map"
+              className="text-xs text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
+            >
+              the network
+            </Link>
+          </div>
+        </div>
       </div>
       <div
         className="mt-3 h-px w-full"

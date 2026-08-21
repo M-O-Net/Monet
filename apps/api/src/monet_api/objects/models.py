@@ -10,6 +10,25 @@ class Object(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     latex: str
     description: str | None = None
+    image_url: str | None = None
+
+
+class ObjectReference(SQLModel, table=True):
+    """Where to read more about an object — metadata, never a node in the network.
+
+    Deliberately not a relation: a citation is not a mathematical fact relating two objects, and
+    surfacing it as one would put Knot Atlas in the graph alongside polynomials.
+    """
+
+    __tablename__ = "object_references"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    object_id: uuid.UUID = Field(
+        sa_column=sa.Column(sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False)
+    )
+    label: str
+    url: str
+    position: int
 
 
 class Relation(SQLModel, table=True):
