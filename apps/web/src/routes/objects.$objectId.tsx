@@ -239,7 +239,7 @@ function ObjectDetail() {
           Not yet connected to anything else in the valley.
         </p>
       )}
-      <p className="mt-5 text-sm">
+      <p className="mt-5 mb-6 text-sm">
         <Link
           to="/map"
           search={{ focus: objectId }}
