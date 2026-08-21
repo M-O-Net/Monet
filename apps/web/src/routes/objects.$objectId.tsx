@@ -10,6 +10,8 @@ import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
 import { invalidateObjectGraph } from "../lib/queries";
 import type { ObjectReferenceIn } from "../lib/types";
+import { ConvergenceCallout } from "./-components/ConvergenceCallout";
+import { LoopCallout } from "./-components/LoopCallout";
 import { MemberList } from "./-components/MemberList";
 import { OperatorDisplayForm } from "./-components/OperatorDisplayForm";
 import { ReferenceEditor } from "./-components/ReferenceEditor";
@@ -33,6 +35,7 @@ function ObjectDetail() {
     params: { path: { object_id: objectId } },
   });
   const allObjects = api.useQuery("get", "/objects");
+  const allRelations = api.useQuery("get", "/relations");
   const implementations = api.useQuery("get", "/implementations");
   const updateObject = api.useMutation("patch", "/objects/{object_id}");
   const deleteObject = api.useMutation("delete", "/objects/{object_id}");
@@ -82,9 +85,7 @@ function ObjectDetail() {
                     latex: draftLatex,
                     description: draftDescription.trim() || null,
                     image_url: draftImageUrl.trim() || null,
-                    references: draftReferences.filter(
-                      (reference) => reference.url.trim() !== "",
-                    ),
+                    references: draftReferences.filter((reference) => reference.url.trim() !== ""),
                   },
                 },
                 {
@@ -238,6 +239,11 @@ function ObjectDetail() {
           Not yet connected to anything else in the valley.
         </p>
       )}
+      {allRelations.data && (
+        <LoopCallout relations={allRelations.data} currentObjectId={objectId} />
+      )}
+      <ConvergenceCallout asOutput={obj.as_output} currentObjectId={objectId} />
+
       <MemberList members={obj.members} />
       <RelationList
         title="Used as operator in"
@@ -265,6 +271,7 @@ function ObjectDetail() {
           object={{ id: obj.id, latex: obj.latex }}
           objects={allObjects.data}
           implementations={implementations.data}
+          relations={allRelations.data ?? []}
           onCommitted={invalidateAll}
         />
       )}

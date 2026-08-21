@@ -2,12 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 
 import { formatApiError } from "@monet/api-client";
 
+import { Link } from "@tanstack/react-router";
+
 import { Latex } from "../../components/Latex";
 import { ObjectPicker } from "../../components/ObjectPicker";
 import { api } from "../../lib/api";
+import { findCyclesThrough } from "../../lib/cycles";
+import type { Cycle } from "../../lib/cycles";
 import { normalizeLatex } from "../../lib/latex";
+import { buildRelationHtml } from "../../lib/relationTemplate";
+import type { RelationOut } from "../../lib/types";
 import { probe, run } from "../../sandbox/client";
 import { useSandboxStatus } from "../../sandbox/useSandboxStatus";
+import { Callout } from "./Callout";
+import { CycleChain } from "./CycleChain";
+import { RelationExpression } from "./RelationExpression";
 
 interface ObjectSummary {
   id: string;
@@ -27,15 +36,24 @@ interface Result {
   outputs: string[];
 }
 
+interface Receipt {
+  relation: RelationOut;
+  createdRelation: boolean;
+  createdObjects: ObjectSummary[];
+  closedLoops: Cycle[];
+}
+
 export function Operations({
   object,
   objects,
   implementations,
+  relations,
   onCommitted,
 }: {
   object: ObjectSummary;
   objects: ObjectSummary[];
   implementations: Implementation[];
+  relations: RelationOut[];
   onCommitted: () => void;
 }) {
   const assertRelation = api.useMutation("post", "/relations/assert");
@@ -46,6 +64,7 @@ export function Operations({
   const [extraInputs, setExtraInputs] = useState<Record<string, string[]>>({});
   const [running, setRunning] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
 
   const probeKey = implementations.map((i) => `${i.id}:${i.code}`).join("\u0000");
@@ -75,6 +94,7 @@ export function Operations({
     const inputIds = [object.id, ...(extraInputs[implementation.id] ?? [])];
     setRunError(null);
     setResult(null);
+    setReceipt(null);
     setRunning(implementation.id);
     const inputLatex = inputIds.map((id) => objects.find((o) => o.id === id)?.latex ?? "");
     run(implementation.code, inputLatex).then(
@@ -100,7 +120,23 @@ export function Operations({
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (assertion) => {
+          const known = new Map(objects.map((o) => [o.id, o]));
+          for (const slot of [...assertion.relation.inputs, ...assertion.relation.outputs]) {
+            known.set(slot.object.id, slot.object);
+          }
+          setReceipt({
+            relation: assertion.relation,
+            createdRelation: assertion.created_relation,
+            createdObjects: assertion.created_object_ids.flatMap((id) => {
+              const found = known.get(id);
+              return found === undefined ? [] : [found];
+            }),
+            closedLoops: findCyclesThrough(
+              [...relations.filter((r) => r.id !== assertion.relation.id), assertion.relation],
+              object.id,
+            ).filter((cycle) => cycle.some((step) => step.relation.id === assertion.relation.id)),
+          });
           setResult(null);
           onCommitted();
         },
@@ -236,6 +272,75 @@ export function Operations({
             <p className="mt-2 text-xs text-rust">{formatApiError(assertRelation.error)}</p>
           )}
         </div>
+      )}
+
+      {receipt && (
+        <Callout heading={receipt.createdRelation ? "New to the network" : "Already recorded"}>
+          <button
+            onClick={() => {
+              setReceipt(null);
+            }}
+            className="float-right -mt-7 text-ink-soft hover:text-rust"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+
+          <p className="mb-3 text-sm">
+            <RelationExpression
+              html={buildRelationHtml(
+                receipt.relation,
+                receipt.relation.display?.template ?? null,
+                object.id,
+              )}
+            />
+          </p>
+
+          <p className="text-sm text-ink-soft">
+            {!receipt.createdRelation
+              ? "Someone entered this by hand before anything could compute it. The computation agrees with them."
+              : receipt.createdObjects.length === 0
+                ? "Every object it involves was already catalogued — this joined two things that were both already here."
+                : "Catalogued alongside it:"}
+          </p>
+
+          {receipt.createdObjects.length > 0 && (
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {receipt.createdObjects.map((created) => (
+                <li key={created.id}>
+                  <Link
+                    to="/objects/$objectId"
+                    params={{ objectId: created.id }}
+                    className="relation-tag inline-block rounded-sm px-2 py-0.5 text-xs"
+                  >
+                    <Latex>{created.latex}</Latex>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {receipt.closedLoops.length > 0 && (
+            <div className="mt-4 border-t border-mist pt-3">
+              <p className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">
+                {receipt.createdRelation
+                  ? receipt.closedLoops.length === 1
+                    ? "It closed a loop"
+                    : "It closed loops"
+                  : receipt.closedLoops.length === 1
+                    ? "It sits on a loop"
+                    : "It sits on loops"}
+              </p>
+              <ul className="space-y-2">
+                {receipt.closedLoops.map((cycle) => (
+                  <li key={cycle.map((step) => step.relation.id).join(">")}>
+                    <CycleChain cycle={cycle} currentObjectId={object.id} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Callout>
       )}
     </section>
   );
