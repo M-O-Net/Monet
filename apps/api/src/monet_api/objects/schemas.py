@@ -38,6 +38,7 @@ class ObjectUpdate(BaseModel):
 class RelationDisplayOut(ORMModel):
     template: str | None
     hidden_by_default: bool
+    is_membership: bool
 
 
 class RelationSlotOut(BaseModel):

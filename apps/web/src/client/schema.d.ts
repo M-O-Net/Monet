@@ -389,6 +389,8 @@ export interface components {
             template: string | null;
             /** Hidden By Default */
             hidden_by_default: boolean;
+            /** Is Membership */
+            is_membership: boolean;
         };
         /** RelationOut */
         RelationOut: {
