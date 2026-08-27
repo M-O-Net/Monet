@@ -14,12 +14,14 @@ Backend-local conventions. See root `AGENTS.md` first — this only adds detail 
   logic (404/400 translation, assembling a response schema out of several repository calls) and
   owns no SQL of its own; `repository.py` is the only file that touches `select`/`session.exec`.
   Plus `models.py` (SQLModel tables) and `schemas.py` (I/O models).
-- `scripts/implementations/*.py` — the seven seeded implementations. **Seed data, not code**:
+- `scripts/implementations/*.py` — the seeded implementations. **Seed data, not code**:
   `seed.py` reads each file's text into the `implementations` table. They are written against the
   sympy names the browser sandbox injects, which is why `ruff.toml` exempts the directory from
   F821. Nothing imports them, and nothing on the server executes them.
-- `scripts/seed.py` — wipes and reinserts the v0 demo dataset. `uv run python scripts/seed.py`
-  from this directory, or `just seed` from the repo root.
+- `scripts/seed.py` — wipes and reinserts the v0 demo dataset; `scripts/import_atlas.py` then
+  adds the KnotInfo and graph-census data from `scripts/data/*.json.gz`, reusing any object that
+  is already there. `just seed` runs both. `scripts/fetch_atlas.py` (`just atlas-fetch`)
+  regenerates those data files from packaged libraries, reaching no server.
 - `alembic/` — migrations. Autogenerate with `just migrate-new "..."`, which runs inside the
   stack: that is the only place a Postgres to diff against is reachable.
 - `tests/` — pytest suite, plus `docker-entry.sh` and `reset_test_db.py`, which set up the
@@ -62,11 +64,13 @@ stack's database.
 - `mypy --strict`'s `disallow_any_explicit` is **not** enabled here — it false-positives against
   SQLModel/Pydantic's own plugin-generated code on essentially every model field, not against
   anything we actually write.
-- `objects/service.py`'s `normalize_latex` decides object identity for `POST /relations/assert`:
-  whitespace outside `\text{...}` is stripped, whitespace inside it collapsed. That keeps
-  `x^{2} - 4 x + 3` and `x^{2}-4x+3` the same object while keeping `\text{Is Singular}` distinct
-  from `\text{IsSingular}`. It is whitespace-insensitivity, not the canonical form (equivalent
-  ways of writing the same matrix) that root `AGENTS.md` still defers.
+- `objects/service.py`'s `normalize_latex` decides object identity, and is what gets **stored**:
+  `pylatexenc` parses, then whitespace outside `\text{...}` is dropped and collapsed inside it —
+  except the space terminating a control word, without which `K_{1} \sqcup K_{1}` becomes
+  `\sqcupK` and stops rendering. So `x^{2} - 4 x + 3` and `x^{2}-4x+3` are one object, while
+  `\text{Is Singular}` stays distinct from `\text{IsSingular}`. `objects.latex` is unique, so a
+  second spelling is a conflict rather than a twin. This is spelling, not the canonical form
+  (equivalent ways of writing the same matrix) that root `AGENTS.md` still defers.
 - Deleting an object deletes its edges. Foreign keys do nearly all of it: `ON DELETE CASCADE`
   carries away its contents-page entry, its implementation, its references, the relations it
   operates, and those relations' slots. The one case a foreign key cannot express is an object used as a relation's

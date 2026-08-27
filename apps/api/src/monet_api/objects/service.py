@@ -6,9 +6,22 @@ Orchestrates repository.py calls; owns no SQL of its own.
 import re
 import uuid
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from typing import Literal
 
 from fastapi import HTTPException
+from pylatexenc.latexwalker import (
+    LatexCharsNode,
+    LatexCommentNode,
+    LatexEnvironmentNode,
+    LatexGroupNode,
+    LatexMacroNode,
+    LatexMathNode,
+    LatexNode,
+    LatexSpecialsNode,
+    LatexWalker,
+    LatexWalkerError,
+)
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.objects import repository
@@ -103,7 +116,19 @@ async def _load_relation_out(session: AsyncSession, relation: Relation) -> Relat
     return (await _load_relations_out(session, [relation]))[0]
 
 
-async def list_objects(session: AsyncSession) -> list[Object]:
+SEARCH_CANDIDATE_LIMIT = 200
+MAX_DETAIL_ROWS = 50
+MAX_MEMBER_PAGE = 2000
+
+
+async def list_objects(
+    session: AsyncSession, search: str | None = None, latex: str | None = None
+) -> list[Object]:
+    if latex is not None:
+        found = await repository.get_object_by_latex(session, normalize_latex(latex))
+        return [found] if found is not None else []
+    if search:
+        return await repository.list_objects(session, search, SEARCH_CANDIDATE_LIMIT)
     return await repository.list_objects(session)
 
 
@@ -141,7 +166,7 @@ async def _replace_references(
 
 async def create_object(session: AsyncSession, body: ObjectCreate) -> Object:
     obj = await repository.add_object(
-        session, body.latex, body.description, _linkable(body.image_url)
+        session, normalize_latex(body.latex), body.description, _linkable(body.image_url)
     )
     await _replace_references(session, obj.id, body.references)
     await session.commit()
@@ -149,20 +174,56 @@ async def create_object(session: AsyncSession, body: ObjectCreate) -> Object:
     return obj
 
 
+RelationRole = Literal["input", "output", "operator"]
+
+
+async def _relation_ids_for(
+    session: AsyncSession, object_id: uuid.UUID, role: RelationRole
+) -> list[uuid.UUID]:
+    if role == "operator":
+        found = await repository.list_relations_by_operator(session, object_id)
+        return sorted(relation.id for relation in found)
+    membership = await repository.list_membership_operator_ids(session)
+    lookup = (
+        repository.list_relation_ids_by_input
+        if role == "input"
+        else repository.list_relation_ids_by_output
+    )
+    return sorted(await lookup(session, object_id, exclude_operator_ids=membership))
+
+
+async def list_object_relations(
+    session: AsyncSession, object_id: uuid.UUID, role: RelationRole, offset: int, limit: int
+) -> list[RelationOut]:
+    await get_object_or_404(session, object_id)
+    wanted = (await _relation_ids_for(session, object_id, role))[
+        offset : offset + min(limit, MAX_MEMBER_PAGE)
+    ]
+    found = {r.id: r for r in await repository.list_relations_by_ids(session, wanted)}
+    return await _load_relations_out(session, [found[i] for i in wanted if i in found])
+
+
+async def list_members(
+    session: AsyncSession, object_id: uuid.UUID, offset: int, limit: int
+) -> list[Object]:
+    await get_object_or_404(session, object_id)
+    membership_ops = await repository.list_membership_operator_ids(session)
+    return await repository.list_section_members(
+        session, membership_ops, object_id, offset, min(limit, MAX_MEMBER_PAGE)
+    )
+
+
 async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> ObjectDetailOut:
     obj = await get_object_or_404(session, object_id)
     membership_ops = await repository.list_membership_operator_ids(session)
 
-    as_operator = await repository.list_relations_by_operator(session, object_id)
-    as_input_ids = await repository.list_relation_ids_by_input(
-        session, object_id, exclude_operator_ids=membership_ops
-    )
-    as_output_ids = await repository.list_relation_ids_by_output(
-        session, object_id, exclude_operator_ids=membership_ops
-    )
+    as_operator_ids = await _relation_ids_for(session, object_id, "operator")
+    as_input_ids = await _relation_ids_for(session, object_id, "input")
+    as_output_ids = await _relation_ids_for(session, object_id, "output")
 
-    as_input = await repository.list_relations_by_ids(session, as_input_ids)
-    as_output = await repository.list_relations_by_ids(session, as_output_ids)
+    as_operator = await repository.list_relations_by_ids(session, as_operator_ids[:MAX_DETAIL_ROWS])
+    as_input = await repository.list_relations_by_ids(session, as_input_ids[:MAX_DETAIL_ROWS])
+    as_output = await repository.list_relations_by_ids(session, as_output_ids[:MAX_DETAIL_ROWS])
 
     parents = await _membership_parents(session, membership_ops, [object_id])
     children = await _membership_children(session, membership_ops, [object_id])
@@ -170,6 +231,7 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
     is_top_level = await repository.get_top_level_object(session, object_id) is not None
 
     references = await repository.list_object_references(session, object_id)
+    member_ids = children.get(object_id, [])
 
     return ObjectDetailOut(
         id=obj.id,
@@ -179,10 +241,14 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         references=[ObjectReferenceOut.model_validate(row) for row in references],
         is_top_level=is_top_level,
         sections=await _objects_in_latex_order(session, parents.get(object_id, [])),
-        members=await _objects_in_latex_order(session, children.get(object_id, [])),
+        members=await _objects_in_latex_order(session, member_ids[:MAX_DETAIL_ROWS]),
+        members_total=len(member_ids),
         as_operator=await _load_relations_out(session, as_operator),
+        as_operator_total=len(as_operator_ids),
         as_input=await _load_relations_out(session, as_input),
+        as_input_total=len(as_input_ids),
         as_output=await _load_relations_out(session, as_output),
+        as_output_total=len(as_output_ids),
     )
 
 
@@ -302,7 +368,9 @@ async def update_object(session: AsyncSession, object_id: uuid.UUID, body: Objec
     obj = await get_object_or_404(session, object_id)
     image_url = _linkable(body.image_url)
     await _replace_references(session, object_id, body.references)
-    return await repository.update_object(session, obj, body.latex, body.description, image_url)
+    return await repository.update_object(
+        session, obj, normalize_latex(body.latex), body.description, image_url
+    )
 
 
 async def delete_object(session: AsyncSession, object_id: uuid.UUID) -> None:
@@ -327,8 +395,107 @@ async def unmark_top_level_object(session: AsyncSession, object_id: uuid.UUID) -
         await repository.delete_top_level_object(session, row)
 
 
-async def list_relations(session: AsyncSession) -> list[RelationOut]:
-    return await _load_relations_out(session, await repository.list_relations(session))
+MAX_MAP_NODES = 220
+MAX_MAP_RELATIONS = 400
+
+
+async def _neighbourhood(
+    session: AsyncSession,
+    focus: Sequence[uuid.UUID],
+    depth: int,
+    *,
+    include_membership: bool,
+    already: int = 0,
+) -> list[Relation]:
+    """Expand outwards from some objects, stopping before the map becomes undrawable.
+
+    The cap counts objects and relations together, because the force layout draws a node for
+    each and its cost is quadratic in the total.
+    """
+    skip: set[uuid.UUID] = set()
+    if not include_membership:
+        skip = set(await repository.list_membership_operator_ids(session))
+    reached = set(focus)
+    found: dict[uuid.UUID, Relation] = {}
+    frontier = set(focus)
+    for _ in range(max(1, depth)):
+        if not frontier or len(reached) + len(found) + already >= MAX_MAP_NODES:
+            break
+        budget = MAX_MAP_RELATIONS - len(found)
+        if budget <= 0:
+            break
+        touching = await repository.list_relations_touching(session, list(frontier), budget)
+        fresh = [r for r in touching if r.id not in found and r.operator_id not in skip]
+        if not fresh:
+            break
+        relation_ids = [relation.id for relation in fresh]
+        operands: list[RelationInput | RelationOutput] = [
+            *await repository.list_relation_inputs_for(session, relation_ids),
+            *await repository.list_relation_outputs_for(session, relation_ids),
+        ]
+        touched: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
+        for operand in operands:
+            touched[operand.relation_id].add(operand.object_id)
+        neighbours: set[uuid.UUID] = set()
+        for relation in fresh:
+            widened = touched[relation.id] | {relation.operator_id}
+            drawn = len(reached | neighbours | widened) + len(found) + 1 + already
+            if drawn > MAX_MAP_NODES:
+                continue
+            found[relation.id] = relation
+            neighbours |= widened - reached
+        frontier = neighbours - reached
+        reached |= neighbours
+    return list(found.values())
+
+
+async def list_relations(
+    session: AsyncSession,
+    focus: Sequence[uuid.UUID] = (),
+    depth: int = 1,
+    contents: bool = False,
+) -> list[RelationOut]:
+    if not focus and not contents:
+        return await _load_relations_out(session, await repository.list_relations(session))
+    for object_id in focus:
+        await get_object_or_404(session, object_id)
+    found: dict[uuid.UUID, Relation] = {}
+    if contents:
+        found = {relation.id: relation for relation in await _contents_skeleton(session)}
+    if focus:
+        for relation in await _neighbourhood(
+            session, focus, depth, include_membership=contents, already=len(found)
+        ):
+            found[relation.id] = relation
+    return await _load_relations_out(session, list(found.values()))
+
+
+async def _contents_skeleton(session: AsyncSession) -> list[Relation]:
+    """Return the membership edges joining one section to another.
+
+    The map with nothing in focus shows the contents page as a graph, so it needs exactly the
+    edges every other view throws away, and only those whose member is itself a section.
+    """
+    membership = await repository.list_membership_operator_ids(session)
+    if not membership:
+        return []
+    relations = [
+        relation
+        for relation in await repository.list_relations(session)
+        if relation.operator_id in set(membership)
+    ]
+    ids = [relation.id for relation in relations]
+    inputs = await repository.list_relation_inputs_for(session, ids)
+    outputs = await repository.list_relation_outputs_for(session, ids)
+    sections = {operand.object_id for operand in outputs}
+    members = defaultdict(set)
+    for operand in inputs:
+        members[operand.relation_id].add(operand.object_id)
+    return [
+        relation
+        for relation in relations
+        if members[relation.id] and members[relation.id] <= sections
+    ]
 
 
 async def _validate_relation_operands(session: AsyncSession, body: RelationCreate) -> None:
@@ -340,12 +507,9 @@ async def _validate_relation_operands(session: AsyncSession, body: RelationCreat
 async def create_relation(session: AsyncSession, body: RelationCreate) -> RelationOut:
     await _validate_relation_operands(session, body)
 
-    relation = await repository.create_relation(session, body.operator_id)
-    for position, oid in enumerate(body.input_object_ids):
-        repository.add_relation_input(session, relation.id, oid, position)
-    for position, oid in enumerate(body.output_object_ids):
-        repository.add_relation_output(session, relation.id, oid, position)
-
+    relation, _ = await _find_or_create_relation(
+        session, body.operator_id, body.input_object_ids, body.output_object_ids
+    )
     await session.commit()
     await session.refresh(relation)
     return await _load_relation_out(session, relation)
@@ -381,38 +545,74 @@ async def delete_relation(session: AsyncSession, relation_id: uuid.UUID) -> None
     await repository.delete_relation(session, relation)
 
 
-_TEXT_GROUP = re.compile(r"\\text\{[^{}]*\}")
+_TEXTUAL_MACROS = frozenset({"text", "textrm", "textbf", "textit", "mbox"})
 
 
-def _without_whitespace(latex: str) -> str:
-    return "".join(latex.split())
+def _join(pieces: list[tuple[str, bool]]) -> str:
+    rendered = ""
+    welded = False
+    for piece, ends_with_control_word in pieces:
+        if not piece:
+            continue
+        if welded and piece[0].isalnum():
+            rendered += " "
+        rendered += piece
+        welded = ends_with_control_word
+    return rendered
 
 
-def _with_whitespace_collapsed(latex: str) -> str:
-    return " ".join(latex.split())
+def _render_nodes(nodes: Iterable[LatexNode | None], textual: bool) -> str:
+    pieces: list[tuple[str, bool]] = []
+    for node in nodes:
+        if node is None or node.isNodeType(LatexCommentNode):
+            continue
+        if node.isNodeType(LatexCharsNode):
+            chars = node.chars
+            pieces.append((" ".join(chars.split()) if textual else "".join(chars.split()), False))
+        elif node.isNodeType(LatexGroupNode):
+            opening, closing = node.delimiters
+            pieces.append((opening + _render_nodes(node.nodelist, textual) + closing, False))
+        elif node.isNodeType(LatexMacroNode):
+            inner = textual or node.macroname in _TEXTUAL_MACROS
+            arguments = node.nodeargd.argnlist if node.nodeargd else []
+            rendered = _render_nodes(arguments, inner)
+            pieces.append(
+                ("\\" + node.macroname + rendered, not rendered and node.macroname.isalpha())
+            )
+        elif node.isNodeType(LatexEnvironmentNode):
+            name = node.environmentname
+            body = _render_nodes(node.nodelist, textual)
+            pieces.append((f"\\begin{{{name}}}{body}\\end{{{name}}}", False))
+        elif node.isNodeType(LatexMathNode):
+            opening, closing = node.delimiters
+            pieces.append((opening + _render_nodes(node.nodelist, textual) + closing, False))
+        elif node.isNodeType(LatexSpecialsNode):
+            pieces.append((node.specials_chars, False))
+        else:
+            pieces.append((node.latex_verbatim(), False))
+    return _join(pieces)
 
 
 def normalize_latex(latex: str) -> str:
-    parts: list[str] = []
-    last = 0
-    for match in _TEXT_GROUP.finditer(latex):
-        parts.append(_without_whitespace(latex[last : match.start()]))
-        parts.append(_with_whitespace_collapsed(match.group()))
-        last = match.end()
-    parts.append(_without_whitespace(latex[last:]))
-    return "".join(parts)
+    """Return the canonical spelling of a LaTeX string.
+
+    Whitespace outside \\text{...} carries no meaning, so it is dropped -- except where losing
+    it would weld a control word onto what follows. Inside \\text{...} runs collapse to one
+    space. The result is what gets stored, so it has to render as well as compare.
+    """
+    try:
+        nodes, _, _ = LatexWalker(latex).get_latex_nodes()
+    except LatexWalkerError as error:
+        raise HTTPException(status_code=400, detail=f"could not parse LaTeX: {error}") from error
+    return _render_nodes(nodes, textual=False)
 
 
-async def _find_or_create_object(
-    session: AsyncSession, latex: str, existing: list[Object]
-) -> tuple[Object, bool]:
-    key = normalize_latex(latex)
-    for obj in existing:
-        if normalize_latex(obj.latex) == key:
-            return obj, False
-    obj = await repository.add_object(session, latex, None)
-    existing.append(obj)
-    return obj, True
+async def _find_or_create_object(session: AsyncSession, latex: str) -> tuple[Object, bool]:
+    canonical = normalize_latex(latex)
+    found = await repository.get_object_by_latex(session, canonical)
+    if found is not None:
+        return found, False
+    return await repository.add_object(session, canonical, None), True
 
 
 def _operands_by_relation(
@@ -424,13 +624,32 @@ def _operands_by_relation(
     return operands
 
 
+async def _find_or_create_relation(
+    session: AsyncSession,
+    operator_id: uuid.UUID,
+    input_ids: list[uuid.UUID],
+    output_ids: list[uuid.UUID],
+) -> tuple[Relation, bool]:
+    found = await _find_matching_relation(session, operator_id, input_ids, output_ids)
+    if found is not None:
+        return found, False
+    relation = await repository.create_relation(session, operator_id)
+    for position, oid in enumerate(input_ids):
+        repository.add_relation_input(session, relation.id, oid, position)
+    for position, oid in enumerate(output_ids):
+        repository.add_relation_output(session, relation.id, oid, position)
+    return relation, True
+
+
 async def _find_matching_relation(
     session: AsyncSession,
     operator_id: uuid.UUID,
     input_ids: list[uuid.UUID],
     output_ids: list[uuid.UUID],
 ) -> Relation | None:
-    candidates = await repository.list_relations_by_operator(session, operator_id)
+    candidates = await repository.list_relation_candidates(
+        session, operator_id, input_ids[0] if input_ids else None
+    )
     if not candidates:
         return None
     candidate_ids = [candidate.id for candidate in candidates]
@@ -454,27 +673,18 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
     for oid in body.input_object_ids:
         await get_object_or_404(session, oid)
 
-    existing = await repository.list_objects(session)
     outputs: list[Object] = []
     created_object_ids: list[uuid.UUID] = []
     for latex in body.output_latex:
-        obj, was_created = await _find_or_create_object(session, latex, existing)
+        obj, was_created = await _find_or_create_object(session, latex)
         outputs.append(obj)
         if was_created:
             created_object_ids.append(obj.id)
 
     output_ids = [obj.id for obj in outputs]
-    relation = await _find_matching_relation(
+    relation, created_relation = await _find_or_create_relation(
         session, body.operator_id, body.input_object_ids, output_ids
     )
-    created_relation = relation is None
-    if relation is None:
-        relation = await repository.create_relation(session, body.operator_id)
-        for position, oid in enumerate(body.input_object_ids):
-            repository.add_relation_input(session, relation.id, oid, position)
-        for position, oid in enumerate(output_ids):
-            repository.add_relation_output(session, relation.id, oid, position)
-
     await session.commit()
     await session.refresh(relation)
     return RelationAssertOut(

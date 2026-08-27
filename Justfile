@@ -159,6 +159,14 @@ migrate-check:
 
 seed:
     {{_dc_dev}} exec api uv run python scripts/seed.py
+    {{_dc_dev}} exec api uv run python scripts/import_atlas.py
+
+# Re-harvest scripts/data/. KnotInfo and the graph census are packaged libraries; House of
+# Graphs takes three requests, whose answers are cached under --hog-cache. Its dependencies
+# stay out of apps/api's lockfile.
+atlas-fetch *ARGS:
+    cd apps/api && uv run --no-project --with sympy --with networkx --with database_knotinfo \
+        --with httpx python scripts/fetch_atlas.py {{ARGS}}
 
 # ── Code generation ──────────────────────────────────────────────────────────
 # Sources .env.local first so API_PORT is always THIS worktree's own value, never a silent

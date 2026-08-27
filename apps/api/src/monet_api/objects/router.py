@@ -1,7 +1,7 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.db import get_session
@@ -30,8 +30,12 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 
 
 @router.get("/objects", response_model=list[ObjectOut], operation_id="list_objects")
-async def list_objects(session: DbSession) -> list[Object]:
-    return await service.list_objects(session)
+async def list_objects(
+    session: DbSession,
+    q: Annotated[str | None, Query(description="substring match on latex or description")] = None,
+    latex: Annotated[str | None, Query(description="exact match on canonical latex")] = None,
+) -> list[Object]:
+    return await service.list_objects(session, q, latex)
 
 
 @router.post("/objects", response_model=ObjectOut, operation_id="create_object", status_code=201)
@@ -42,6 +46,35 @@ async def create_object(body: ObjectCreate, session: DbSession) -> Object:
 @router.get("/objects/{object_id}", response_model=ObjectDetailOut, operation_id="get_object")
 async def get_object(object_id: uuid.UUID, session: DbSession) -> ObjectDetailOut:
     return await service.get_object_detail(session, object_id)
+
+
+@router.get(
+    "/objects/{object_id}/members",
+    response_model=list[ObjectOut],
+    operation_id="list_object_members",
+)
+async def list_object_members(
+    object_id: uuid.UUID,
+    session: DbSession,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 50,
+) -> list[Object]:
+    return await service.list_members(session, object_id, offset, limit)
+
+
+@router.get(
+    "/objects/{object_id}/relations",
+    response_model=list[RelationOut],
+    operation_id="list_object_relations",
+)
+async def list_object_relations(
+    object_id: uuid.UUID,
+    session: DbSession,
+    role: Annotated[Literal["input", "output", "operator"], Query()],
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 50,
+) -> list[RelationOut]:
+    return await service.list_object_relations(session, object_id, role, offset, limit)
 
 
 @router.patch("/objects/{object_id}", response_model=ObjectOut, operation_id="update_object")
@@ -106,8 +139,13 @@ async def set_operator_display(
 
 
 @router.get("/relations", response_model=list[RelationOut], operation_id="list_relations")
-async def list_relations(session: DbSession) -> list[RelationOut]:
-    return await service.list_relations(session)
+async def list_relations(
+    session: DbSession,
+    focus: Annotated[list[uuid.UUID], Query(description="expand around these objects")] = [],  # noqa: B006
+    depth: Annotated[int, Query(ge=1, le=4)] = 1,
+    contents: Annotated[bool, Query(description="just the section structure")] = False,
+) -> list[RelationOut]:
+    return await service.list_relations(session, focus, depth, contents)
 
 
 @router.post(

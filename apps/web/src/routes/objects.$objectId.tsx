@@ -21,21 +21,42 @@ import { ImplementationEditor } from "./-components/ImplementationEditor";
 import { Operations } from "./-components/Operations";
 import { SectionTags } from "./-components/SectionTags";
 
+interface ObjectSearch {
+  page?: number;
+  inputs?: number;
+  outputs?: number;
+  operates?: number;
+}
+
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
+  validateSearch: (search: Record<string, unknown>): ObjectSearch => {
+    const pick = (value: unknown) => {
+      const page = Number(value);
+      return Number.isInteger(page) && page > 1 ? page : undefined;
+    };
+    return {
+      page: pick(search.page),
+      inputs: pick(search.inputs),
+      outputs: pick(search.outputs),
+      operates: pick(search.operates),
+    };
+  },
   remountDeps: ({ params }) => params.objectId,
 });
 
 function ObjectDetail() {
   const { objectId } = Route.useParams();
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const detail = api.useQuery("get", "/objects/{object_id}", {
     params: { path: { object_id: objectId } },
   });
-  const allObjects = api.useQuery("get", "/objects");
-  const allRelations = api.useQuery("get", "/relations");
+  const nearbyRelations = api.useQuery("get", "/relations", {
+    params: { query: { focus: [objectId], depth: 3 } },
+  });
   const implementations = api.useQuery("get", "/implementations");
   const updateObject = api.useMutation("patch", "/objects/{object_id}");
   const deleteObject = api.useMutation("delete", "/objects/{object_id}");
@@ -242,46 +263,62 @@ function ObjectDetail() {
       <p className="mt-5 mb-6 text-sm">
         <Link
           to="/map"
-          search={{ focus: objectId }}
+          search={{ expand: objectId }}
           className="text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
         >
           see it on the network map →
         </Link>
       </p>
 
-      {allRelations.data && (
-        <LoopCallout relations={allRelations.data} currentObjectId={objectId} />
+      {nearbyRelations.data && (
+        <LoopCallout relations={nearbyRelations.data} currentObjectId={objectId} />
       )}
-      <ConvergenceCallout asOutput={obj.as_output} currentObjectId={objectId} />
+      <ConvergenceCallout asOutput={obj.as_output} total={obj.as_output_total} />
 
-      <MemberList members={obj.members} />
+      <MemberList
+        objectId={objectId}
+        firstPage={obj.members}
+        total={obj.members_total}
+        page={search.page ?? 1}
+      />
       <RelationList
         title="Used as operator in"
         relations={obj.as_operator}
+        total={obj.as_operator_total}
         currentObjectId={objectId}
+        role="operator"
+        page={search.operates ?? 1}
+        pageKey="operates"
         collapseHidden={false}
       />
       <RelationList
         title="Appears as input in"
         relations={obj.as_input}
+        total={obj.as_input_total}
         currentObjectId={objectId}
+        role="input"
+        page={search.inputs ?? 1}
+        pageKey="inputs"
       />
       <RelationList
         title="Appears as output in"
         relations={obj.as_output}
+        total={obj.as_output_total}
         currentObjectId={objectId}
+        role="output"
+        page={search.outputs ?? 1}
+        pageKey="outputs"
       />
       <ReferenceList references={obj.references} />
 
       {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 
-      {allObjects.data && implementations.data && (
+      {implementations.data && (
         <Operations
           key={`${obj.id}:${obj.latex}`}
           object={{ id: obj.id, latex: obj.latex }}
-          objects={allObjects.data}
           implementations={implementations.data}
-          relations={allRelations.data ?? []}
+          relations={nearbyRelations.data ?? []}
           onCommitted={invalidateAll}
         />
       )}
@@ -297,7 +334,7 @@ function ObjectDetail() {
       <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
         Add a relation
       </h2>
-      {allObjects.data && <RelationForm objects={allObjects.data} onCreated={invalidateAll} />}
+      <RelationForm onCreated={invalidateAll} />
     </div>
   );
 }

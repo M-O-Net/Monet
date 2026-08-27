@@ -25,6 +25,7 @@ from monet_api.objects.models import (
     RelationOutput,
     TopLevelObject,
 )
+from monet_api.objects.service import normalize_latex
 
 
 async def seed() -> None:
@@ -315,7 +316,9 @@ async def seed() -> None:
 
         ids: dict[str, uuid.UUID] = {}
         for key, (latex, description) in objects.items():
-            obj = Object(latex=latex, description=description, image_url=images.get(key))
+            obj = Object(
+                latex=normalize_latex(latex), description=description, image_url=images.get(key)
+            )
             session.add(obj)
             await session.flush()
             ids[key] = obj.id

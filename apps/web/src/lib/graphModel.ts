@@ -26,7 +26,10 @@ export interface Graph {
   edges: GraphEdge[];
 }
 
-export function buildGraph(relations: readonly RelationOut[]): Graph {
+export function buildGraph(
+  relations: readonly RelationOut[],
+  { includeMembership = false }: { includeMembership?: boolean } = {},
+): Graph {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   const known = new Set<string>();
@@ -38,7 +41,7 @@ export function buildGraph(relations: readonly RelationOut[]): Graph {
   };
 
   for (const relation of relations) {
-    if (isMembership(relation)) continue;
+    if (!includeMembership && isMembership(relation)) continue;
     nodes.push({ kind: "relation", id: relation.id, relation });
     for (const input of relation.inputs) {
       remember(input.object);

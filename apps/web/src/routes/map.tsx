@@ -1,3 +1,4 @@
+import { keepPreviousData } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { formatApiError } from "@monet/api-client";
@@ -7,29 +8,42 @@ import { NetworkMap } from "./-components/NetworkMap";
 
 export const Route = createFileRoute("/map")({
   component: NetworkMapPage,
-  validateSearch: (search: Record<string, unknown>): { focus?: string } => {
-    const focus = search.focus;
-    return typeof focus === "string" ? { focus } : {};
+  validateSearch: (search: Record<string, unknown>): { expand?: string } => {
+    const expand = search.expand;
+    return typeof expand === "string" && expand !== "" ? { expand } : {};
   },
 });
 
 function NetworkMapPage() {
-  const { focus } = Route.useSearch();
-  const relations = api.useQuery("get", "/relations");
+  const { expand } = Route.useSearch();
+  const opened = expand ? expand.split(",") : [];
+  const relations = api.useQuery(
+    "get",
+    "/relations",
+    { params: { query: { contents: true, focus: opened, depth: 1 } } },
+    { placeholderData: keepPreviousData },
+  );
 
   return (
     <div>
       <h1 className="font-display text-2xl text-ink">The network</h1>
       <p className="mt-1 mb-5 text-sm text-ink-soft">
-        Every object some operation reaches, and the operations reaching them. Filing under sections
-        is left out, and so is anything not yet joined to something else. Drag to pan, scroll to
-        zoom, click anything to open it.
+        The contents page, drawn. Click anything to open it out and see what it reaches — the
+        address bar remembers where you are. Drag to pan, scroll to zoom.
       </p>
 
-      {relations.isPending && <p className="text-sm text-ink-soft italic">Drawing the network…</p>}
       {relations.isError && <p className="text-sm text-rust">{formatApiError(relations.error)}</p>}
 
-      {relations.data && <NetworkMap relations={relations.data} focusId={focus ?? null} />}
+      {relations.data === undefined ? (
+        <p className="text-sm text-ink-soft italic">Drawing the network…</p>
+      ) : (
+        <NetworkMap
+          relations={relations.data}
+          opened={opened}
+          busy={relations.isFetching}
+          contents
+        />
+      )}
     </div>
   );
 }

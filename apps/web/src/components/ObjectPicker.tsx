@@ -1,5 +1,7 @@
 import { Select } from "@base-ui/react/select";
+import { useState } from "react";
 
+import { api } from "../lib/api";
 import { Latex } from "./Latex";
 
 interface ObjectSummary {
@@ -12,30 +14,33 @@ interface ObjectSummary {
 // <select><option>, which can only render plain text and so couldn't show a LaTeX-typeset
 // object (or its description) inside an option.
 export function ObjectPicker({
-  objects,
   value,
   onChange,
   placeholder,
 }: {
-  objects: ObjectSummary[];
-  value: string;
-  onChange: (id: string) => void;
+  value: ObjectSummary | null;
+  onChange: (object: ObjectSummary | null) => void;
   placeholder: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const query = api.useQuery("get", "/objects", {}, { enabled: open });
+  const objects: ObjectSummary[] = query.data ?? (value ? [value] : []);
+
   return (
     <Select.Root
+      open={open}
+      onOpenChange={setOpen}
       items={objects.map((obj) => ({ value: obj.id, label: obj.latex }))}
-      value={value || null}
+      value={value?.id ?? null}
       onValueChange={(id: string | null) => {
-        onChange(id ?? "");
+        onChange(objects.find((obj) => obj.id === id) ?? null);
       }}
     >
       <Select.Trigger className="flex w-full items-center justify-between gap-2 rounded-sm border border-mist bg-paper px-2 py-1.5 text-left text-xs text-ink focus:border-pond focus:outline-none">
         <Select.Value>
           {() => {
-            const selected = objects.find((o) => o.id === value);
-            return selected ? (
-              <Latex>{selected.latex}</Latex>
+            return value ? (
+              <Latex>{value.latex}</Latex>
             ) : (
               <span className="text-ink-soft">{placeholder}</span>
             );
@@ -49,6 +54,9 @@ export function ObjectPicker({
         <Select.Positioner sideOffset={4} className="z-10 outline-none">
           <Select.Popup className="max-h-64 w-(--anchor-width) overflow-auto rounded-sm border border-mist bg-paper shadow-lg outline-none">
             <Select.List>
+              {query.isPending && open && (
+                <p className="px-2 py-1.5 text-xs text-ink-soft italic">Loading objects…</p>
+              )}
               {objects.map((obj) => (
                 <Select.Item
                   key={obj.id}

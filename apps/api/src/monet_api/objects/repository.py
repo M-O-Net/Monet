@@ -22,8 +22,19 @@ async def get_object(session: AsyncSession, object_id: uuid.UUID) -> Object | No
     return await session.get(Object, object_id)
 
 
-async def list_objects(session: AsyncSession) -> list[Object]:
-    return list((await session.exec(select(Object).order_by(col(Object.latex)))).all())
+async def list_objects(
+    session: AsyncSession, search: str | None = None, limit: int | None = None
+) -> list[Object]:
+    statement = select(Object)
+    if search:
+        pattern = f"%{search}%"
+        statement = statement.where(
+            or_(col(Object.latex).ilike(pattern), col(Object.description).ilike(pattern))
+        )
+    statement = statement.order_by(col(Object.latex))
+    if limit is not None:
+        statement = statement.limit(limit)
+    return list((await session.exec(statement)).all())
 
 
 async def list_objects_by_ids(
@@ -38,6 +49,10 @@ async def list_objects_by_ids(
             )
         ).all()
     )
+
+
+async def get_object_by_latex(session: AsyncSession, latex: str) -> Object | None:
+    return (await session.exec(select(Object).where(Object.latex == latex))).first()
 
 
 async def add_object(
@@ -133,6 +148,29 @@ async def list_relations(session: AsyncSession) -> list[Relation]:
     return list((await session.exec(select(Relation))).all())
 
 
+async def list_relations_touching(
+    session: AsyncSession, object_ids: Sequence[uuid.UUID], limit: int
+) -> list[Relation]:
+    if not object_ids:
+        return []
+    as_input = select(RelationInput.relation_id).where(col(RelationInput.object_id).in_(object_ids))
+    as_output = select(RelationOutput.relation_id).where(
+        col(RelationOutput.object_id).in_(object_ids)
+    )
+    statement = (
+        select(Relation)
+        .where(
+            or_(
+                col(Relation.operator_id).in_(object_ids),
+                col(Relation.id).in_(as_input),
+                col(Relation.id).in_(as_output),
+            )
+        )
+        .limit(limit)
+    )
+    return list((await session.exec(statement)).all())
+
+
 async def list_relations_by_ids(
     session: AsyncSession, relation_ids: Sequence[uuid.UUID]
 ) -> list[Relation]:
@@ -147,6 +185,20 @@ async def list_relations_by_operator(session: AsyncSession, object_id: uuid.UUID
     return list(
         (await session.exec(select(Relation).where(Relation.operator_id == object_id))).all()
     )
+
+
+async def list_relation_candidates(
+    session: AsyncSession, operator_id: uuid.UUID, first_input_id: uuid.UUID | None
+) -> list[Relation]:
+    statement = select(Relation).where(Relation.operator_id == operator_id)
+    if first_input_id is not None:
+        statement = statement.join(
+            RelationInput, col(RelationInput.relation_id) == col(Relation.id)
+        ).where(
+            col(RelationInput.object_id) == first_input_id,
+            col(RelationInput.position) == 0,
+        )
+    return list((await session.exec(statement)).all())
 
 
 async def list_relation_ids_by_input(
@@ -186,6 +238,29 @@ async def list_membership_outputs(
             )
         ).all()
     )
+
+
+async def list_section_members(
+    session: AsyncSession,
+    operator_ids: Sequence[uuid.UUID],
+    section_id: uuid.UUID,
+    offset: int,
+    limit: int,
+) -> list[Object]:
+    if not operator_ids:
+        return []
+    statement = (
+        select(Object)
+        .join(RelationInput, col(RelationInput.object_id) == col(Object.id))
+        .join(Relation, col(Relation.id) == col(RelationInput.relation_id))
+        .join(RelationOutput, col(RelationOutput.relation_id) == col(Relation.id))
+        .where(col(Relation.operator_id).in_(operator_ids))
+        .where(col(RelationOutput.object_id) == section_id)
+        .order_by(col(Object.latex))
+        .offset(offset)
+        .limit(limit)
+    )
+    return list((await session.exec(statement)).all())
 
 
 async def list_membership_inputs(
