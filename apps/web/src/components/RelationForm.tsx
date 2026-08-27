@@ -50,11 +50,7 @@ function SlotPicker({
       </div>
       <div className="flex gap-2">
         <div className="flex-1">
-          <ObjectPicker
-            value={pending}
-            onChange={setPending}
-            placeholder="Select an object…"
-          />
+          <ObjectPicker value={pending} onChange={setPending} placeholder="Select an object…" />
         </div>
         <button
           type="button"
@@ -109,11 +105,7 @@ export function RelationForm({ onCreated }: { onCreated: () => void }) {
         <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-soft uppercase">
           Operator
         </p>
-        <ObjectPicker
-          value={operator}
-          onChange={setOperator}
-          placeholder="Select an operator…"
-        />
+        <ObjectPicker value={operator} onChange={setOperator} placeholder="Select an operator…" />
       </div>
 
       <SlotPicker label="Inputs (ordered)" selected={inputs} onChange={setInputs} />

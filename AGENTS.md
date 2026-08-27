@@ -269,17 +269,19 @@ mounts, hot reload). `just wt-add <name>` creates a git worktree with its own is
 The same Dockerfiles are what Render builds from at deploy time. No service publishes a Postgres
 host port — nothing outside the compose network needs one.
 
-`just up`'s api container always runs migrations, then seeds **only if the objects table is
-empty** (`scripts/seed.py --if-empty`) — so a brand-new worktree/dev env always has the demo
-dataset on its first run, without silently wiping anything added by hand through the GUI on
-every later restart. Run `just seed` directly to force a hard reset back to the canonical
-dataset; the dataset itself is documented where it's defined, in `scripts/seed.py`, not here.
+`just up`'s api container always runs migrations, seeds **only if the objects table is empty**
+(`scripts/seed.py --if-empty`), then runs `scripts/import_atlas.py`, which reuses every object
+already present and so is a no-op on a restart. A brand-new worktree therefore has the whole
+dataset on its first run without silently wiping anything added by hand through the GUI. Run
+`just seed` to force a hard reset back to both; the datasets are documented where they are
+defined, in `scripts/seed.py` and `scripts/fetch_atlas.py`, not here.
 
 ## Deployment
 
 Single Render account/dashboard for everything, all on free plans: a web service (API), a static
 site (the Vite build), and a Postgres instance. Free Postgres auto-deletes after ~30 days, which
-costs nothing while `scripts/seed.py` is the only dataset — move it to Basic-256MB ($6/month) once
-that stops being true. The API's free plan cold-starts; Starter ($7/month) is always on. Both are
-one-line changes in `render.yaml`. Migrations and the `--if-empty` seed run as a pre-deploy step,
-not manually.
+costs nothing while every object is reproducible from `scripts/seed.py` and the committed
+`scripts/data/` — move it to Basic-256MB ($6/month) once anything is only in the database, i.e.
+once edits through the GUI matter. The API's free plan cold-starts; Starter ($7/month) is always
+on. Both are one-line changes in `render.yaml`. Free services get no pre-deploy step, so
+`scripts/start.sh` migrates, seeds and imports before uvicorn.

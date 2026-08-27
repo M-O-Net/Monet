@@ -15,6 +15,7 @@ import sqlalchemy as sa
 from sqlmodel import select
 
 from monet_api.core.db import async_session
+from monet_api.implementations.models import Implementation
 from monet_api.objects.models import (
     Object,
     ObjectReference,
@@ -26,7 +27,9 @@ from monet_api.objects.models import (
 )
 from monet_api.objects.service import normalize_latex
 
-DATA = pathlib.Path(__file__).resolve().parent / "data"
+SCRIPTS = pathlib.Path(__file__).resolve().parent
+DATA = SCRIPTS / "data"
+IMPLEMENTATION_DIR = SCRIPTS / "implementations"
 MAX_OBJECTS = 10_000
 CHUNK = 4_000
 
@@ -66,6 +69,15 @@ GRAPH_OPERATORS = {
     "IsBipartite": ("is_bipartite", None, True),
 }
 
+IMPLEMENTATIONS = {
+    "NumberOfSpanningTrees": "spanning_trees",
+    "NumberOfEdges": "number_of_edges",
+    "LaplacianMatrix": "laplacian_matrix",
+    "ComplementMatrix": "complement_matrix",
+    "MaximumDegree": "max_degree",
+    "JonesSpan": "jones_span",
+}
+
 OPERATOR_LATEX = {
     "AdjacencyMatrix": (r"\text{Adjacency Matrix}", "The adjacency matrix of a graph."),
     "Complement": (r"\text{Complement}", "The graph on the same vertices with every edge flipped."),
@@ -100,6 +112,19 @@ OPERATOR_LATEX = {
     "IsPlanar": (r"\text{Is Planar}", None),
     "IsHamiltonian": (r"\text{Is Hamiltonian}", "Whether some cycle visits every vertex once."),
     "IsBipartite": (r"\text{Is Bipartite}", None),
+    "LaplacianMatrix": (
+        r"\text{Laplacian Matrix}",
+        "Degrees down the diagonal, minus the adjacency matrix.",
+    ),
+    "ComplementMatrix": (
+        r"\text{Complement Matrix}",
+        "The adjacency matrix of the complement, as $J - I - A$.",
+    ),
+    "MaximumDegree": (r"\text{Maximum Degree}", "The largest number of edges at one vertex."),
+    "JonesSpan": (
+        r"\text{Jones Span}",
+        "The width of a Jones polynomial. For an alternating knot it equals the crossing number.",
+    ),
 }
 
 SECTIONS = {
@@ -141,6 +166,7 @@ class Catalogue:
         self.outputs: list[dict[str, object]] = []
         self.references: list[dict[str, object]] = []
         self.displays: list[dict[str, object]] = []
+        self.implementations: list[dict[str, object]] = []
 
     def object_id(self, latex: str, description: str | None = None) -> uuid.UUID:
         key = normalize_latex(latex)
@@ -199,6 +225,11 @@ class Catalogue:
             }
         )
 
+    def implement(self, operator: uuid.UUID, code: str) -> None:
+        self.implementations.append(
+            {"id": uuid.uuid4(), "operator_id": operator, "code": code}
+        )
+
 
 RENDERED_FIELDS = frozenset({"alexander_polynomial", "jones_polynomial"})
 
@@ -238,6 +269,10 @@ async def _existing_relations(session) -> set[Signature]:
         (operator_id, ordered(RelationInput, relation_id), ordered(RelationOutput, relation_id))
         for relation_id, operator_id in operators.items()
     }
+
+
+async def _operators_with_implementations(session) -> set[uuid.UUID]:
+    return set((await session.exec(select(Implementation.operator_id))).all())
 
 
 async def _existing_displays(session) -> set[uuid.UUID]:
@@ -300,6 +335,18 @@ async def import_atlas() -> None:
             if operator[key] not in described:
                 catalogue.display(operator[key], template, hidden)
                 described.add(operator[key])
+        for key in ("LaplacianMatrix", "ComplementMatrix", "MaximumDegree"):
+            file_under(operator[key], "GraphOperations")
+        file_under(operator["JonesSpan"], "KnotOperations")
+
+        implemented = await _operators_with_implementations(session)
+        for key, filename in IMPLEMENTATIONS.items():
+            if operator[key] in implemented:
+                continue
+            code = (IMPLEMENTATION_DIR / f"{filename}.py").read_text()
+            catalogue.implement(operator[key], code)
+            implemented.add(operator[key])
+
         for key in ("AdjacencyMatrix", "Complement", "LineGraph"):
             if operator[key] not in described:
                 catalogue.display(operator[key], None, False)
@@ -390,6 +437,7 @@ async def _write(session, catalogue: Catalogue, section: dict[str, uuid.UUID]) -
     await _insert(session, RelationOutput.__table__, catalogue.outputs)
     await _insert(session, ObjectReference.__table__, catalogue.references)
     await _insert(session, OperatorDisplay.__table__, catalogue.displays)
+    await _insert(session, Implementation.__table__, catalogue.implementations)
     new_root = getattr(catalogue, "new_top_level", None)
     if new_root is not None:
         session.add(TopLevelObject(object_id=new_root))
@@ -397,7 +445,8 @@ async def _write(session, catalogue: Catalogue, section: dict[str, uuid.UUID]) -
     print(
         f"imported {len(catalogue.new_objects)} new objects "
         f"({total} in the network), {len(catalogue.relations)} relations, "
-        f"{len(catalogue.references)} references"
+        f"{len(catalogue.references)} references, "
+        f"{len(catalogue.implementations)} implementations"
     )
 
 
