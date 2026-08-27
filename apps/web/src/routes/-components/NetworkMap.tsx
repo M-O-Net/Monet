@@ -36,6 +36,7 @@ export function NetworkMap({
   const frame = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState<View | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const dragging = useRef<{ x: number; y: number; view: View } | null>(null);
 
   const fit = useMemo(() => {
@@ -59,9 +60,9 @@ export function NetworkMap({
   }, [fit]);
 
   const highlighted = useMemo(() => {
-    const anchor = hovered ?? focusId;
+    const anchor = hovered ?? selected ?? focusId;
     return anchor === null ? null : neighbourhood(graph, anchor);
-  }, [graph, hovered, focusId]);
+  }, [graph, hovered, selected, focusId]);
 
   const dim = (id: string) => highlighted !== null && !highlighted.has(id);
   const transform =
@@ -158,29 +159,60 @@ export function NetworkMap({
           if (point === undefined) return null;
           const isRelation = node.kind === "relation";
           const objectId = isRelation ? node.relation.operator.id : node.object.id;
+          const isSelected = node.id === selected;
           return (
-            <Link
+            <div
               key={node.id}
-              to="/objects/$objectId"
-              params={{ objectId }}
-              onMouseEnter={() => {
-                setHovered(node.id);
-              }}
-              onMouseLeave={() => {
-                setHovered(null);
-              }}
-              className={[
-                "absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm border whitespace-nowrap transition-opacity",
-                isRelation
-                  ? "border-gold/40 bg-gold-soft px-1.5 py-0.5 text-[0.6rem] text-ink-soft"
-                  : "border-mist bg-paper px-2 py-1 text-xs text-ink shadow-[0_1px_3px_rgba(35,50,43,0.08)]",
-                node.id === focusId ? "is-current border-pond" : "",
-                dim(node.id) ? "opacity-30" : "",
-              ].join(" ")}
-              style={{ left: point.x + originX, top: point.y + originY }}
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left: point.x + originX, top: point.y + originY, zIndex: isSelected ? 2 : 1 }}
             >
-              <Latex>{nodeLabel(node)}</Latex>
-            </Link>
+              <button
+                type="button"
+                onMouseEnter={() => {
+                  setHovered(node.id);
+                }}
+                onMouseLeave={() => {
+                  setHovered(null);
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelected(isSelected ? null : node.id);
+                }}
+                className={[
+                  "flex items-center justify-center rounded-sm border whitespace-nowrap transition-all",
+                  isRelation
+                    ? "border-gold/40 bg-gold-soft text-ink-soft"
+                    : "border-mist bg-paper text-ink shadow-[0_1px_3px_rgba(35,50,43,0.08)]",
+                  isSelected
+                    ? "border-pond px-3 py-1.5 text-sm shadow-[0_2px_8px_rgba(35,50,43,0.18)]"
+                    : isRelation
+                      ? "px-1.5 py-0.5 text-[0.6rem]"
+                      : "px-2 py-1 text-xs",
+                  node.id === focusId ? "is-current border-pond" : "",
+                  dim(node.id) && !isSelected ? "opacity-30" : "",
+                ].join(" ")}
+              >
+                <Latex>{nodeLabel(node)}</Latex>
+              </button>
+              {isSelected && (
+                <div className="absolute top-full left-1/2 mt-1.5 flex -translate-x-1/2 gap-1 whitespace-nowrap">
+                  <Link
+                    to="/map"
+                    search={{ focus: objectId }}
+                    className="rounded-sm border border-mist bg-paper px-2 py-0.5 text-[0.65rem] text-ink-soft shadow-sm hover:bg-gold-soft/60"
+                  >
+                    centre here
+                  </Link>
+                  <Link
+                    to="/objects/$objectId"
+                    params={{ objectId }}
+                    className="rounded-sm border border-pond bg-pond px-2 py-0.5 text-[0.65rem] text-paper shadow-sm hover:bg-pond-deep"
+                  >
+                    open →
+                  </Link>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

@@ -58,6 +58,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/objects/{object_id}/relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Object Relations */
+        get: operations["list_object_relations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/top-level-objects": {
         parameters: {
             query?: never;
@@ -671,6 +688,41 @@ export interface operations {
             };
         };
     };
+    list_object_relations: {
+        parameters: {
+            query: {
+                role: "input" | "output" | "operator";
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_top_level_objects: {
         parameters: {
             query?: never;
@@ -841,6 +893,7 @@ export interface operations {
                 /** @description expand around this object */
                 focus?: string | null;
                 depth?: number;
+                limit?: number | null;
             };
             header?: never;
             path?: never;

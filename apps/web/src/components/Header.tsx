@@ -55,7 +55,7 @@ export function Header() {
         </div>
         <div className="flex flex-col items-end gap-1">
           <span className="font-display text-sm italic text-ink-soft">
-            The field journal of mathematics
+            the field journal of mathematics
           </span>
           <div className="flex items-center gap-3">
             <ObjectSearch />

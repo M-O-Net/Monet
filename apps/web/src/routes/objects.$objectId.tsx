@@ -21,18 +21,33 @@ import { ImplementationEditor } from "./-components/ImplementationEditor";
 import { Operations } from "./-components/Operations";
 import { SectionTags } from "./-components/SectionTags";
 
+interface ObjectSearch {
+  page?: number;
+  inputs?: number;
+  outputs?: number;
+  operates?: number;
+}
+
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
-  validateSearch: (search: Record<string, unknown>): { page?: number } => {
-    const page = Number(search.page);
-    return Number.isInteger(page) && page > 1 ? { page } : {};
+  validateSearch: (search: Record<string, unknown>): ObjectSearch => {
+    const pick = (value: unknown) => {
+      const page = Number(value);
+      return Number.isInteger(page) && page > 1 ? page : undefined;
+    };
+    return {
+      page: pick(search.page),
+      inputs: pick(search.inputs),
+      outputs: pick(search.outputs),
+      operates: pick(search.operates),
+    };
   },
   remountDeps: ({ params }) => params.objectId,
 });
 
 function ObjectDetail() {
   const { objectId } = Route.useParams();
-  const { page } = Route.useSearch();
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -264,13 +279,16 @@ function ObjectDetail() {
         objectId={objectId}
         firstPage={obj.members}
         total={obj.members_total}
-        page={page ?? 1}
+        page={search.page ?? 1}
       />
       <RelationList
         title="Used as operator in"
         relations={obj.as_operator}
         total={obj.as_operator_total}
         currentObjectId={objectId}
+        role="operator"
+        page={search.operates ?? 1}
+        pageKey="operates"
         collapseHidden={false}
       />
       <RelationList
@@ -278,12 +296,18 @@ function ObjectDetail() {
         relations={obj.as_input}
         total={obj.as_input_total}
         currentObjectId={objectId}
+        role="input"
+        page={search.inputs ?? 1}
+        pageKey="inputs"
       />
       <RelationList
         title="Appears as output in"
         relations={obj.as_output}
         total={obj.as_output_total}
         currentObjectId={objectId}
+        role="output"
+        page={search.outputs ?? 1}
+        pageKey="outputs"
       />
       <ReferenceList references={obj.references} />
 

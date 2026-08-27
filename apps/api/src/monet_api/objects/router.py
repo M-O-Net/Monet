@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -60,6 +60,21 @@ async def list_object_members(
     limit: Annotated[int, Query(ge=1, le=2000)] = 50,
 ) -> list[Object]:
     return await service.list_members(session, object_id, offset, limit)
+
+
+@router.get(
+    "/objects/{object_id}/relations",
+    response_model=list[RelationOut],
+    operation_id="list_object_relations",
+)
+async def list_object_relations(
+    object_id: uuid.UUID,
+    session: DbSession,
+    role: Annotated[Literal["input", "output", "operator"], Query()],
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 50,
+) -> list[RelationOut]:
+    return await service.list_object_relations(session, object_id, role, offset, limit)
 
 
 @router.patch("/objects/{object_id}", response_model=ObjectOut, operation_id="update_object")
@@ -128,8 +143,9 @@ async def list_relations(
     session: DbSession,
     focus: Annotated[uuid.UUID | None, Query(description="expand around this object")] = None,
     depth: Annotated[int, Query(ge=1, le=4)] = 1,
+    limit: Annotated[int | None, Query(ge=1, le=400)] = None,
 ) -> list[RelationOut]:
-    return await service.list_relations(session, focus, depth)
+    return await service.list_relations(session, focus, depth, limit)
 
 
 @router.post(

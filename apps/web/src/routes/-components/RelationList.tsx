@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { Latex } from "../../components/Latex";
+import { api } from "../../lib/api";
 import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { ObjectOut, RelationOut } from "../../lib/types";
 import { RelationExpression } from "./RelationExpression";
@@ -64,20 +65,43 @@ function RelationRow({
   );
 }
 
+const PAGE = 50;
+
 export function RelationList({
   title,
-  relations,
+  relations: firstPage,
   total,
   currentObjectId,
+  role,
+  page,
+  pageKey,
   collapseHidden = true,
 }: {
   title: string;
   relations: RelationOut[];
   total: number;
   currentObjectId: string;
+  role: "input" | "output" | "operator";
+  page: number;
+  pageKey: "inputs" | "outputs" | "operates";
   collapseHidden?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const later = api.useQuery(
+    "get",
+    "/objects/{object_id}/relations",
+    {
+      params: {
+        path: { object_id: currentObjectId },
+        query: { role, offset: (page - 1) * PAGE, limit: PAGE },
+      },
+    },
+    { enabled: page > 1 },
+  );
+  const relations = useMemo(
+    () => (page > 1 ? (later.data ?? []) : firstPage),
+    [page, later.data, firstPage],
+  );
 
   const { shown, hidden } = useMemo(() => {
     const visible: RelationOut[] = [];
@@ -89,7 +113,9 @@ export function RelationList({
     return { shown: visible, hidden: collapsed };
   }, [relations, collapseHidden]);
 
-  if (relations.length === 0) return null;
+  if (firstPage.length === 0) return null;
+  const pages = Math.ceil(total / PAGE);
+  const first = (page - 1) * PAGE + 1;
 
   const operators = [...new Map(hidden.map((r) => [r.operator.id, r.operator])).values()];
 
@@ -136,10 +162,33 @@ export function RelationList({
           </button>
         </div>
       )}
-      {total > relations.length && (
-        <p className="mt-1.5 text-xs text-ink-soft">
-          showing {relations.length} of {total}
-        </p>
+      {pages > 1 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {page > 1 && (
+            <Link
+              to="/objects/$objectId"
+              params={{ objectId: currentObjectId }}
+              search={(prev) => ({ ...prev, [pageKey]: page - 1 > 1 ? page - 1 : undefined })}
+              className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep"
+            >
+              ← previous
+            </Link>
+          )}
+          {page < pages && (
+            <Link
+              to="/objects/$objectId"
+              params={{ objectId: currentObjectId }}
+              search={(prev) => ({ ...prev, [pageKey]: page + 1 })}
+              className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep"
+            >
+              next →
+            </Link>
+          )}
+          <span className="text-xs text-ink-soft">
+            {first}–{Math.min(first + relations.length - 1, total)} of {total} · page {page} of{" "}
+            {pages}
+          </span>
+        </div>
       )}
     </div>
   );

@@ -8,8 +8,10 @@ import importlib.util
 import itertools
 import json
 import pathlib
+import re
 
 import database_knotinfo
+import httpx
 import networkx as nx
 import sympy
 from networkx.generators.atlas import graph_atlas_g
@@ -28,6 +30,11 @@ MAX_CROSSING_NUMBER = 11
 MAX_CENSUS_VERTICES = 7
 MIN_OVERLAY_VERTICES = 8
 MAX_OVERLAY_VERTICES = 16
+
+HOG_ENQUIRY = "https://houseofgraphs.org/api/enquiry"
+HOG_VERTEX_INVARIANT = 15
+HOG_RANGES = ((1, MAX_CENSUS_VERTICES), (MIN_OVERLAY_VERTICES, 10), (11, MAX_OVERLAY_VERTICES))
+HOG_PROSE_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9 \-']*$")
 
 
 _TRANSFORMATIONS = (*standard_transformations, convert_xor, implicit_multiplication_application)
@@ -272,7 +279,7 @@ def _census_invariants(graph, rows):
     return invariants
 
 
-def harvest_census():
+def harvest_census(house_of_graphs):
     atlas = graph_atlas_g()
     graphs = []
     keys = {}
@@ -282,8 +289,12 @@ def harvest_census():
             continue
         rows = canonical_rows(graph)
         name = graph_name(graph)
-        keys[tuple(map(tuple, rows))] = f"atlas:{index}"
+        signature = tuple(map(tuple, rows))
+        keys[signature] = f"atlas:{index}"
         sources[f"atlas:{index}"] = graph
+        known = house_of_graphs.get(signature)
+        if name is None and known is not None:
+            name = _hog_latex_name(known)
         graphs.append(
             {
                 "key": f"atlas:{index}",
@@ -293,7 +304,7 @@ def harvest_census():
                 "characteristic_polynomial": _characteristic_polynomial(rows),
                 "rows": rows,
                 "invariants": _census_invariants(graph, rows),
-                "references": [],
+                "references": _hog_reference(known),
             }
         )
     for entry in graphs:
@@ -317,41 +328,128 @@ def harvest_census():
     return graphs
 
 
-FAMOUS_GRAPHS = {
-    "cubical_graph": "Cubical graph",
-    "sedgewick_maze_graph": "Sedgewick maze graph",
-    "krackhardt_kite_graph": "Krackhardt kite graph",
-    "petersen_graph": "Petersen graph",
-    "chvatal_graph": "Chvatal graph",
-    "frucht_graph": "Frucht graph",
-    "icosahedral_graph": "Icosahedral graph",
-    "truncated_tetrahedron_graph": "Truncated tetrahedron graph",
-    "heawood_graph": "Heawood graph",
-    "florentine_families_graph": "Florentine families graph",
-    "moebius_kantor_graph": "Moebius-Kantor graph",
-}
+def _hog_rows(lower, upper, cache):
+    stored = cache / f"hog-{lower}-{upper}.json" if cache else None
+    if stored is not None and stored.exists():
+        return json.loads(stored.read_text())
+    body = {
+        "invariantEnquiries": [],
+        "interestingInvariantEnquiries": [],
+        "graphClassEnquiries": [],
+        "invariantParityEnquiries": [],
+        "textEnquiries": [],
+        "formulaEnquiries": [],
+        "subgraphEnquiries": [],
+        "mostRecent": -1,
+        "mostPopular": -1,
+        "invariantRangeEnquiries": [
+            {"id": 0, "invariantId": HOG_VERTEX_INVARIANT, "from": lower, "to": upper}
+        ],
+    }
+    response = httpx.post(
+        HOG_ENQUIRY,
+        params={
+            "page": 0,
+            "size": 8000,
+            "sort": "graph_id",
+            "sortDir": "asc",
+            "offset": 0,
+            "lastPageOffset": 0,
+            "fullSearch": "true",
+            "timeout": 180,
+        },
+        json=body,
+        timeout=600.0,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    rows = [
+        {
+            "graphId": row["graphId"],
+            "graphName": row.get("graphName"),
+            "canonicalForm": row.get("canonicalForm"),
+            "adjacencyList": row["adjacencyList"],
+        }
+        for row in payload["_embedded"]["graphSearchModelList"]
+    ]
+    if len(rows) != payload["page"]["totalElements"]:
+        total = payload["page"]["totalElements"]
+        raise SystemExit(f"House of Graphs returned {len(rows)} of {total}")
+    if stored is not None:
+        stored.parent.mkdir(parents=True, exist_ok=True)
+        stored.write_text(json.dumps(rows))
+    return rows
 
 
-def harvest_famous():
+def _graph_from_adjacency(adjacency):
+    graph = nx.Graph()
+    graph.add_nodes_from(range(len(adjacency)))
+    for vertex, neighbours in enumerate(adjacency):
+        for neighbour in neighbours:
+            graph.add_edge(vertex, neighbour)
+    return graph
+
+
+def _hog_reference(row):
+    if row is None:
+        return []
+    return [["House of Graphs", f"https://houseofgraphs.org/graphs/{row['graphId']}"]]
+
+
+def _hog_latex_name(row):
+    prose = _hog_prose_name(row)
+    return rf"\text{{{prose}}}" if prose else None
+
+
+def _hog_prose_name(row):
+    name = " ".join((row.get("graphName") or "").split())
+    return name if HOG_PROSE_NAME.match(name) else None
+
+
+def fetch_house_of_graphs(cache):
+    """Return {census signature: row} for small graphs, and the named larger rows.
+
+    Our own canonical form permutes within degree classes, which is fine up to seven vertices
+    and hopeless at sixteen. Beyond the census we take House of Graphs' canonicalForm, which is
+    graph6 out of nauty; the two schemes never have to agree because the vertex counts are
+    disjoint.
+    """
+    small, large = {}, []
+    for lower, upper in HOG_RANGES:
+        for row in _hog_rows(lower, upper, cache):
+            order = len(row["adjacencyList"])
+            if order <= MAX_CENSUS_VERTICES:
+                graph = _graph_from_adjacency(row["adjacencyList"])
+                small[tuple(map(tuple, canonical_rows(graph)))] = row
+            elif order <= MAX_OVERLAY_VERTICES and row.get("canonicalForm"):
+                large.append(row)
+    return small, large
+
+
+def harvest_named(candidates):
     graphs = []
-    for generator, title in FAMOUS_GRAPHS.items():
-        graph = nx.convert_node_labels_to_integers(getattr(nx, generator)())
+    seen = set()
+    for row in sorted(candidates, key=lambda item: item["graphId"]):
+        canonical = row["canonicalForm"]
+        if canonical in seen:
+            continue
+        graph = nx.from_graph6_bytes(canonical.encode())
+        name = graph_name(graph) or _hog_latex_name(row)
+        if name is None:
+            continue
+        seen.add(canonical)
         order = graph.number_of_nodes()
-        if not MIN_OVERLAY_VERTICES <= order <= MAX_OVERLAY_VERTICES:
-            raise SystemExit(f"{generator} has {order} vertices, outside the overlay range")
         rows = [[1 if graph.has_edge(i, j) else 0 for j in range(order)] for i in range(order)]
         graphs.append(
             {
-                "key": f"famous:{generator}",
-                "latex": rf"\text{{{title}}}",
+                "key": f"hog:{row['graphId']}",
+                "latex": name,
                 "matrix_latex": _matrix_latex(rows),
                 "characteristic_polynomial": _characteristic_polynomial(rows),
                 "invariants": _census_invariants(graph, rows),
                 "complement_key": None,
                 "line_graph_key": None,
-                "references": [
-                    ["Wikipedia", f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}"]
-                ],
+                "references": _hog_reference(row),
             }
         )
     return graphs
@@ -367,6 +465,7 @@ def _write(path, payload):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-knots", action="store_true")
+    parser.add_argument("--hog-cache", type=pathlib.Path, default=None)
     parser.add_argument("--skip-graphs", action="store_true")
     arguments = parser.parse_args()
     harvested = datetime.datetime.now(tz=datetime.UTC).date().isoformat()
@@ -382,14 +481,18 @@ def main():
         print(f"knots: {len(knots['knots'])} written ({size / 1000:.0f} kB)")
 
     if not arguments.skip_graphs:
-        census = harvest_census()
-        overlay = harvest_famous()
+        small, large = fetch_house_of_graphs(arguments.hog_cache)
+        census = harvest_census(small)
+        overlay = harvest_named(large)
         if len(census) != 1252:
             raise SystemExit(f"expected 1252 census graphs, got {len(census)}")
         size = _write(
             DATA / "graphs.json.gz",
             {
-                "source": "networkx: graph_atlas_g (<= 7 vertices) and named graphs (8-16)",
+                "source": (
+                    "networkx graph_atlas_g (<= 7 vertices) and named graphs, "
+                    "plus every named House of Graphs graph up to 16 vertices"
+                ),
                 "harvested": harvested,
                 "networkx": nx.__version__,
                 "census": census,
@@ -397,9 +500,10 @@ def main():
             },
         )
         named = sum(1 for entry in census if not entry["latex"].startswith(r"\mathrm{G}"))
+        cited = sum(1 for entry in census if entry["references"])
         print(
-            f"graphs: {len(census)} census ({named} named) + {len(overlay)} overlay "
-            f"written ({size / 1000:.0f} kB)"
+            f"graphs: {len(census)} census ({named} named, {cited} in House of Graphs) "
+            f"+ {len(overlay)} named larger ones, written ({size / 1000:.0f} kB)"
         )
 
 
