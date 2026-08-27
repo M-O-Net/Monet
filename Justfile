@@ -159,6 +159,13 @@ migrate-check:
 
 seed:
     {{_dc_dev}} exec api uv run python scripts/seed.py
+    {{_dc_dev}} exec api uv run python scripts/import_atlas.py
+
+# Re-harvest scripts/data/ from KnotInfo and networkx. Both are packaged libraries, so this
+# reaches no server; its dependencies stay out of apps/api's lockfile.
+atlas-fetch:
+    cd apps/api && uv run --no-project --with sympy --with networkx --with database_knotinfo \
+        python scripts/fetch_atlas.py
 
 # ── Code generation ──────────────────────────────────────────────────────────
 # Sources .env.local first so API_PORT is always THIS worktree's own value, never a silent

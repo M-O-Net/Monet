@@ -6,9 +6,21 @@ Orchestrates repository.py calls; owns no SQL of its own.
 import re
 import uuid
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from fastapi import HTTPException
+from pylatexenc.latexwalker import (
+    LatexCharsNode,
+    LatexCommentNode,
+    LatexEnvironmentNode,
+    LatexGroupNode,
+    LatexMacroNode,
+    LatexMathNode,
+    LatexNode,
+    LatexSpecialsNode,
+    LatexWalker,
+    LatexWalkerError,
+)
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.objects import repository
@@ -141,7 +153,7 @@ async def _replace_references(
 
 async def create_object(session: AsyncSession, body: ObjectCreate) -> Object:
     obj = await repository.add_object(
-        session, body.latex, body.description, _linkable(body.image_url)
+        session, normalize_latex(body.latex), body.description, _linkable(body.image_url)
     )
     await _replace_references(session, obj.id, body.references)
     await session.commit()
@@ -302,7 +314,9 @@ async def update_object(session: AsyncSession, object_id: uuid.UUID, body: Objec
     obj = await get_object_or_404(session, object_id)
     image_url = _linkable(body.image_url)
     await _replace_references(session, object_id, body.references)
-    return await repository.update_object(session, obj, body.latex, body.description, image_url)
+    return await repository.update_object(
+        session, obj, normalize_latex(body.latex), body.description, image_url
+    )
 
 
 async def delete_object(session: AsyncSession, object_id: uuid.UUID) -> None:
@@ -340,12 +354,9 @@ async def _validate_relation_operands(session: AsyncSession, body: RelationCreat
 async def create_relation(session: AsyncSession, body: RelationCreate) -> RelationOut:
     await _validate_relation_operands(session, body)
 
-    relation = await repository.create_relation(session, body.operator_id)
-    for position, oid in enumerate(body.input_object_ids):
-        repository.add_relation_input(session, relation.id, oid, position)
-    for position, oid in enumerate(body.output_object_ids):
-        repository.add_relation_output(session, relation.id, oid, position)
-
+    relation, _ = await _find_or_create_relation(
+        session, body.operator_id, body.input_object_ids, body.output_object_ids
+    )
     await session.commit()
     await session.refresh(relation)
     return await _load_relation_out(session, relation)
@@ -381,38 +392,74 @@ async def delete_relation(session: AsyncSession, relation_id: uuid.UUID) -> None
     await repository.delete_relation(session, relation)
 
 
-_TEXT_GROUP = re.compile(r"\\text\{[^{}]*\}")
+_TEXTUAL_MACROS = frozenset({"text", "textrm", "textbf", "textit", "mbox"})
 
 
-def _without_whitespace(latex: str) -> str:
-    return "".join(latex.split())
+def _join(pieces: list[tuple[str, bool]]) -> str:
+    rendered = ""
+    welded = False
+    for piece, ends_with_control_word in pieces:
+        if not piece:
+            continue
+        if welded and piece[0].isalnum():
+            rendered += " "
+        rendered += piece
+        welded = ends_with_control_word
+    return rendered
 
 
-def _with_whitespace_collapsed(latex: str) -> str:
-    return " ".join(latex.split())
+def _render_nodes(nodes: Iterable[LatexNode | None], textual: bool) -> str:
+    pieces: list[tuple[str, bool]] = []
+    for node in nodes:
+        if node is None or node.isNodeType(LatexCommentNode):
+            continue
+        if node.isNodeType(LatexCharsNode):
+            chars = node.chars
+            pieces.append((" ".join(chars.split()) if textual else "".join(chars.split()), False))
+        elif node.isNodeType(LatexGroupNode):
+            opening, closing = node.delimiters
+            pieces.append((opening + _render_nodes(node.nodelist, textual) + closing, False))
+        elif node.isNodeType(LatexMacroNode):
+            inner = textual or node.macroname in _TEXTUAL_MACROS
+            arguments = node.nodeargd.argnlist if node.nodeargd else []
+            rendered = _render_nodes(arguments, inner)
+            pieces.append(
+                ("\\" + node.macroname + rendered, not rendered and node.macroname.isalpha())
+            )
+        elif node.isNodeType(LatexEnvironmentNode):
+            name = node.environmentname
+            body = _render_nodes(node.nodelist, textual)
+            pieces.append((f"\\begin{{{name}}}{body}\\end{{{name}}}", False))
+        elif node.isNodeType(LatexMathNode):
+            opening, closing = node.delimiters
+            pieces.append((opening + _render_nodes(node.nodelist, textual) + closing, False))
+        elif node.isNodeType(LatexSpecialsNode):
+            pieces.append((node.specials_chars, False))
+        else:
+            pieces.append((node.latex_verbatim(), False))
+    return _join(pieces)
 
 
 def normalize_latex(latex: str) -> str:
-    parts: list[str] = []
-    last = 0
-    for match in _TEXT_GROUP.finditer(latex):
-        parts.append(_without_whitespace(latex[last : match.start()]))
-        parts.append(_with_whitespace_collapsed(match.group()))
-        last = match.end()
-    parts.append(_without_whitespace(latex[last:]))
-    return "".join(parts)
+    """Return the canonical spelling of a LaTeX string.
+
+    Whitespace outside \\text{...} carries no meaning, so it is dropped -- except where losing
+    it would weld a control word onto what follows. Inside \\text{...} runs collapse to one
+    space. The result is what gets stored, so it has to render as well as compare.
+    """
+    try:
+        nodes, _, _ = LatexWalker(latex).get_latex_nodes()
+    except LatexWalkerError as error:
+        raise HTTPException(status_code=400, detail=f"could not parse LaTeX: {error}") from error
+    return _render_nodes(nodes, textual=False)
 
 
-async def _find_or_create_object(
-    session: AsyncSession, latex: str, existing: list[Object]
-) -> tuple[Object, bool]:
-    key = normalize_latex(latex)
-    for obj in existing:
-        if normalize_latex(obj.latex) == key:
-            return obj, False
-    obj = await repository.add_object(session, latex, None)
-    existing.append(obj)
-    return obj, True
+async def _find_or_create_object(session: AsyncSession, latex: str) -> tuple[Object, bool]:
+    canonical = normalize_latex(latex)
+    found = await repository.get_object_by_latex(session, canonical)
+    if found is not None:
+        return found, False
+    return await repository.add_object(session, canonical, None), True
 
 
 def _operands_by_relation(
@@ -424,13 +471,32 @@ def _operands_by_relation(
     return operands
 
 
+async def _find_or_create_relation(
+    session: AsyncSession,
+    operator_id: uuid.UUID,
+    input_ids: list[uuid.UUID],
+    output_ids: list[uuid.UUID],
+) -> tuple[Relation, bool]:
+    found = await _find_matching_relation(session, operator_id, input_ids, output_ids)
+    if found is not None:
+        return found, False
+    relation = await repository.create_relation(session, operator_id)
+    for position, oid in enumerate(input_ids):
+        repository.add_relation_input(session, relation.id, oid, position)
+    for position, oid in enumerate(output_ids):
+        repository.add_relation_output(session, relation.id, oid, position)
+    return relation, True
+
+
 async def _find_matching_relation(
     session: AsyncSession,
     operator_id: uuid.UUID,
     input_ids: list[uuid.UUID],
     output_ids: list[uuid.UUID],
 ) -> Relation | None:
-    candidates = await repository.list_relations_by_operator(session, operator_id)
+    candidates = await repository.list_relation_candidates(
+        session, operator_id, input_ids[0] if input_ids else None
+    )
     if not candidates:
         return None
     candidate_ids = [candidate.id for candidate in candidates]
@@ -454,27 +520,18 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
     for oid in body.input_object_ids:
         await get_object_or_404(session, oid)
 
-    existing = await repository.list_objects(session)
     outputs: list[Object] = []
     created_object_ids: list[uuid.UUID] = []
     for latex in body.output_latex:
-        obj, was_created = await _find_or_create_object(session, latex, existing)
+        obj, was_created = await _find_or_create_object(session, latex)
         outputs.append(obj)
         if was_created:
             created_object_ids.append(obj.id)
 
     output_ids = [obj.id for obj in outputs]
-    relation = await _find_matching_relation(
+    relation, created_relation = await _find_or_create_relation(
         session, body.operator_id, body.input_object_ids, output_ids
     )
-    created_relation = relation is None
-    if relation is None:
-        relation = await repository.create_relation(session, body.operator_id)
-        for position, oid in enumerate(body.input_object_ids):
-            repository.add_relation_input(session, relation.id, oid, position)
-        for position, oid in enumerate(output_ids):
-            repository.add_relation_output(session, relation.id, oid, position)
-
     await session.commit()
     await session.refresh(relation)
     return RelationAssertOut(

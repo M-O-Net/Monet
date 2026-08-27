@@ -85,7 +85,7 @@ async def test_assert_creates_the_output_object_and_relation(client: AsyncClient
     body = resp.json()
     assert body["created_relation"] is True
     assert len(body["created_object_ids"]) == 1
-    assert body["relation"]["outputs"][0]["object"]["latex"] == "x^{2} - 4 x + 3"
+    assert body["relation"]["outputs"][0]["object"]["latex"] == "x^{2}-4x+3"
 
 
 async def test_assert_is_idempotent_and_whitespace_insensitive(client: AsyncClient) -> None:

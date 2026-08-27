@@ -8,7 +8,7 @@ class Object(SQLModel, table=True):
     __tablename__ = "objects"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    latex: str
+    latex: str = Field(unique=True, index=True)
     description: str | None = None
     image_url: str | None = None
 
@@ -24,7 +24,9 @@ class ObjectReference(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     object_id: uuid.UUID = Field(
-        sa_column=sa.Column(sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False)
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False, index=True
+        )
     )
     label: str
     url: str
@@ -36,7 +38,9 @@ class Relation(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     operator_id: uuid.UUID = Field(
-        sa_column=sa.Column(sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False)
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False, index=True
+        )
     )
 
 
@@ -45,9 +49,11 @@ class RelationInput(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     relation_id: uuid.UUID = Field(
-        sa_column=sa.Column(sa.ForeignKey("relations.id", ondelete="CASCADE"), nullable=False)
+        sa_column=sa.Column(
+            sa.ForeignKey("relations.id", ondelete="CASCADE"), nullable=False, index=True
+        )
     )
-    object_id: uuid.UUID = Field(foreign_key="objects.id")
+    object_id: uuid.UUID = Field(foreign_key="objects.id", index=True)
     position: int
 
 
@@ -56,9 +62,11 @@ class RelationOutput(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     relation_id: uuid.UUID = Field(
-        sa_column=sa.Column(sa.ForeignKey("relations.id", ondelete="CASCADE"), nullable=False)
+        sa_column=sa.Column(
+            sa.ForeignKey("relations.id", ondelete="CASCADE"), nullable=False, index=True
+        )
     )
-    object_id: uuid.UUID = Field(foreign_key="objects.id")
+    object_id: uuid.UUID = Field(foreign_key="objects.id", index=True)
     position: int
 
 

@@ -246,6 +246,10 @@ def _matrix_latex(rows):
     return render(sympy.Matrix(rows))
 
 
+def _characteristic_polynomial(rows):
+    return render(sympy.Matrix(rows).charpoly(_X).as_expr())
+
+
 def _census_invariants(graph, rows):
     order = graph.number_of_nodes()
     connected = nx.is_connected(graph)
@@ -286,6 +290,7 @@ def harvest_census():
                 "atlas_index": index,
                 "latex": name if name else rf"\mathrm{{G}}_{{{index}}}",
                 "matrix_latex": _matrix_latex(rows),
+                "characteristic_polynomial": _characteristic_polynomial(rows),
                 "rows": rows,
                 "invariants": _census_invariants(graph, rows),
                 "references": [],
@@ -340,6 +345,7 @@ def harvest_famous():
                 "key": f"famous:{generator}",
                 "latex": rf"\text{{{title}}}",
                 "matrix_latex": _matrix_latex(rows),
+                "characteristic_polynomial": _characteristic_polynomial(rows),
                 "invariants": _census_invariants(graph, rows),
                 "complement_key": None,
                 "line_graph_key": None,

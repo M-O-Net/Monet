@@ -40,6 +40,10 @@ async def list_objects_by_ids(
     )
 
 
+async def get_object_by_latex(session: AsyncSession, latex: str) -> Object | None:
+    return (await session.exec(select(Object).where(Object.latex == latex))).first()
+
+
 async def add_object(
     session: AsyncSession,
     latex: str,
@@ -147,6 +151,20 @@ async def list_relations_by_operator(session: AsyncSession, object_id: uuid.UUID
     return list(
         (await session.exec(select(Relation).where(Relation.operator_id == object_id))).all()
     )
+
+
+async def list_relation_candidates(
+    session: AsyncSession, operator_id: uuid.UUID, first_input_id: uuid.UUID | None
+) -> list[Relation]:
+    statement = select(Relation).where(Relation.operator_id == operator_id)
+    if first_input_id is not None:
+        statement = statement.join(
+            RelationInput, col(RelationInput.relation_id) == col(Relation.id)
+        ).where(
+            col(RelationInput.object_id) == first_input_id,
+            col(RelationInput.position) == 0,
+        )
+    return list((await session.exec(statement)).all())
 
 
 async def list_relation_ids_by_input(
