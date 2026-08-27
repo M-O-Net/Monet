@@ -55,7 +55,7 @@ function ObjectDetail() {
     params: { path: { object_id: objectId } },
   });
   const nearbyRelations = api.useQuery("get", "/relations", {
-    params: { query: { focus: objectId, depth: 3 } },
+    params: { query: { focus: [objectId], depth: 3 } },
   });
   const implementations = api.useQuery("get", "/implementations");
   const updateObject = api.useMutation("patch", "/objects/{object_id}");
@@ -263,7 +263,7 @@ function ObjectDetail() {
       <p className="mt-5 mb-6 text-sm">
         <Link
           to="/map"
-          search={{ focus: objectId }}
+          search={{ expand: objectId }}
           className="text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
         >
           see it on the network map →

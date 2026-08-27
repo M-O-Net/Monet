@@ -141,11 +141,11 @@ async def set_operator_display(
 @router.get("/relations", response_model=list[RelationOut], operation_id="list_relations")
 async def list_relations(
     session: DbSession,
-    focus: Annotated[uuid.UUID | None, Query(description="expand around this object")] = None,
+    focus: Annotated[list[uuid.UUID], Query(description="expand around these objects")] = [],  # noqa: B006
     depth: Annotated[int, Query(ge=1, le=4)] = 1,
-    limit: Annotated[int | None, Query(ge=1, le=400)] = None,
+    contents: Annotated[bool, Query(description="just the section structure")] = False,
 ) -> list[RelationOut]:
-    return await service.list_relations(session, focus, depth, limit)
+    return await service.list_relations(session, focus, depth, contents)
 
 
 @router.post(

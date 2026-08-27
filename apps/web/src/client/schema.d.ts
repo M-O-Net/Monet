@@ -890,10 +890,11 @@ export interface operations {
     list_relations: {
         parameters: {
             query?: {
-                /** @description expand around this object */
-                focus?: string | null;
+                /** @description expand around these objects */
+                focus?: string[];
                 depth?: number;
-                limit?: number | null;
+                /** @description just the section structure */
+                contents?: boolean;
             };
             header?: never;
             path?: never;

@@ -19,12 +19,16 @@ interface View {
 
 export function NetworkMap({
   relations,
-  focusId,
+  opened,
+  busy = false,
+  contents = false,
 }: {
   relations: RelationOut[];
-  focusId: string | null;
+  opened: readonly string[];
+  busy?: boolean;
+  contents?: boolean;
 }) {
-  const graph = useMemo(() => buildGraph(relations), [relations]);
+  const graph = useMemo(() => buildGraph(relations, { includeMembership: contents }), [relations, contents]);
   const layout = useMemo(() => layoutGraph(graph), [graph]);
   const bounds = useMemo(() => layoutBounds(graph, layout), [graph, layout]);
 
@@ -36,13 +40,13 @@ export function NetworkMap({
   const frame = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState<View | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
   const dragging = useRef<{ x: number; y: number; view: View } | null>(null);
 
   const fit = useMemo(() => {
     return (box: DOMRect): View => {
       const scale = Math.max(MIN_SCALE, Math.min(1, box.width / width, box.height / height));
-      const target = focusId === null ? undefined : layout.get(focusId);
+      const latest = opened.at(-1);
+      const target = latest === undefined ? undefined : layout.get(latest);
       const centreX = target === undefined ? width / 2 : target.x + originX;
       const centreY = target === undefined ? height / 2 : target.y + originY;
       return {
@@ -51,7 +55,7 @@ export function NetworkMap({
         y: box.height / 2 - centreY * scale,
       };
     };
-  }, [width, height, originX, originY, focusId, layout]);
+  }, [width, height, originX, originY, opened, layout]);
 
   useEffect(() => {
     const element = frame.current;
@@ -60,9 +64,9 @@ export function NetworkMap({
   }, [fit]);
 
   const highlighted = useMemo(() => {
-    const anchor = hovered ?? selected ?? focusId;
+    const anchor = hovered ?? opened.at(-1) ?? null;
     return anchor === null ? null : neighbourhood(graph, anchor);
-  }, [graph, hovered, selected, focusId]);
+  }, [graph, hovered, opened]);
 
   const dim = (id: string) => highlighted !== null && !highlighted.has(id);
   const transform =
@@ -159,58 +163,51 @@ export function NetworkMap({
           if (point === undefined) return null;
           const isRelation = node.kind === "relation";
           const objectId = isRelation ? node.relation.operator.id : node.object.id;
-          const isSelected = node.id === selected;
+          const isOpen = opened.includes(objectId);
           return (
             <div
               key={node.id}
               className="absolute -translate-x-1/2 -translate-y-1/2"
-              style={{ left: point.x + originX, top: point.y + originY, zIndex: isSelected ? 2 : 1 }}
+              style={{ left: point.x + originX, top: point.y + originY, zIndex: isOpen ? 2 : 1 }}
             >
-              <button
-                type="button"
+              <Link
+                to="/map"
+                search={isOpen ? {} : { expand: objectId }}
                 onMouseEnter={() => {
                   setHovered(node.id);
                 }}
                 onMouseLeave={() => {
                   setHovered(null);
                 }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setSelected(isSelected ? null : node.id);
-                }}
                 className={[
                   "flex items-center justify-center rounded-sm border whitespace-nowrap transition-all",
                   isRelation
                     ? "border-gold/40 bg-gold-soft text-ink-soft"
                     : "border-mist bg-paper text-ink shadow-[0_1px_3px_rgba(35,50,43,0.08)]",
-                  isSelected
-                    ? "border-pond px-3 py-1.5 text-sm shadow-[0_2px_8px_rgba(35,50,43,0.18)]"
+                  isOpen
+                    ? "is-current border-pond px-3 py-1.5 text-sm shadow-[0_2px_8px_rgba(35,50,43,0.18)]"
                     : isRelation
                       ? "px-1.5 py-0.5 text-[0.6rem]"
                       : "px-2 py-1 text-xs",
-                  node.id === focusId ? "is-current border-pond" : "",
-                  dim(node.id) && !isSelected ? "opacity-30" : "",
+                  dim(node.id) && !isOpen ? "opacity-30" : "",
                 ].join(" ")}
               >
                 <Latex>{nodeLabel(node)}</Latex>
-              </button>
-              {isSelected && (
-                <div className="absolute top-full left-1/2 mt-1.5 flex -translate-x-1/2 gap-1 whitespace-nowrap">
-                  <Link
-                    to="/map"
-                    search={{ focus: objectId }}
-                    className="rounded-sm border border-mist bg-paper px-2 py-0.5 text-[0.65rem] text-ink-soft shadow-sm hover:bg-gold-soft/60"
-                  >
-                    centre here
-                  </Link>
-                  <Link
-                    to="/objects/$objectId"
-                    params={{ objectId }}
-                    className="rounded-sm border border-pond bg-pond px-2 py-0.5 text-[0.65rem] text-paper shadow-sm hover:bg-pond-deep"
-                  >
-                    open →
-                  </Link>
-                </div>
+              </Link>
+              {isOpen && !isRelation && (
+                <span className="absolute top-full left-1/2 mt-1.5 -translate-x-1/2 whitespace-nowrap">
+                  {busy ? (
+                    <span className="text-[0.65rem] text-ink-soft italic">opening…</span>
+                  ) : (
+                    <Link
+                      to="/objects/$objectId"
+                      params={{ objectId }}
+                      className="rounded-sm border border-pond bg-pond px-2 py-0.5 text-[0.65rem] text-paper shadow-sm hover:bg-pond-deep"
+                    >
+                      open this object →
+                    </Link>
+                  )}
+                </span>
               )}
             </div>
           );

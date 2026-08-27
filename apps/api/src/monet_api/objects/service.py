@@ -399,31 +399,33 @@ MAX_MAP_NODES = 220
 MAX_MAP_RELATIONS = 400
 
 
-async def _neighbourhood(session: AsyncSession, focus: uuid.UUID, depth: int) -> list[Relation]:
-    """Expand outwards from one object, stopping before the map becomes undrawable.
+async def _neighbourhood(
+    session: AsyncSession,
+    focus: Sequence[uuid.UUID],
+    depth: int,
+    *,
+    include_membership: bool,
+    already: int = 0,
+) -> list[Relation]:
+    """Expand outwards from some objects, stopping before the map becomes undrawable.
 
-    Membership edges are left out: every consumer skips them, and a section has enough of them
-    to spend the whole budget. The cap counts objects, not relations, because that is what the
-    force layout costs -- and the layout draws a node per relation as well as per object, so the
-    cap counts both.
+    The cap counts objects and relations together, because the force layout draws a node for
+    each and its cost is quadratic in the total.
     """
-    await get_object_or_404(session, focus)
-    membership = set(await repository.list_membership_operator_ids(session))
-    reached = {focus}
+    skip: set[uuid.UUID] = set()
+    if not include_membership:
+        skip = set(await repository.list_membership_operator_ids(session))
+    reached = set(focus)
     found: dict[uuid.UUID, Relation] = {}
-    frontier = {focus}
+    frontier = set(focus)
     for _ in range(max(1, depth)):
-        if not frontier or len(reached) + len(found) >= MAX_MAP_NODES:
+        if not frontier or len(reached) + len(found) + already >= MAX_MAP_NODES:
             break
         budget = MAX_MAP_RELATIONS - len(found)
         if budget <= 0:
             break
         touching = await repository.list_relations_touching(session, list(frontier), budget)
-        fresh = [
-            relation
-            for relation in touching
-            if relation.id not in found and relation.operator_id not in membership
-        ]
+        fresh = [r for r in touching if r.id not in found and r.operator_id not in skip]
         if not fresh:
             break
         relation_ids = [relation.id for relation in fresh]
@@ -437,7 +439,7 @@ async def _neighbourhood(session: AsyncSession, focus: uuid.UUID, depth: int) ->
         neighbours: set[uuid.UUID] = set()
         for relation in fresh:
             widened = touched[relation.id] | {relation.operator_id}
-            drawn = len(reached | neighbours | widened) + len(found) + 1
+            drawn = len(reached | neighbours | widened) + len(found) + 1 + already
             if drawn > MAX_MAP_NODES:
                 continue
             found[relation.id] = relation
@@ -449,17 +451,51 @@ async def _neighbourhood(session: AsyncSession, focus: uuid.UUID, depth: int) ->
 
 async def list_relations(
     session: AsyncSession,
-    focus: uuid.UUID | None = None,
+    focus: Sequence[uuid.UUID] = (),
     depth: int = 1,
-    limit: int | None = None,
+    contents: bool = False,
 ) -> list[RelationOut]:
-    if focus is not None:
-        return await _load_relations_out(session, await _neighbourhood(session, focus, depth))
-    relations = await repository.list_relations(session)
-    if limit is not None:
-        membership = set(await repository.list_membership_operator_ids(session))
-        relations = [r for r in relations if r.operator_id not in membership][:limit]
-    return await _load_relations_out(session, relations)
+    if not focus and not contents:
+        return await _load_relations_out(session, await repository.list_relations(session))
+    for object_id in focus:
+        await get_object_or_404(session, object_id)
+    found: dict[uuid.UUID, Relation] = {}
+    if contents:
+        found = {relation.id: relation for relation in await _contents_skeleton(session)}
+    if focus:
+        for relation in await _neighbourhood(
+            session, focus, depth, include_membership=contents, already=len(found)
+        ):
+            found[relation.id] = relation
+    return await _load_relations_out(session, list(found.values()))
+
+
+async def _contents_skeleton(session: AsyncSession) -> list[Relation]:
+    """Return the membership edges joining one section to another.
+
+    The map with nothing in focus shows the contents page as a graph, so it needs exactly the
+    edges every other view throws away, and only those whose member is itself a section.
+    """
+    membership = await repository.list_membership_operator_ids(session)
+    if not membership:
+        return []
+    relations = [
+        relation
+        for relation in await repository.list_relations(session)
+        if relation.operator_id in set(membership)
+    ]
+    ids = [relation.id for relation in relations]
+    inputs = await repository.list_relation_inputs_for(session, ids)
+    outputs = await repository.list_relation_outputs_for(session, ids)
+    sections = {operand.object_id for operand in outputs}
+    members = defaultdict(set)
+    for operand in inputs:
+        members[operand.relation_id].add(operand.object_id)
+    return [
+        relation
+        for relation in relations
+        if members[relation.id] and members[relation.id] <= sections
+    ]
 
 
 async def _validate_relation_operands(session: AsyncSession, body: RelationCreate) -> None:
