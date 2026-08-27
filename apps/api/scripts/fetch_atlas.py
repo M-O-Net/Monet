@@ -35,6 +35,21 @@ HOG_ENQUIRY = "https://houseofgraphs.org/api/enquiry"
 HOG_VERTEX_INVARIANT = 15
 HOG_RANGES = ((1, MAX_CENSUS_VERTICES), (MIN_OVERLAY_VERTICES, 10), (11, MAX_OVERLAY_VERTICES))
 HOG_PROSE_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9 \-']*$")
+HOG_INVARIANTS = "https://houseofgraphs.org/api/invariants"
+HOG_WANTED = {
+    "Number of Vertices": "number_of_vertices",
+    "Number of Edges": "number_of_edges",
+    "Chromatic Number": "chromatic_number",
+    "Girth": "girth",
+    "Diameter": "diameter",
+    "Independence Number": "independence_number",
+    "Clique Number": "clique_number",
+    "Number of Triangles": "number_of_triangles",
+    "Number of Spanning Trees": "number_of_spanning_trees",
+    "Planar": "is_planar",
+    "Hamiltonian": "is_hamiltonian",
+    "Bipartite": "is_bipartite",
+}
 
 
 _TRANSFORMATIONS = (*standard_transformations, convert_xor, implicit_multiplication_application)
@@ -369,6 +384,7 @@ def _hog_rows(lower, upper, cache):
             "graphName": row.get("graphName"),
             "canonicalForm": row.get("canonicalForm"),
             "adjacencyList": row["adjacencyList"],
+            "invariantValues": row.get("invariantValues") or {},
         }
         for row in payload["_embedded"]["graphSearchModelList"]
     ]
@@ -379,6 +395,46 @@ def _hog_rows(lower, upper, cache):
         stored.parent.mkdir(parents=True, exist_ok=True)
         stored.write_text(json.dumps(rows))
     return rows
+
+
+def _hog_invariant_names(cache):
+    stored = cache / "hog-invariants.json" if cache else None
+    if stored is not None and stored.exists():
+        payload = json.loads(stored.read_text())
+    else:
+        response = httpx.get(HOG_INVARIANTS, timeout=120.0)
+        response.raise_for_status()
+        payload = response.json()
+        if stored is not None:
+            stored.parent.mkdir(parents=True, exist_ok=True)
+            stored.write_text(json.dumps(payload))
+    return {
+        str(entry["entity"]["invariantId"]): (
+            entry["entity"]["invariantName"],
+            entry["entity"]["typeName"],
+        )
+        for entry in payload["_embedded"]["invariantModelList"]
+    }
+
+
+def _hog_invariants(row, names):
+    """Take House of Graphs' own values rather than recomputing.
+
+    Hamiltonicity and chromatic number are backtracking searches; on sixteen vertices they can
+    run for hours, and House of Graphs has already done the work.
+    """
+    invariants = {}
+    for entry in row.get("invariantValues") or []:
+        found = names.get(str(entry.get("invariantId")))
+        raw = entry.get("invariantValue")
+        if found is None or raw is None:
+            continue
+        label, kind = found
+        key = HOG_WANTED.get(label)
+        if key is None or not isinstance(raw, (int, float)) or raw != int(raw):
+            continue
+        invariants[key] = bool(int(raw)) if kind == "b" else int(raw)
+    return invariants
 
 
 def _graph_from_adjacency(adjacency):
@@ -426,7 +482,7 @@ def fetch_house_of_graphs(cache):
     return small, large
 
 
-def harvest_named(candidates):
+def harvest_named(candidates, names):
     graphs = []
     seen = set()
     for row in sorted(candidates, key=lambda item: item["graphId"]):
@@ -446,7 +502,7 @@ def harvest_named(candidates):
                 "latex": name,
                 "matrix_latex": _matrix_latex(rows),
                 "characteristic_polynomial": _characteristic_polynomial(rows),
-                "invariants": _census_invariants(graph, rows),
+                "invariants": _hog_invariants(row, names),
                 "complement_key": None,
                 "line_graph_key": None,
                 "references": _hog_reference(row),
@@ -483,7 +539,7 @@ def main():
     if not arguments.skip_graphs:
         small, large = fetch_house_of_graphs(arguments.hog_cache)
         census = harvest_census(small)
-        overlay = harvest_named(large)
+        overlay = harvest_named(large, _hog_invariant_names(arguments.hog_cache))
         if len(census) != 1252:
             raise SystemExit(f"expected 1252 census graphs, got {len(census)}")
         size = _write(
