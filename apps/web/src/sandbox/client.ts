@@ -149,10 +149,9 @@ async function request<T>(body: SandboxRequestBody): Promise<T> {
 export async function probe(
   latex: string,
   implementations: ImplementationCode[],
-): Promise<string[]> {
-  if (implementations.length === 0) return [];
-  const result = await request<ProbeResult>({ kind: "probe", latex, implementations });
-  return result.applicable;
+): Promise<ProbeResult> {
+  if (implementations.length === 0) return { applicable: [], skipped: 0 };
+  return await request<ProbeResult>({ kind: "probe", latex, implementations });
 }
 
 export async function run(code: string, inputs: string[]): Promise<string[]> {

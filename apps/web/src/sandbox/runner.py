@@ -5,6 +5,7 @@ import time
 _BASE = namespace()  # noqa: F821 — prelude.py is exec'd into these globals first
 _parse = _BASE["parse"]
 _render = _BASE["render"]
+_MatrixBase = _BASE["MatrixBase"]
 
 _PYTHON_LINE_DEADLINE_SECONDS = 5.0
 _PYTHON_PROBE_DEADLINE_SECONDS = 6.0
@@ -42,8 +43,12 @@ def _as_latex(value):
     return value if isinstance(value, str) else _render(value)
 
 
-def _accepts(code, latex):
-    return _load(code)["accepts"](_parse(latex))
+def _unshared(value):
+    return value.copy() if isinstance(value, _MatrixBase) else value
+
+
+def _accepts(code, value):
+    return _load(code)["accepts"](_unshared(value))
 
 
 def _compute(code, inputs_json):
@@ -54,18 +59,25 @@ def _compute(code, inputs_json):
 
 
 def probe(latex, implementations_json):
-    applicable = []
+    items = json.loads(implementations_json)
     deadline = time.monotonic() + _PYTHON_PROBE_DEADLINE_SECONDS
-    for item in json.loads(implementations_json):
+    budget = min(deadline - time.monotonic(), _PYTHON_LINE_DEADLINE_SECONDS)
+    try:
+        value = _with_line_deadline(budget, _parse, latex)
+    except Exception:  # noqa: BLE001
+        return json.dumps({"applicable": [], "skipped": len(items)})
+
+    applicable = []
+    for position, item in enumerate(items):
         remaining = min(deadline - time.monotonic(), _PYTHON_LINE_DEADLINE_SECONDS)
         if remaining <= 0:
-            break
+            return json.dumps({"applicable": applicable, "skipped": len(items) - position})
         try:
-            if _with_line_deadline(remaining, _accepts, item["code"], latex):
+            if _with_line_deadline(remaining, _accepts, item["code"], value):
                 applicable.append(item["id"])
         except Exception:  # noqa: BLE001, S110
             pass
-    return json.dumps({"applicable": applicable})
+    return json.dumps({"applicable": applicable, "skipped": 0})
 
 
 def run(code, inputs_json):

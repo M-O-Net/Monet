@@ -63,12 +63,48 @@ def parse(latex):
     return _scalar(text)
 
 
+def _laurent_terms(expression):
+    symbols = expression.free_symbols
+    if len(symbols) != 1:
+        return None
+    symbol = next(iter(symbols))
+    terms = []
+    for term in expression.as_ordered_terms():
+        coefficient, exponent = term.as_coeff_exponent(symbol)
+        if not (exponent.is_Integer and coefficient.is_Number):
+            return None
+        terms.append((int(exponent), coefficient))
+    if not any(exponent < 0 for exponent, _ in terms):
+        return None
+    return symbol, sorted(terms, reverse=True)
+
+
+def _render_laurent(symbol, terms):
+    base = sympy.latex(symbol)
+    pieces = []
+    for position, (exponent, coefficient) in enumerate(terms):
+        negative = coefficient.is_negative
+        magnitude = -coefficient if negative else coefficient
+        if exponent == 0:
+            body = sympy.latex(magnitude)
+        else:
+            power = base if exponent == 1 else f"{base}^{{{exponent}}}"
+            body = power if magnitude == 1 else f"{sympy.latex(magnitude)} {power}"
+        sign = "-" if negative else "+"
+        pieces.append(body if position == 0 and not negative else f"{sign} {body}")
+    return " ".join(pieces)
+
+
 def render(value):
     if isinstance(value, bool) or isinstance(value, sympy.logic.boolalg.BooleanAtom):
         return r"\text{True}" if bool(value) else r"\text{False}"
     if isinstance(value, sympy.MatrixBase):
         return sympy.latex(value, mat_str="pmatrix", mat_delim="")
-    return sympy.latex(sympy.sympify(value))
+    expression = sympy.sympify(value)
+    laurent = _laurent_terms(sympy.expand(expression))
+    if laurent is not None:
+        return _render_laurent(*laurent)
+    return sympy.latex(expression)
 
 
 def namespace():

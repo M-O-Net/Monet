@@ -21,6 +21,7 @@ export type SandboxRequest = ProbeRequest | RunRequest;
 
 export interface ProbeResult {
   applicable: string[];
+  skipped: number;
 }
 
 export interface RunResult {

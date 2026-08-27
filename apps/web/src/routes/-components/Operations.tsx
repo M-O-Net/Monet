@@ -60,6 +60,7 @@ export function Operations({
   const sandboxStatus = useSandboxStatus();
 
   const [applicable, setApplicable] = useState<string[] | null>(null);
+  const [skipped, setSkipped] = useState(0);
   const [probeError, setProbeError] = useState<string | null>(null);
   const [extraInputs, setExtraInputs] = useState<Record<string, string[]>>({});
   const [running, setRunning] = useState<string | null>(null);
@@ -78,8 +79,10 @@ export function Operations({
     if (payload.length === 0) return;
     let cancelled = false;
     probe(object.latex, payload).then(
-      (ids) => {
-        if (!cancelled) setApplicable(ids);
+      (probed) => {
+        if (cancelled) return;
+        setApplicable(probed.applicable);
+        setSkipped(probed.skipped);
       },
       (error: unknown) => {
         if (!cancelled) setProbeError(error instanceof Error ? error.message : String(error));
@@ -168,9 +171,16 @@ export function Operations({
       )}
       {probeError && <p className="text-sm text-rust">The sandbox failed to start: {probeError}</p>}
 
-      {applicable !== null && shown.length === 0 && (
+      {applicable !== null && shown.length === 0 && skipped === 0 && (
         <p className="text-sm text-ink-soft italic">
           No implementation knows how to read this object yet.
+        </p>
+      )}
+
+      {skipped > 0 && (
+        <p className="text-sm text-ink-soft italic">
+          Checking took too long, so {skipped} of {implementations.length} implementations were not
+          tried on this object.
         </p>
       )}
 

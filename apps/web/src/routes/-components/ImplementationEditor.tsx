@@ -195,9 +195,9 @@ function ImplementationForm({
     setScratchError(null);
     const inputs = sample.split("\n").filter((line) => line.trim() !== "");
     Promise.all([probe(inputs[0] ?? "", [{ id: "draft", code }]), run(code, inputs)]).then(
-      ([applicable, outputs]) => {
+      ([probed, outputs]) => {
         setTesting(false);
-        setScratch({ applies: applicable.includes("draft"), outputs });
+        setScratch({ applies: probed.applicable.includes("draft"), outputs });
       },
       (error: unknown) => {
         setTesting(false);
