@@ -23,11 +23,16 @@ import { SectionTags } from "./-components/SectionTags";
 
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
+  validateSearch: (search: Record<string, unknown>): { page?: number } => {
+    const page = Number(search.page);
+    return Number.isInteger(page) && page > 1 ? { page } : {};
+  },
   remountDeps: ({ params }) => params.objectId,
 });
 
 function ObjectDetail() {
   const { objectId } = Route.useParams();
+  const { page } = Route.useSearch();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -255,7 +260,12 @@ function ObjectDetail() {
       )}
       <ConvergenceCallout asOutput={obj.as_output} total={obj.as_output_total} />
 
-      <MemberList objectId={objectId} members={obj.members} total={obj.members_total} />
+      <MemberList
+        objectId={objectId}
+        firstPage={obj.members}
+        total={obj.members_total}
+        page={page ?? 1}
+      />
       <RelationList
         title="Used as operator in"
         relations={obj.as_operator}
