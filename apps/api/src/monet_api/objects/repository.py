@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.objects.models import (
     Object,
+    ObjectReference,
     OperatorDisplay,
     Relation,
     RelationInput,
@@ -39,29 +40,56 @@ async def list_objects_by_ids(
     )
 
 
-async def add_object(session: AsyncSession, latex: str, description: str | None) -> Object:
-    obj = Object(latex=latex, description=description)
+async def add_object(
+    session: AsyncSession,
+    latex: str,
+    description: str | None,
+    image_url: str | None = None,
+) -> Object:
+    obj = Object(latex=latex, description=description, image_url=image_url)
     session.add(obj)
     await session.flush()
     return obj
 
 
-async def create_object(session: AsyncSession, latex: str, description: str | None) -> Object:
-    obj = await add_object(session, latex, description)
-    await session.commit()
-    await session.refresh(obj)
-    return obj
-
-
 async def update_object(
-    session: AsyncSession, obj: Object, latex: str, description: str | None
+    session: AsyncSession,
+    obj: Object,
+    latex: str,
+    description: str | None,
+    image_url: str | None,
 ) -> Object:
     obj.latex = latex
     obj.description = description
+    obj.image_url = image_url
     session.add(obj)
     await session.commit()
     await session.refresh(obj)
     return obj
+
+
+async def list_object_references(
+    session: AsyncSession, object_id: uuid.UUID
+) -> list[ObjectReference]:
+    return list(
+        (
+            await session.exec(
+                select(ObjectReference)
+                .where(col(ObjectReference.object_id) == object_id)
+                .order_by(col(ObjectReference.position))
+            )
+        ).all()
+    )
+
+
+async def clear_object_references(session: AsyncSession, object_id: uuid.UUID) -> None:
+    await session.exec(delete(ObjectReference).where(col(ObjectReference.object_id) == object_id))
+
+
+def add_object_reference(
+    session: AsyncSession, object_id: uuid.UUID, label: str, url: str, position: int
+) -> None:
+    session.add(ObjectReference(object_id=object_id, label=label, url=url, position=position))
 
 
 async def delete_object(session: AsyncSession, obj: Object) -> None:

@@ -17,6 +17,8 @@ from monet_api.objects.schemas import (
     ObjectCreate,
     ObjectDetailOut,
     ObjectOut,
+    ObjectReferenceIn,
+    ObjectReferenceOut,
     ObjectUpdate,
     OperatorDisplayOut,
     OperatorDisplayUpdate,
@@ -105,8 +107,46 @@ async def list_objects(session: AsyncSession) -> list[Object]:
     return await repository.list_objects(session)
 
 
+_LINKABLE_URL = re.compile(r"^(?:https?://|/(?!/))")
+
+
+def _linkable(url: str | None) -> str | None:
+    """Return url if it is safe to place in an href or src, else raise 400.
+
+    Monet has no auth, so a `javascript:` URL saved by one visitor would run for every later
+    one. A leading `//` is rejected too: it is protocol-relative, not site-relative.
+    """
+    if url is None:
+        return None
+    candidate = url.strip()
+    if not candidate:
+        return None
+    if not _LINKABLE_URL.match(candidate):
+        raise HTTPException(
+            status_code=400, detail="url must start with http://, https:// or a single /"
+        )
+    return candidate
+
+
+async def _replace_references(
+    session: AsyncSession, object_id: uuid.UUID, references: Sequence[ObjectReferenceIn]
+) -> None:
+    await repository.clear_object_references(session, object_id)
+    for position, reference in enumerate(references):
+        url = _linkable(reference.url)
+        if url is None:
+            continue
+        repository.add_object_reference(session, object_id, reference.label.strip(), url, position)
+
+
 async def create_object(session: AsyncSession, body: ObjectCreate) -> Object:
-    return await repository.create_object(session, body.latex, body.description)
+    obj = await repository.add_object(
+        session, body.latex, body.description, _linkable(body.image_url)
+    )
+    await _replace_references(session, obj.id, body.references)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
 
 
 async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> ObjectDetailOut:
@@ -129,10 +169,14 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
 
     is_top_level = await repository.get_top_level_object(session, object_id) is not None
 
+    references = await repository.list_object_references(session, object_id)
+
     return ObjectDetailOut(
         id=obj.id,
         latex=obj.latex,
         description=obj.description,
+        image_url=obj.image_url,
+        references=[ObjectReferenceOut.model_validate(row) for row in references],
         is_top_level=is_top_level,
         sections=await _objects_in_latex_order(session, parents.get(object_id, [])),
         members=await _objects_in_latex_order(session, children.get(object_id, [])),
@@ -256,7 +300,9 @@ async def set_operator_display(
 
 async def update_object(session: AsyncSession, object_id: uuid.UUID, body: ObjectUpdate) -> Object:
     obj = await get_object_or_404(session, object_id)
-    return await repository.update_object(session, obj, body.latex, body.description)
+    image_url = _linkable(body.image_url)
+    await _replace_references(session, object_id, body.references)
+    return await repository.update_object(session, obj, body.latex, body.description, image_url)
 
 
 async def delete_object(session: AsyncSession, object_id: uuid.UUID) -> None:

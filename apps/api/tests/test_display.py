@@ -196,3 +196,21 @@ async def test_a_membership_relation_carries_every_one_of_its_members(
     await client.put(f"/top-level-objects/{matrices}")
     contents = (await client.get("/contents")).json()
     assert contents[0]["member_count"] == 2
+
+
+async def test_list_relations_reports_which_operators_are_membership(client: AsyncClient) -> None:
+    element_of = await make_object(client, "\\text{Element Of}")
+    inverse = await make_object(client, "\\text{Inverse}")
+    matrices = await make_object(client, "\\text{Matrices}")
+    a = await make_object(client, "A")
+    b = await make_object(client, "B")
+
+    await set_display(client, element_of, membership=True)
+    await set_display(client, inverse, template="{in0}^{-1} = {out0}")
+    await relate(client, element_of, [a], [matrices])
+    await relate(client, inverse, [a], [b])
+
+    rows = (await client.get("/relations")).json()
+    by_operator = {r["operator"]["id"]: r["display"] for r in rows}
+    assert by_operator[element_of]["is_membership"] is True
+    assert by_operator[inverse]["is_membership"] is False
