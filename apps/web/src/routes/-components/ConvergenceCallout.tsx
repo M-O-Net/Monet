@@ -2,10 +2,8 @@ import { Link } from "@tanstack/react-router";
 
 import { Latex } from "../../components/Latex";
 import { findConvergence } from "../../lib/convergence";
-import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { RelationOut } from "../../lib/types";
 import { Callout } from "./Callout";
-import { RelationExpression } from "./RelationExpression";
 
 const COUNTS = ["No", "One", "Two", "Three", "Four", "Five", "Six"];
 const spell = (n: number) => COUNTS[n] ?? String(n);
@@ -13,11 +11,9 @@ const spell = (n: number) => COUNTS[n] ?? String(n);
 export function ConvergenceCallout({
   asOutput,
   total,
-  currentObjectId,
 }: {
   asOutput: RelationOut[];
   total: number;
-  currentObjectId: string;
 }) {
   const convergence = findConvergence(asOutput);
   if (convergence === null) return null;
@@ -40,32 +36,20 @@ export function ConvergenceCallout({
           Showing {asOutput.length} of {total} relations that produce this object.
         </p>
       )}
-      <ul className="space-y-3">
+      <ul className="flex flex-wrap gap-1.5">
         {convergence.routes.map((route) => (
           <li key={route.operator.id}>
             <Link
               to="/objects/$objectId"
               params={{ objectId: route.operator.id }}
-              className="relation-tag mb-1 inline-block rounded-sm px-2 py-0.5 text-xs"
+              className="relation-tag inline-block rounded-sm px-2 py-0.5 text-xs"
             >
               <Latex>{route.operator.latex}</Latex>
             </Link>
-            <ul className="space-y-1">
-              {route.relations.map((relation) => (
-                <li key={relation.id} className="text-sm">
-                  <RelationExpression
-                    html={buildRelationHtml(
-                      relation,
-                      relation.display?.template ?? null,
-                      currentObjectId,
-                    )}
-                  />
-                </li>
-              ))}
-            </ul>
           </li>
         ))}
       </ul>
+      <p className="mt-3 text-xs text-ink-soft">Each one is written out below.</p>
     </Callout>
   );
 }

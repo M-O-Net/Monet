@@ -65,7 +65,7 @@ def probe(latex, implementations_json):
     try:
         value = _with_line_deadline(budget, _parse, latex)
     except Exception:  # noqa: BLE001
-        return json.dumps({"applicable": [], "skipped": len(items)})
+        return json.dumps({"applicable": [], "skipped": 0})
 
     applicable = []
     for position, item in enumerate(items):

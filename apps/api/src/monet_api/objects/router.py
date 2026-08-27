@@ -48,6 +48,20 @@ async def get_object(object_id: uuid.UUID, session: DbSession) -> ObjectDetailOu
     return await service.get_object_detail(session, object_id)
 
 
+@router.get(
+    "/objects/{object_id}/members",
+    response_model=list[ObjectOut],
+    operation_id="list_object_members",
+)
+async def list_object_members(
+    object_id: uuid.UUID,
+    session: DbSession,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 50,
+) -> list[Object]:
+    return await service.list_members(session, object_id, offset, limit)
+
+
 @router.patch("/objects/{object_id}", response_model=ObjectOut, operation_id="update_object")
 async def update_object(object_id: uuid.UUID, body: ObjectUpdate, session: DbSession) -> Object:
     return await service.update_object(session, object_id, body)

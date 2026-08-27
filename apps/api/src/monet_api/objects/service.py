@@ -117,6 +117,7 @@ async def _load_relation_out(session: AsyncSession, relation: Relation) -> Relat
 
 SEARCH_CANDIDATE_LIMIT = 200
 MAX_DETAIL_ROWS = 50
+MAX_MEMBER_PAGE = 2000
 
 
 async def list_objects(
@@ -170,6 +171,16 @@ async def create_object(session: AsyncSession, body: ObjectCreate) -> Object:
     await session.commit()
     await session.refresh(obj)
     return obj
+
+
+async def list_members(
+    session: AsyncSession, object_id: uuid.UUID, offset: int, limit: int
+) -> list[Object]:
+    await get_object_or_404(session, object_id)
+    membership_ops = await repository.list_membership_operator_ids(session)
+    return await repository.list_section_members(
+        session, membership_ops, object_id, offset, min(limit, MAX_MEMBER_PAGE)
+    )
 
 
 async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> ObjectDetailOut:

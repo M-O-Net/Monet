@@ -240,6 +240,29 @@ async def list_membership_outputs(
     )
 
 
+async def list_section_members(
+    session: AsyncSession,
+    operator_ids: Sequence[uuid.UUID],
+    section_id: uuid.UUID,
+    offset: int,
+    limit: int,
+) -> list[Object]:
+    if not operator_ids:
+        return []
+    statement = (
+        select(Object)
+        .join(RelationInput, col(RelationInput.object_id) == col(Object.id))
+        .join(Relation, col(Relation.id) == col(RelationInput.relation_id))
+        .join(RelationOutput, col(RelationOutput.relation_id) == col(Relation.id))
+        .where(col(Relation.operator_id).in_(operator_ids))
+        .where(col(RelationOutput.object_id) == section_id)
+        .order_by(col(Object.latex))
+        .offset(offset)
+        .limit(limit)
+    )
+    return list((await session.exec(statement)).all())
+
+
 async def list_membership_inputs(
     session: AsyncSession, operator_ids: Sequence[uuid.UUID], member_ids: Sequence[uuid.UUID]
 ) -> list[RelationInput]:

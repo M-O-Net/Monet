@@ -253,13 +253,9 @@ function ObjectDetail() {
       {nearbyRelations.data && (
         <LoopCallout relations={nearbyRelations.data} currentObjectId={objectId} />
       )}
-      <ConvergenceCallout
-        asOutput={obj.as_output}
-        total={obj.as_output_total}
-        currentObjectId={objectId}
-      />
+      <ConvergenceCallout asOutput={obj.as_output} total={obj.as_output_total} />
 
-      <MemberList members={obj.members} total={obj.members_total} />
+      <MemberList objectId={objectId} members={obj.members} total={obj.members_total} />
       <RelationList
         title="Used as operator in"
         relations={obj.as_operator}

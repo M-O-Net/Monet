@@ -77,27 +77,21 @@ export function RelationList({
   currentObjectId: string;
   collapseHidden?: boolean;
 }) {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [expanded, setExpanded] = useState(false);
 
-  const { shown, hiddenGroups } = useMemo(() => {
+  const { shown, hidden } = useMemo(() => {
     const visible: RelationOut[] = [];
-    const groups = new Map<string, { operator: ObjectOut; relations: RelationOut[] }>();
+    const collapsed: RelationOut[] = [];
     for (const relation of relations) {
-      if (collapseHidden && relation.display?.hidden_by_default === true) {
-        const group = groups.get(relation.operator.id) ?? {
-          operator: relation.operator,
-          relations: [],
-        };
-        group.relations.push(relation);
-        groups.set(relation.operator.id, group);
-      } else {
-        visible.push(relation);
-      }
+      if (collapseHidden && relation.display?.hidden_by_default === true) collapsed.push(relation);
+      else visible.push(relation);
     }
-    return { shown: visible, hiddenGroups: [...groups.values()] };
+    return { shown: visible, hidden: collapsed };
   }, [relations, collapseHidden]);
 
   if (relations.length === 0) return null;
+
+  const operators = [...new Map(hidden.map((r) => [r.operator.id, r.operator])).values()];
 
   return (
     <div className="mb-7">
@@ -107,42 +101,41 @@ export function RelationList({
           <RelationRow key={relation.id} relation={relation} currentObjectId={currentObjectId} />
         ))}
       </ul>
-      {hiddenGroups.map((group) => {
-        const open = expanded.has(group.operator.id);
-        return (
-          <div key={group.operator.id} className={shown.length > 0 ? "mt-2" : ""}>
-            {open && (
-              <ul className="mb-1.5 space-y-2">
-                {group.relations.map((relation) => (
-                  <RelationRow
-                    key={relation.id}
-                    relation={relation}
-                    currentObjectId={currentObjectId}
-                  />
-                ))}
-              </ul>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setExpanded((previous) => {
-                  const next = new Set(previous);
-                  if (next.has(group.operator.id)) next.delete(group.operator.id);
-                  else next.add(group.operator.id);
-                  return next;
-                });
-              }}
-              className="flex items-center gap-1.5 text-xs text-ink-soft hover:text-pond"
-            >
-              <span aria-hidden>{open ? "−" : "+"}</span>
-              {open ? "hide" : `show ${String(group.relations.length)} more`}
-              <span className="rounded-sm border border-gold/30 bg-gold-soft/60 px-1.5 py-0.5 text-[11px]">
-                <Latex>{group.operator.latex}</Latex>
-              </span>
-            </button>
-          </div>
-        );
-      })}
+      {hidden.length > 0 && (
+        <div className={shown.length > 0 ? "mt-2" : ""}>
+          {expanded && (
+            <ul className="mb-1.5 space-y-2">
+              {hidden.map((relation) => (
+                <RelationRow
+                  key={relation.id}
+                  relation={relation}
+                  currentObjectId={currentObjectId}
+                />
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setExpanded(!expanded);
+            }}
+            className="flex flex-wrap items-center gap-1.5 text-xs text-ink-soft hover:text-pond"
+          >
+            <span aria-hidden>{expanded ? "\u2212" : "+"}</span>
+            {expanded ? "hide" : `show ${String(hidden.length)} more`}
+            {!expanded &&
+              operators.slice(0, 6).map((operator) => (
+                <span
+                  key={operator.id}
+                  className="rounded-sm border border-gold/30 bg-gold-soft/60 px-1.5 py-0.5 text-[11px]"
+                >
+                  <Latex>{operator.latex}</Latex>
+                </span>
+              ))}
+            {!expanded && operators.length > 6 && <span>and {operators.length - 6} more</span>}
+          </button>
+        </div>
+      )}
       {total > relations.length && (
         <p className="mt-1.5 text-xs text-ink-soft">
           showing {relations.length} of {total}
