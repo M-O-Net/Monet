@@ -12,23 +12,34 @@ const spell = (n: number) => COUNTS[n] ?? String(n);
 
 export function ConvergenceCallout({
   asOutput,
+  total,
   currentObjectId,
 }: {
   asOutput: RelationOut[];
+  total: number;
   currentObjectId: string;
 }) {
   const convergence = findConvergence(asOutput);
   if (convergence === null) return null;
 
   const many = convergence.distinctOperators >= 2;
+  const partial = total > asOutput.length;
+  const count = partial
+    ? `at least ${String(convergence.distinctOperators)}`
+    : spell(convergence.distinctOperators).toLowerCase();
 
   return (
     <Callout heading={many ? "Several routes arrive here" : "Reached more than one way"}>
       <p className="mb-3 text-sm text-ink-soft">
         {many
-          ? `${spell(convergence.distinctOperators)} different operations produce this object.`
+          ? `${count[0].toUpperCase()}${count.slice(1)} different operations produce this object.`
           : "The same operation produces this object from more than one starting point."}
       </p>
+      {partial && (
+        <p className="mb-3 text-xs text-ink-soft">
+          Showing {asOutput.length} of {total} relations that produce this object.
+        </p>
+      )}
       <ul className="space-y-3">
         {convergence.routes.map((route) => (
           <li key={route.operator.id}>

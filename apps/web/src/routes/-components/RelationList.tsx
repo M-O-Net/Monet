@@ -67,11 +67,13 @@ function RelationRow({
 export function RelationList({
   title,
   relations,
+  total,
   currentObjectId,
   collapseHidden = true,
 }: {
   title: string;
   relations: RelationOut[];
+  total: number;
   currentObjectId: string;
   collapseHidden?: boolean;
 }) {
@@ -141,6 +143,11 @@ export function RelationList({
           </div>
         );
       })}
+      {total > relations.length && (
+        <p className="mt-1.5 text-xs text-ink-soft">
+          showing {relations.length} of {total}
+        </p>
+      )}
     </div>
   );
 }

@@ -115,7 +115,18 @@ async def _load_relation_out(session: AsyncSession, relation: Relation) -> Relat
     return (await _load_relations_out(session, [relation]))[0]
 
 
-async def list_objects(session: AsyncSession) -> list[Object]:
+SEARCH_CANDIDATE_LIMIT = 200
+MAX_DETAIL_ROWS = 50
+
+
+async def list_objects(
+    session: AsyncSession, search: str | None = None, latex: str | None = None
+) -> list[Object]:
+    if latex is not None:
+        found = await repository.get_object_by_latex(session, normalize_latex(latex))
+        return [found] if found is not None else []
+    if search:
+        return await repository.list_objects(session, search, SEARCH_CANDIDATE_LIMIT)
     return await repository.list_objects(session)
 
 
@@ -173,8 +184,8 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         session, object_id, exclude_operator_ids=membership_ops
     )
 
-    as_input = await repository.list_relations_by_ids(session, as_input_ids)
-    as_output = await repository.list_relations_by_ids(session, as_output_ids)
+    as_input = await repository.list_relations_by_ids(session, as_input_ids[:MAX_DETAIL_ROWS])
+    as_output = await repository.list_relations_by_ids(session, as_output_ids[:MAX_DETAIL_ROWS])
 
     parents = await _membership_parents(session, membership_ops, [object_id])
     children = await _membership_children(session, membership_ops, [object_id])
@@ -182,6 +193,7 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
     is_top_level = await repository.get_top_level_object(session, object_id) is not None
 
     references = await repository.list_object_references(session, object_id)
+    member_ids = children.get(object_id, [])
 
     return ObjectDetailOut(
         id=obj.id,
@@ -191,10 +203,14 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         references=[ObjectReferenceOut.model_validate(row) for row in references],
         is_top_level=is_top_level,
         sections=await _objects_in_latex_order(session, parents.get(object_id, [])),
-        members=await _objects_in_latex_order(session, children.get(object_id, [])),
-        as_operator=await _load_relations_out(session, as_operator),
+        members=await _objects_in_latex_order(session, member_ids[:MAX_DETAIL_ROWS]),
+        members_total=len(member_ids),
+        as_operator=await _load_relations_out(session, as_operator[:MAX_DETAIL_ROWS]),
+        as_operator_total=len(as_operator),
         as_input=await _load_relations_out(session, as_input),
+        as_input_total=len(as_input_ids),
         as_output=await _load_relations_out(session, as_output),
+        as_output_total=len(as_output_ids),
     )
 
 
@@ -341,8 +357,45 @@ async def unmark_top_level_object(session: AsyncSession, object_id: uuid.UUID) -
         await repository.delete_top_level_object(session, row)
 
 
-async def list_relations(session: AsyncSession) -> list[RelationOut]:
-    return await _load_relations_out(session, await repository.list_relations(session))
+MAX_MAP_NODES = 150
+MAX_MAP_RELATIONS = 400
+
+
+async def _neighbourhood(
+    session: AsyncSession, focus: uuid.UUID, depth: int
+) -> list[Relation]:
+    await get_object_or_404(session, focus)
+    reached = {focus}
+    found: dict[uuid.UUID, Relation] = {}
+    frontier = {focus}
+    for _ in range(max(1, depth)):
+        if not frontier or len(reached) >= MAX_MAP_NODES:
+            break
+        budget = MAX_MAP_RELATIONS - len(found)
+        if budget <= 0:
+            break
+        touching = await repository.list_relations_touching(session, list(frontier), budget)
+        fresh = [relation for relation in touching if relation.id not in found]
+        for relation in fresh:
+            found[relation.id] = relation
+        relation_ids = [relation.id for relation in fresh]
+        operands: list[RelationInput | RelationOutput] = [
+            *await repository.list_relation_inputs_for(session, relation_ids),
+            *await repository.list_relation_outputs_for(session, relation_ids),
+        ]
+        neighbours = {relation.operator_id for relation in fresh}
+        neighbours |= {operand.object_id for operand in operands}
+        frontier = neighbours - reached
+        reached |= neighbours
+    return list(found.values())
+
+
+async def list_relations(
+    session: AsyncSession, focus: uuid.UUID | None = None, depth: int = 1
+) -> list[RelationOut]:
+    if focus is None:
+        return await _load_relations_out(session, await repository.list_relations(session))
+    return await _load_relations_out(session, await _neighbourhood(session, focus, depth))
 
 
 async def _validate_relation_operands(session: AsyncSession, body: RelationCreate) -> None:

@@ -9,7 +9,6 @@ import { ObjectPicker } from "../../components/ObjectPicker";
 import { api } from "../../lib/api";
 import { findCyclesThrough } from "../../lib/cycles";
 import type { Cycle } from "../../lib/cycles";
-import { normalizeLatex } from "../../lib/latex";
 import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { RelationOut } from "../../lib/types";
 import { probe, run } from "../../sandbox/client";
@@ -43,15 +42,23 @@ interface Receipt {
   closedLoops: Cycle[];
 }
 
+function OutputStatus({ latex }: { latex: string }) {
+  const found = api.useQuery("get", "/objects", { params: { query: { latex } } });
+  if (found.isPending) return <span className="text-[11px] text-ink-soft">checking…</span>;
+  return (
+    <span className="text-[11px] text-ink-soft">
+      {found.data?.length ? "already in the network" : "new object"}
+    </span>
+  );
+}
+
 export function Operations({
   object,
-  objects,
   implementations,
   relations,
   onCommitted,
 }: {
   object: ObjectSummary;
-  objects: ObjectSummary[];
   implementations: Implementation[];
   relations: RelationOut[];
   onCommitted: () => void;
@@ -62,7 +69,7 @@ export function Operations({
   const [applicable, setApplicable] = useState<string[] | null>(null);
   const [skipped, setSkipped] = useState(0);
   const [probeError, setProbeError] = useState<string | null>(null);
-  const [extraInputs, setExtraInputs] = useState<Record<string, string[]>>({});
+  const [extraInputs, setExtraInputs] = useState<Record<string, ObjectSummary[]>>({});
   const [running, setRunning] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -94,12 +101,13 @@ export function Operations({
   }, [object.latex, payload]);
 
   const start = (implementation: Implementation) => {
-    const inputIds = [object.id, ...(extraInputs[implementation.id] ?? [])];
+    const extra = extraInputs[implementation.id] ?? [];
+    const inputIds = [object.id, ...extra.map((obj) => obj.id)];
+    const inputLatex = [object.latex, ...extra.map((obj) => obj.latex)];
     setRunError(null);
     setResult(null);
     setReceipt(null);
     setRunning(implementation.id);
-    const inputLatex = inputIds.map((id) => objects.find((o) => o.id === id)?.latex ?? "");
     run(implementation.code, inputLatex).then(
       (outputs) => {
         setRunning(null);
@@ -124,7 +132,7 @@ export function Operations({
       },
       {
         onSuccess: (assertion) => {
-          const known = new Map(objects.map((o) => [o.id, o]));
+          const known = new Map<string, ObjectSummary>();
           for (const slot of [...assertion.relation.inputs, ...assertion.relation.outputs]) {
             known.set(slot.object.id, slot.object);
           }
@@ -145,11 +153,6 @@ export function Operations({
         },
       },
     );
-  };
-
-  const existingFor = (latex: string) => {
-    const key = normalizeLatex(latex);
-    return objects.find((o) => normalizeLatex(o.latex) === key);
   };
 
   if (implementations.length === 0) return null;
@@ -187,8 +190,8 @@ export function Operations({
       <div className="space-y-2">
         {shown.map((implementation) => {
           const extra = extraInputs[implementation.id] ?? [];
-          const setExtra = (ids: string[]) => {
-            setExtraInputs((prev) => ({ ...prev, [implementation.id]: ids }));
+          const setExtra = (chosen: ObjectSummary[]) => {
+            setExtraInputs((prev) => ({ ...prev, [implementation.id]: chosen }));
           };
           return (
             <div key={implementation.id} className="flex flex-wrap items-center gap-2">
@@ -206,12 +209,12 @@ export function Operations({
                 )}
               </button>
 
-              {extra.map((id, i) => (
+              {extra.map((chosen, i) => (
                 <span
-                  key={`${id}-${String(i)}`}
+                  key={`${chosen.id}-${String(i)}`}
                   className="inline-flex items-center gap-1 rounded-sm border border-mist bg-paper-deep px-2 py-1 text-xs"
                 >
-                  <Latex>{objects.find((o) => o.id === id)?.latex ?? ""}</Latex>
+                  <Latex>{chosen.latex}</Latex>
                   <button
                     onClick={() => {
                       setExtra(extra.filter((_, j) => j !== i));
@@ -226,10 +229,9 @@ export function Operations({
 
               <span className="w-52">
                 <ObjectPicker
-                  objects={objects}
-                  value=""
-                  onChange={(id) => {
-                    if (id) setExtra([...extra, id]);
+                  value={null}
+                  onChange={(chosen) => {
+                    if (chosen) setExtra([...extra, chosen]);
                   }}
                   placeholder="+ another input…"
                 />
@@ -247,19 +249,14 @@ export function Operations({
             <Latex>{result.implementation.operator.latex}</Latex> produced:
           </p>
           <ul className="mb-4 space-y-2">
-            {result.outputs.map((latex, i) => {
-              const existing = existingFor(latex);
-              return (
-                <li key={i} className="flex items-baseline gap-3">
-                  <span className="font-display text-base text-ink">
-                    <Latex>{latex}</Latex>
-                  </span>
-                  <span className="text-[11px] text-ink-soft">
-                    {existing ? "already in the network" : "new object"}
-                  </span>
-                </li>
-              );
-            })}
+            {result.outputs.map((latex, i) => (
+              <li key={i} className="flex items-baseline gap-3">
+                <span className="font-display text-base text-ink">
+                  <Latex>{latex}</Latex>
+                </span>
+                <OutputStatus latex={latex} />
+              </li>
+            ))}
           </ul>
           <div className="flex items-center gap-2">
             <button

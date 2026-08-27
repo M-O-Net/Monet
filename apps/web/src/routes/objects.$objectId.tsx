@@ -34,8 +34,9 @@ function ObjectDetail() {
   const detail = api.useQuery("get", "/objects/{object_id}", {
     params: { path: { object_id: objectId } },
   });
-  const allObjects = api.useQuery("get", "/objects");
-  const allRelations = api.useQuery("get", "/relations");
+  const nearbyRelations = api.useQuery("get", "/relations", {
+    params: { query: { focus: objectId, depth: 3 } },
+  });
   const implementations = api.useQuery("get", "/implementations");
   const updateObject = api.useMutation("patch", "/objects/{object_id}");
   const deleteObject = api.useMutation("delete", "/objects/{object_id}");
@@ -249,39 +250,45 @@ function ObjectDetail() {
         </Link>
       </p>
 
-      {allRelations.data && (
-        <LoopCallout relations={allRelations.data} currentObjectId={objectId} />
+      {nearbyRelations.data && (
+        <LoopCallout relations={nearbyRelations.data} currentObjectId={objectId} />
       )}
-      <ConvergenceCallout asOutput={obj.as_output} currentObjectId={objectId} />
+      <ConvergenceCallout
+        asOutput={obj.as_output}
+        total={obj.as_output_total}
+        currentObjectId={objectId}
+      />
 
-      <MemberList members={obj.members} />
+      <MemberList members={obj.members} total={obj.members_total} />
       <RelationList
         title="Used as operator in"
         relations={obj.as_operator}
+        total={obj.as_operator_total}
         currentObjectId={objectId}
         collapseHidden={false}
       />
       <RelationList
         title="Appears as input in"
         relations={obj.as_input}
+        total={obj.as_input_total}
         currentObjectId={objectId}
       />
       <RelationList
         title="Appears as output in"
         relations={obj.as_output}
+        total={obj.as_output_total}
         currentObjectId={objectId}
       />
       <ReferenceList references={obj.references} />
 
       {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 
-      {allObjects.data && implementations.data && (
+      {implementations.data && (
         <Operations
           key={`${obj.id}:${obj.latex}`}
           object={{ id: obj.id, latex: obj.latex }}
-          objects={allObjects.data}
           implementations={implementations.data}
-          relations={allRelations.data ?? []}
+          relations={nearbyRelations.data ?? []}
           onCommitted={invalidateAll}
         />
       )}
@@ -297,7 +304,7 @@ function ObjectDetail() {
       <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
         Add a relation
       </h2>
-      {allObjects.data && <RelationForm objects={allObjects.data} onCreated={invalidateAll} />}
+      <RelationForm onCreated={invalidateAll} />
     </div>
   );
 }

@@ -281,12 +281,20 @@ export interface components {
             sections: components["schemas"]["ObjectOut"][];
             /** Members */
             members: components["schemas"]["ObjectOut"][];
+            /** Members Total */
+            members_total: number;
             /** As Operator */
             as_operator: components["schemas"]["RelationOut"][];
+            /** As Operator Total */
+            as_operator_total: number;
             /** As Input */
             as_input: components["schemas"]["RelationOut"][];
+            /** As Input Total */
+            as_input_total: number;
             /** As Output */
             as_output: components["schemas"]["RelationOut"][];
+            /** As Output Total */
+            as_output_total: number;
         };
         /** ObjectOut */
         ObjectOut: {
@@ -452,7 +460,12 @@ export type $defs = Record<string, never>;
 export interface operations {
     list_objects: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description substring match on latex or description */
+                q?: string | null;
+                /** @description exact match on canonical latex */
+                latex?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -466,6 +479,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObjectOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -764,7 +786,11 @@ export interface operations {
     };
     list_relations: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description expand around this object */
+                focus?: string | null;
+                depth?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -778,6 +804,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RelationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

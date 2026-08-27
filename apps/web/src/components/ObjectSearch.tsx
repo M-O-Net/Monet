@@ -13,7 +13,12 @@ export function ObjectSearch() {
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const navigate = useNavigate();
-  const objects = api.useQuery("get", "/objects", {}, { enabled: open });
+  const objects = api.useQuery(
+    "get",
+    "/objects",
+    { params: { query: query.trim() ? { q: query.trim() } : {} } },
+    { enabled: open },
+  );
 
   const results = useMemo(
     () => searchObjects(objects.data ?? [], query, RESULT_LIMIT),

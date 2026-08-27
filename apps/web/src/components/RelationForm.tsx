@@ -14,29 +14,26 @@ interface ObjectSummary {
 
 function SlotPicker({
   label,
-  objects,
   selected,
   onChange,
 }: {
   label: string;
-  objects: ObjectSummary[];
-  selected: string[];
-  onChange: (ids: string[]) => void;
+  selected: ObjectSummary[];
+  onChange: (objects: ObjectSummary[]) => void;
 }) {
-  const [pending, setPending] = useState("");
+  const [pending, setPending] = useState<ObjectSummary | null>(null);
 
   return (
     <div>
       <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-soft uppercase">{label}</p>
       <div className="mb-1.5 flex flex-wrap gap-1.5">
-        {selected.map((id, index) => {
-          const obj = objects.find((o) => o.id === id);
+        {selected.map((obj, index) => {
           return (
             <span
-              key={`${id}-${String(index)}`}
+              key={`${obj.id}-${String(index)}`}
               className="flex items-center gap-1.5 rounded-full bg-willow/15 px-2.5 py-0.5 text-xs text-ink"
             >
-              <Latex>{obj?.latex ?? id}</Latex>
+              <Latex>{obj.latex}</Latex>
               <button
                 type="button"
                 onClick={() => {
@@ -54,7 +51,6 @@ function SlotPicker({
       <div className="flex gap-2">
         <div className="flex-1">
           <ObjectPicker
-            objects={objects}
             value={pending}
             onChange={setPending}
             placeholder="Select an object…"
@@ -64,8 +60,8 @@ function SlotPicker({
           type="button"
           disabled={!pending}
           onClick={() => {
-            onChange([...selected, pending]);
-            setPending("");
+            if (pending) onChange([...selected, pending]);
+            setPending(null);
           }}
           className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep disabled:opacity-50"
         >
@@ -76,19 +72,13 @@ function SlotPicker({
   );
 }
 
-export function RelationForm({
-  objects,
-  onCreated,
-}: {
-  objects: ObjectSummary[];
-  onCreated: () => void;
-}) {
-  const [operatorId, setOperatorId] = useState("");
-  const [inputs, setInputs] = useState<string[]>([]);
-  const [outputs, setOutputs] = useState<string[]>([]);
+export function RelationForm({ onCreated }: { onCreated: () => void }) {
+  const [operator, setOperator] = useState<ObjectSummary | null>(null);
+  const [inputs, setInputs] = useState<ObjectSummary[]>([]);
+  const [outputs, setOutputs] = useState<ObjectSummary[]>([]);
   const createRelation = api.useMutation("post", "/relations");
 
-  const canSubmit = operatorId && inputs.length > 0 && outputs.length > 0;
+  const canSubmit = operator && inputs.length > 0 && outputs.length > 0;
 
   return (
     <form
@@ -98,14 +88,14 @@ export function RelationForm({
         createRelation.mutate(
           {
             body: {
-              operator_id: operatorId,
-              input_object_ids: inputs,
-              output_object_ids: outputs,
+              operator_id: operator.id,
+              input_object_ids: inputs.map((obj) => obj.id),
+              output_object_ids: outputs.map((obj) => obj.id),
             },
           },
           {
             onSuccess: () => {
-              setOperatorId("");
+              setOperator(null);
               setInputs([]);
               setOutputs([]);
               onCreated();
@@ -120,25 +110,14 @@ export function RelationForm({
           Operator
         </p>
         <ObjectPicker
-          objects={objects}
-          value={operatorId}
-          onChange={setOperatorId}
+          value={operator}
+          onChange={setOperator}
           placeholder="Select an operator…"
         />
       </div>
 
-      <SlotPicker
-        label="Inputs (ordered)"
-        objects={objects}
-        selected={inputs}
-        onChange={setInputs}
-      />
-      <SlotPicker
-        label="Outputs (ordered)"
-        objects={objects}
-        selected={outputs}
-        onChange={setOutputs}
-      />
+      <SlotPicker label="Inputs (ordered)" selected={inputs} onChange={setInputs} />
+      <SlotPicker label="Outputs (ordered)" selected={outputs} onChange={setOutputs} />
 
       {createRelation.isError && (
         <p className="text-xs text-rust">{formatApiError(createRelation.error)}</p>

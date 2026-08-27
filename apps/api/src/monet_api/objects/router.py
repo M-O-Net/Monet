@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.db import get_session
@@ -30,8 +30,12 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 
 
 @router.get("/objects", response_model=list[ObjectOut], operation_id="list_objects")
-async def list_objects(session: DbSession) -> list[Object]:
-    return await service.list_objects(session)
+async def list_objects(
+    session: DbSession,
+    q: Annotated[str | None, Query(description="substring match on latex or description")] = None,
+    latex: Annotated[str | None, Query(description="exact match on canonical latex")] = None,
+) -> list[Object]:
+    return await service.list_objects(session, q, latex)
 
 
 @router.post("/objects", response_model=ObjectOut, operation_id="create_object", status_code=201)
@@ -106,8 +110,12 @@ async def set_operator_display(
 
 
 @router.get("/relations", response_model=list[RelationOut], operation_id="list_relations")
-async def list_relations(session: DbSession) -> list[RelationOut]:
-    return await service.list_relations(session)
+async def list_relations(
+    session: DbSession,
+    focus: Annotated[uuid.UUID | None, Query(description="expand around this object")] = None,
+    depth: Annotated[int, Query(ge=1, le=4)] = 1,
+) -> list[RelationOut]:
+    return await service.list_relations(session, focus, depth)
 
 
 @router.post(

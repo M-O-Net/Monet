@@ -22,8 +22,19 @@ async def get_object(session: AsyncSession, object_id: uuid.UUID) -> Object | No
     return await session.get(Object, object_id)
 
 
-async def list_objects(session: AsyncSession) -> list[Object]:
-    return list((await session.exec(select(Object).order_by(col(Object.latex)))).all())
+async def list_objects(
+    session: AsyncSession, search: str | None = None, limit: int | None = None
+) -> list[Object]:
+    statement = select(Object)
+    if search:
+        pattern = f"%{search}%"
+        statement = statement.where(
+            or_(col(Object.latex).ilike(pattern), col(Object.description).ilike(pattern))
+        )
+    statement = statement.order_by(col(Object.latex))
+    if limit is not None:
+        statement = statement.limit(limit)
+    return list((await session.exec(statement)).all())
 
 
 async def list_objects_by_ids(
@@ -135,6 +146,29 @@ async def get_relation(session: AsyncSession, relation_id: uuid.UUID) -> Relatio
 
 async def list_relations(session: AsyncSession) -> list[Relation]:
     return list((await session.exec(select(Relation))).all())
+
+
+async def list_relations_touching(
+    session: AsyncSession, object_ids: Sequence[uuid.UUID], limit: int
+) -> list[Relation]:
+    if not object_ids:
+        return []
+    as_input = select(RelationInput.relation_id).where(col(RelationInput.object_id).in_(object_ids))
+    as_output = select(RelationOutput.relation_id).where(
+        col(RelationOutput.object_id).in_(object_ids)
+    )
+    statement = (
+        select(Relation)
+        .where(
+            or_(
+                col(Relation.operator_id).in_(object_ids),
+                col(Relation.id).in_(as_input),
+                col(Relation.id).in_(as_output),
+            )
+        )
+        .limit(limit)
+    )
+    return list((await session.exec(statement)).all())
 
 
 async def list_relations_by_ids(

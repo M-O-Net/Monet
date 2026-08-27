@@ -3,11 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { Latex } from "../../components/Latex";
 import type { ObjectOut } from "../../lib/types";
 
-const MAX_MEMBERS = 50;
-
-export function MemberList({ members }: { members: ObjectOut[] }) {
+export function MemberList({ members, total }: { members: ObjectOut[]; total: number }) {
   if (members.length === 0) return null;
-  const shown = members.slice(0, MAX_MEMBERS);
 
   return (
     <div className="mb-7">
@@ -15,7 +12,7 @@ export function MemberList({ members }: { members: ObjectOut[] }) {
         Filed under this section
       </h2>
       <ul className="divide-y divide-mist rounded-sm border border-mist bg-white/40 shadow-[0_1px_3px_rgba(35,50,43,0.06)]">
-        {shown.map((member) => (
+        {members.map((member) => (
           <li key={member.id}>
             <Link
               to="/objects/$objectId"
@@ -29,9 +26,9 @@ export function MemberList({ members }: { members: ObjectOut[] }) {
           </li>
         ))}
       </ul>
-      {members.length > shown.length && (
+      {total > members.length && (
         <p className="mt-1.5 text-xs text-ink-soft">
-          showing {shown.length} of {members.length}
+          showing {members.length} of {total}
         </p>
       )}
     </div>

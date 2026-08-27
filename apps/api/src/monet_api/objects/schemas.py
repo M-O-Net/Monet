@@ -69,9 +69,13 @@ class ObjectDetailOut(BaseModel):
     is_top_level: bool
     sections: list[ObjectOut]
     members: list[ObjectOut]
+    members_total: int
     as_operator: list[RelationOut]
+    as_operator_total: int
     as_input: list[RelationOut]
+    as_input_total: int
     as_output: list[RelationOut]
+    as_output_total: int
 
 
 class RelationAssert(BaseModel):
