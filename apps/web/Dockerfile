@@ -25,7 +25,7 @@ COPY render.yaml render.yaml
 WORKDIR /app/apps/web
 RUN pnpm run build
 
-FROM nginx:1.30-alpine AS serve
+FROM nginx:1.31-alpine AS serve
 COPY --from=final /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
