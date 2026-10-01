@@ -7,6 +7,6 @@
     "fmt:check": "prettier --check ."
   },
   "devDependencies": {
-    "prettier": "^3.4.2"
+    "prettier": "^3.9.9"
   }
 }
