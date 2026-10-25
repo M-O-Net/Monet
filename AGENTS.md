@@ -281,9 +281,6 @@ dataset; the dataset itself is documented where it's defined, in `scripts/seed.p
 
 ## Deployment
 
-Single Render account/dashboard for everything, all on free plans: a web service (API), a static
-site (the Vite build), and a Postgres instance. Free Postgres auto-deletes after ~30 days, which
-costs nothing while `scripts/seed.py` is the only dataset — move it to Basic-256MB ($6/month) once
-that stops being true. The API's free plan cold-starts; Starter ($7/month) is always on. Both are
-one-line changes in `render.yaml`. Migrations and the `--if-empty` seed run as a pre-deploy step,
-not manually.
+One Render workspace (Hobby, no plan fee) for everything, about $13/month: a web service (the API,
+always on, $7), a static site (the Vite build, free) and Postgres (with backups, $6). Migrations
+and the `--if-empty` seed run when the API starts (`scripts/start.sh`), not manually.
