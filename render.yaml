@@ -1,18 +1,13 @@
-# Render Blueprint — defines all three v0 deployables (API, static frontend, Postgres) together
-# for a one-step deploy from a single account/dashboard. See root AGENTS.md > Deployment.
+# Render Blueprint — the API, the static frontend and Postgres, deployed together from one
+# workspace. See root AGENTS.md > Deployment.
 #
-# Field names check out against https://render.com/docs/blueprint-spec, but this has never run
-# against a real account. Two things to confirm on the first deploy: that the service names below
-# were still free (Render appends a suffix if not, which would make the two URLs here wrong), and
-# that the static host serves .mjs as JavaScript — if it doesn't, the sandbox alone fails.
-#
-# Everything here is on a free plan. Render's free Postgres auto-deletes after ~30 days: the
-# dataset is `apps/api/scripts/seed.py`, so losing it costs nothing until there is real data —
-# at which point move the database to `plan: basic-256mb` (see AGENTS.md > Deployment).
+# Two things to confirm on a first deploy: that the service names below were still free (Render
+# appends a suffix if not, which would make the two URLs here wrong), and that the static host
+# serves .mjs as JavaScript — if it doesn't, the sandbox alone fails.
 
 databases:
   - name: monet-db
-    plan: free
+    plan: 0.1c-256mb
     postgresMajorVersion: "17"
 
 services:
@@ -21,7 +16,7 @@ services:
     runtime: docker
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
-    plan: free
+    plan: 0.5c-512mb
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -29,9 +24,8 @@ services:
           property: connectionString
       - key: CORS_ORIGINS
         value: '["https://monet-web.onrender.com"]' # adjust to the actual static site URL
-    # Free services get no preDeployCommand, so migrations run at start instead. Render execs
-    # dockerCommand directly rather than through a shell, so this has to be one script, not a
-    # `&&` chain. Both steps in it are idempotent.
+    # Render execs dockerCommand directly rather than through a shell, so this has to be one
+    # script, not a `&&` chain. Both steps in it are idempotent.
     dockerCommand: ./scripts/start.sh
 
   - type: web
