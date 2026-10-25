@@ -8,7 +8,9 @@ from sqlmodel import SQLModel
 from sqlmodel.sql.sqltypes import AutoString
 
 from alembic import context
+from monet_api.comments import models as comment_models  # noqa: F401 — same
 from monet_api.core.config import settings
+from monet_api.events import models as event_models  # noqa: F401 — same
 from monet_api.implementations import models as implementation_models  # noqa: F401 — same
 from monet_api.objects import models  # noqa: F401 — registers tables on SQLModel.metadata
 

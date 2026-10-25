@@ -4,7 +4,12 @@ import { findConvergence } from "./convergence";
 import type { ObjectOut, RelationOut } from "./types";
 
 const id = (n: number) => `${String(n).padStart(8, "0")}-0000-4000-8000-000000000000`;
-const object = (n: number, latex: string): ObjectOut => ({ id: id(n), latex, description: null });
+const object = (n: number, latex: string): ObjectOut => ({
+  id: id(n),
+  latex,
+  description: null,
+  data: null,
+});
 
 const PHI6 = object(1, "x^{2} - x + 1");
 const ALEXANDER = object(2, "\\text{Alexander Polynomial}");

@@ -5,6 +5,7 @@ import {
   type RunRequest,
   type RunResult,
   type SandboxRequest,
+  type SandboxValue,
   type ImplementationCode,
 } from "./protocol";
 
@@ -147,15 +148,15 @@ async function request<T>(body: SandboxRequestBody): Promise<T> {
 }
 
 export async function probe(
-  latex: string,
+  input: SandboxValue,
   implementations: ImplementationCode[],
 ): Promise<string[]> {
   if (implementations.length === 0) return [];
-  const result = await request<ProbeResult>({ kind: "probe", latex, implementations });
+  const result = await request<ProbeResult>({ kind: "probe", input, implementations });
   return result.applicable;
 }
 
-export async function run(code: string, inputs: string[]): Promise<string[]> {
+export async function run(code: string, inputs: SandboxValue[]): Promise<SandboxValue[]> {
   const result = await request<RunResult>({ kind: "run", code, inputs });
   return result.outputs;
 }

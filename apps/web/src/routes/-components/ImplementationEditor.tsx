@@ -10,6 +10,7 @@ import { Latex } from "../../components/Latex";
 import { monetEditorTheme } from "../../components/editorTheme";
 import { api } from "../../lib/api";
 import { probe, run } from "../../sandbox/client";
+import type { SandboxValue } from "../../sandbox/protocol";
 
 interface Implementation {
   id: string;
@@ -165,7 +166,9 @@ function ImplementationForm({
   const editor = useRef<ReactCodeMirrorRef>(null);
   const [code, setCode] = useState(implementation.code);
   const [sample, setSample] = useState("");
-  const [scratch, setScratch] = useState<{ applies: boolean; outputs: string[] } | null>(null);
+  const [scratch, setScratch] = useState<{ applies: boolean; outputs: SandboxValue[] } | null>(
+    null,
+  );
   const [scratchError, setScratchError] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
 
@@ -193,8 +196,12 @@ function ImplementationForm({
     setTesting(true);
     setScratch(null);
     setScratchError(null);
-    const inputs = sample.split("\n").filter((line) => line.trim() !== "");
-    Promise.all([probe(inputs[0] ?? "", [{ id: "draft", code }]), run(code, inputs)]).then(
+    const inputs = sample
+      .split("\n")
+      .filter((line) => line.trim() !== "")
+      .map((latex) => ({ latex, data: null }));
+    const first = inputs[0] ?? { latex: "", data: null };
+    Promise.all([probe(first, [{ id: "draft", code }]), run(code, inputs)]).then(
       ([applicable, outputs]) => {
         setTesting(false);
         setScratch({ applies: applicable.includes("draft"), outputs });
@@ -329,12 +336,12 @@ function ImplementationForm({
                 ? "accepts() says this applies to the first input."
                 : "accepts() says it does not apply — no button would appear on that object."}
             </p>
-            {scratch.outputs.map((latex, i) => (
+            {scratch.outputs.map((output, i) => (
               <div key={i} className="flex items-baseline gap-3">
                 <span className="font-display text-base text-ink">
-                  <Latex>{latex}</Latex>
+                  <Latex>{output.latex}</Latex>
                 </span>
-                <code className="font-mono text-[11px] text-ink-soft">{latex}</code>
+                <code className="font-mono text-[11px] text-ink-soft">{output.latex}</code>
               </div>
             ))}
           </div>

@@ -9,6 +9,7 @@ const object = (n: number, latex: string): ObjectOut => ({
   id: id(n),
   latex,
   description: null,
+  data: null,
 });
 
 const P = object(1, "x^{2} - 1");
@@ -32,7 +33,12 @@ function relation(
     operator,
     inputs: inputs.map((object, position) => ({ position, object })),
     outputs: outputs.map((object, position) => ({ position, object })),
-    display: { template: null, hidden_by_default: false, is_membership: membership },
+    display: {
+      template: null,
+      hidden_by_default: false,
+      is_membership: membership,
+      is_subtype: false,
+    },
   };
 }
 

@@ -5,7 +5,12 @@ import { buildGraph } from "./graphModel";
 import type { ObjectOut, RelationOut } from "./types";
 
 const id = (n: number) => `${String(n).padStart(8, "0")}-0000-4000-8000-000000000000`;
-const object = (n: number, latex: string): ObjectOut => ({ id: id(n), latex, description: null });
+const object = (n: number, latex: string): ObjectOut => ({
+  id: id(n),
+  latex,
+  description: null,
+  data: null,
+});
 
 const OPERATOR = object(99, "\\text{Add}");
 

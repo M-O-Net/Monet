@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.db import get_session
@@ -32,6 +32,45 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 @router.get("/objects", response_model=list[ObjectOut], operation_id="list_objects")
 async def list_objects(session: DbSession) -> list[Object]:
     return await service.list_objects(session)
+
+
+@router.get("/objects/query", response_model=list[ObjectOut], operation_id="query_objects")
+async def query_objects(
+    session: DbSession,
+    member_of: uuid.UUID | None = None,
+    transitive: bool = True,
+    data_equals: str | None = None,
+    data_contains: str | None = None,
+    where: Annotated[list[str] | None, Query()] = None,
+) -> list[Object]:
+    return await service.query_objects(
+        session,
+        member_of=member_of,
+        transitive=transitive,
+        data_equals=data_equals,
+        data_contains=data_contains,
+        where=where or [],
+    )
+
+
+@router.get(
+    "/objects/{object_id}/subtypes", response_model=list[ObjectOut], operation_id="list_subtypes"
+)
+async def list_subtypes(
+    object_id: uuid.UUID, session: DbSession, transitive: bool = False
+) -> list[ObjectOut]:
+    return await service.list_related_types(session, object_id, "down", transitive=transitive)
+
+
+@router.get(
+    "/objects/{object_id}/supertypes",
+    response_model=list[ObjectOut],
+    operation_id="list_supertypes",
+)
+async def list_supertypes(
+    object_id: uuid.UUID, session: DbSession, transitive: bool = False
+) -> list[ObjectOut]:
+    return await service.list_related_types(session, object_id, "up", transitive=transitive)
 
 
 @router.post("/objects", response_model=ObjectOut, operation_id="create_object", status_code=201)

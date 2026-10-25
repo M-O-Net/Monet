@@ -8,6 +8,7 @@ const object = (n: number, latex: string, description: string | null = null): Ob
   id: id(n),
   latex,
   description,
+  data: null,
 });
 
 const CHARPOLY = object(1, "\\text{Characteristic Polynomial}");

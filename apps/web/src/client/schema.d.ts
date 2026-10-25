@@ -22,6 +22,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/objects/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Query Objects */
+        get: operations["query_objects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objects/{object_id}/subtypes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Subtypes */
+        get: operations["list_subtypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objects/{object_id}/supertypes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Supertypes */
+        get: operations["list_supertypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/objects/{object_id}": {
         parameters: {
             query?: never;
@@ -202,6 +253,58 @@ export interface paths {
         patch: operations["update_implementation"];
         trace?: never;
     };
+    "/objects/{object_id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Comments */
+        get: operations["list_comments"];
+        put?: never;
+        /** Create Comment */
+        post: operations["create_comment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comments/{comment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Comment */
+        delete: operations["delete_comment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Events */
+        get: operations["list_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -223,6 +326,66 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** CommentCreate */
+        CommentCreate: {
+            /** Body */
+            body: string;
+            /** Contributor */
+            contributor?: string | null;
+        };
+        /** CommentOut */
+        CommentOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Object Id
+             * Format: uuid
+             */
+            object_id: string;
+            /** Body */
+            body: string;
+            /** Contributor */
+            contributor: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** ComputedOutput */
+        ComputedOutput: {
+            /** Latex */
+            latex: string;
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** EventOut */
+        EventOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Kind */
+            kind: string;
+            /** Contributor */
+            contributor: string | null;
+            /** Source */
+            source: string | null;
+            object: components["schemas"]["ObjectOut"] | null;
+            relation: components["schemas"]["RelationOut"] | null;
+            comment: components["schemas"]["CommentOut"] | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -257,8 +420,14 @@ export interface components {
             description?: string | null;
             /** Image Url */
             image_url?: string | null;
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            } | null;
             /** References */
             references?: components["schemas"]["ObjectReferenceIn"][];
+            /** Contributor */
+            contributor?: string | null;
         };
         /** ObjectDetailOut */
         ObjectDetailOut: {
@@ -273,6 +442,19 @@ export interface components {
             description: string | null;
             /** Image Url */
             image_url: string | null;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "type" | "map" | "instance";
+            /** Subtypes */
+            subtypes: components["schemas"]["ObjectOut"][];
+            /** Supertypes */
+            supertypes: components["schemas"]["ObjectOut"][];
             /** References */
             references: components["schemas"]["ObjectReferenceOut"][];
             /** Is Top Level */
@@ -299,6 +481,10 @@ export interface components {
             latex: string;
             /** Description */
             description: string | null;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            } | null;
         };
         /** ObjectReferenceIn */
         ObjectReferenceIn: {
@@ -322,6 +508,10 @@ export interface components {
             description?: string | null;
             /** Image Url */
             image_url?: string | null;
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            } | null;
             /** References */
             references?: components["schemas"]["ObjectReferenceIn"][];
         };
@@ -338,6 +528,8 @@ export interface components {
             hidden_by_default: boolean;
             /** Is Membership */
             is_membership: boolean;
+            /** Is Subtype */
+            is_subtype: boolean;
         };
         /** OperatorDisplayUpdate */
         OperatorDisplayUpdate: {
@@ -347,10 +539,15 @@ export interface components {
             hidden_by_default: boolean;
             /** Is Membership */
             is_membership: boolean;
+            /**
+             * Is Subtype
+             * @default false
+             */
+            is_subtype: boolean;
         };
         /**
          * RelationAssert
-         * @description Record a computed result; outputs are LaTeX because they may not exist as objects yet.
+         * @description Record a computed result; outputs are values because they may not exist as objects yet.
          */
         RelationAssert: {
             /**
@@ -360,8 +557,12 @@ export interface components {
             operator_id: string;
             /** Input Object Ids */
             input_object_ids: string[];
-            /** Output Latex */
-            output_latex: string[];
+            /** Outputs */
+            outputs: components["schemas"]["ComputedOutput"][];
+            /** Implementation Id */
+            implementation_id?: string | null;
+            /** Contributor */
+            contributor?: string | null;
         };
         /** RelationAssertOut */
         RelationAssertOut: {
@@ -382,6 +583,8 @@ export interface components {
             input_object_ids: string[];
             /** Output Object Ids */
             output_object_ids: string[];
+            /** Contributor */
+            contributor?: string | null;
         };
         /** RelationDisplayOut */
         RelationDisplayOut: {
@@ -391,6 +594,8 @@ export interface components {
             hidden_by_default: boolean;
             /** Is Membership */
             is_membership: boolean;
+            /** Is Subtype */
+            is_subtype: boolean;
         };
         /** RelationOut */
         RelationOut: {
@@ -490,6 +695,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    query_objects: {
+        parameters: {
+            query?: {
+                member_of?: string | null;
+                transitive?: boolean;
+                data_equals?: string | null;
+                data_contains?: string | null;
+                where?: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_subtypes: {
+        parameters: {
+            query?: {
+                transitive?: boolean;
+            };
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_supertypes: {
+        parameters: {
+            query?: {
+                transitive?: boolean;
+            };
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectOut"][];
                 };
             };
             /** @description Validation Error */
@@ -1078,6 +1384,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImplementationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_comments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_comment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_comment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_events: {
+        parameters: {
+            query?: {
+                contributor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"][];
                 };
             };
             /** @description Validation Error */

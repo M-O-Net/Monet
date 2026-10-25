@@ -45,14 +45,14 @@ across a line wrap.
 Deliberately bare — four tables, no bookkeeping columns:
 
 ```
-objects(id uuid pk, latex text)
+objects(id uuid pk, latex text, data jsonb)
 relations(id uuid pk, operator_id uuid fk -> objects)
 relation_input(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk -> objects, position int)
 relation_output(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk -> objects, position int)
 ```
 
 - `objects` has no type/kind tag, no label, no canonical hash, no timestamps. Its `latex` is
-  display only — see "LaTeX is display, not data".
+  display only; identity and queries run on `data` — see "LaTeX is display, not data".
 - An object is an "operator" purely by being referenced as some relation's `operator_id` — no
   separate flag, no separate table.
 - Deleting an object deletes its edges: every relation it appears in, plus its contents-page
@@ -244,15 +244,15 @@ Consequences worth knowing before touching this code:
   three. Omitting one fails only in that environment, and fails silently. `nginx.conf` also has to
   name `.mjs` as JavaScript — nginx's bundled `mime.types` doesn't, and a browser won't execute a
   module served as `application/octet-stream` (unverified on Render's static host).
-- **`render()` in `sandbox/prelude.py` is the single source of truth for Monet's LaTeX.**
-  `scripts/seed.py` is aligned to what it emits, so running an implementation over the seeded
-  dataset lands on the objects already there instead of minting near-duplicates.
+- **`to_data()` in `sandbox/prelude.py` decides identity; `render()` only display.**
+  `scripts/seed.py` writes the same `data`, so running an implementation over the seeded dataset
+  lands on the objects already there instead of minting duplicates.
 - Objects still carry no type tag, so **an implementation declares its own domain** via
   `accepts(x) -> bool`, evaluated in the sandbox. That is what decides which buttons an object
   page shows.
-- **Implementations deal in sympy, not strings.** `runner.py` parses each input's LaTeX before
-  calling `accepts`/`compute` and renders what `compute` returns; `parse`/`render` stay in scope
-  for one that needs them.
+- **Implementations deal in sympy, not strings.** `runner.py` builds each input from its `data`
+  (parsing LaTeX only for an object without any) and returns LaTeX plus `data` for each output;
+  `parse`/`render`/`to_data`/`from_data` stay in scope for one that needs them.
 - **An implementation is edited on its operator's own object page**, not in an index of its own —
   operators are objects, so a separate list would be a second taxonomy.
 
