@@ -3,7 +3,8 @@
 Read `README.md` first for what Monet is and why the data model is shaped the way it is. This
 file is doctrine: conventions that hold across the whole repo. Each app carries its own AGENTS.md
 for what's local to it — `apps/api/AGENTS.md` today; `apps/web/AGENTS.md` if/when the frontend
-grows enough local convention to warrant one.
+grows enough local convention to warrant one. `docs/PRD.md` is the source for features and
+design; this file is the source for how they are built.
 
 Conventions here are adapted from `~/Developer/Muse`, a sibling project, stripped of everything
 specific to Muse being a physical-robot product (no shared-package relock workflow, no
@@ -50,8 +51,8 @@ relation_input(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk -
 relation_output(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk -> objects, position int)
 ```
 
-- `objects` has no type/kind tag, no label, no canonical hash, no timestamps. An object's `latex`
-  field is both its storage and its display form — nothing about it is machine-structured in v0.
+- `objects` has no type/kind tag, no label, no canonical hash, no timestamps. Its `latex` is
+  display only — see "LaTeX is display, not data".
 - An object is an "operator" purely by being referenced as some relation's `operator_id` — no
   separate flag, no separate table.
 - Deleting an object deletes its edges: every relation it appears in, plus its contents-page
@@ -75,6 +76,18 @@ no sympy dependency; execution happens in the visitor's browser. See "Implementa
 An implementation carries nothing but its operator and its code: no name (the operator names it),
 no arity (`def compute(*inputs)` answers "how many?" with "any", and arity belongs to neither the
 operator nor the object), and no timestamps, author or versioning, same as the rest of v0.
+
+## LaTeX is display, not data
+
+- **Never an identity.** Many objects may share a LaTeX string, and one object has many
+  spellings: `1+x^2`, `1+x**2`, `x^2+1`. Whether `z^2+1` is the same object is a question for its
+  type, not for string comparison.
+- **Never a query predicate.** "All subtypes of Matrices" or "all characters mod 17" is answered
+  from ids, relations, and structured fields, through indexes — never by matching or parsing
+  `latex`. A query that needs structure LaTeX holds needs that structure stored somewhere
+  machine-readable first.
+- **Search prefers queries.** The search page offers filters, and type-specific search where a
+  type supports it; matching text is the last resort, never the first.
 
 ## Stack
 
@@ -251,16 +264,7 @@ so a server-side runner can be added later as a second execution site with no da
 
 ## GUI pages
 
-Object list (rendered LaTeX per row), object detail page (its LaTeX + relations it participates
-in, grouped as input/output, each showing the operator and the other objects involved),
-add/edit-object form (a LaTeX field), add/edit-relation form (pick operator, pick ordered input
-objects, pick ordered output objects — the operator picker is just an object picker, since
-operators aren't a distinct type).
-
-Plus, from the implementations pass: an **Operations** section on the object detail page (a button per
-implementation that accepts this object; running one previews the result and whether it already exists
-before anything is written), an implementation list, and an implementation editor with a scratch panel that
-runs the unsaved code against a sample input.
+Specified in `docs/PRD.md`.
 
 ## Local dev
 
