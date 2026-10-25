@@ -47,6 +47,7 @@ function Editor({ operatorId, sample }: { operatorId: string; sample: RelationOu
               hidden_by_default: hidden,
               is_membership: display.data.is_membership,
               is_subtype: display.data.is_subtype,
+              is_signature: display.data.is_signature,
             },
           },
           {

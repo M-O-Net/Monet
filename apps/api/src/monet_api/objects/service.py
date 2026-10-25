@@ -3,6 +3,7 @@
 Orchestrates repository.py calls; owns no SQL of its own.
 """
 
+import datetime
 import json
 import re
 import uuid
@@ -15,6 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.comments import repository as comments
 from monet_api.events import repository as events
+from monet_api.events.models import Event
 from monet_api.implementations import repository as implementations
 from monet_api.objects import repository
 from monet_api.objects.models import Object, Relation, RelationInput, RelationOutput
@@ -29,6 +31,7 @@ from monet_api.objects.schemas import (
     ObjectUpdate,
     OperatorDisplayOut,
     OperatorDisplayUpdate,
+    ProvenanceOut,
     RelationAssert,
     RelationAssertOut,
     RelationCreate,
@@ -36,6 +39,7 @@ from monet_api.objects.schemas import (
     RelationOut,
     RelationSlotOut,
     SectionNode,
+    SignatureOut,
 )
 
 MAX_SECTION_DEPTH = 6
@@ -75,6 +79,7 @@ async def load_relations(session: AsyncSession, relations: Sequence[Relation]) -
             session, [relation.operator_id for relation in relations]
         )
     }
+    provenance = await _provenance(session, "relation_created", relation_ids)
 
     def resolve(object_id: uuid.UUID) -> ObjectOut:
         obj = objects.get(object_id)
@@ -100,9 +105,23 @@ async def load_relations(session: AsyncSession, relations: Sequence[Relation]) -
             inputs=inputs_by_relation[relation.id],
             outputs=outputs_by_relation[relation.id],
             display=displays.get(relation.operator_id),
+            provenance=provenance.get(relation.id),
         )
         for relation in relations
     ]
+
+
+async def _provenance(
+    session: AsyncSession, kind: str, subject_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, ProvenanceOut]:
+    found: dict[uuid.UUID, ProvenanceOut] = {}
+    for event in sorted(await events.list_events_for(session, kind, subject_ids), key=_when):
+        found.setdefault(event.subject_id, ProvenanceOut.model_validate(event))
+    return found
+
+
+def _when(event: Event) -> datetime.datetime:
+    return event.at
 
 
 async def _load_relation_out(session: AsyncSession, relation: Relation) -> RelationOut:
@@ -155,12 +174,52 @@ async def _refuse_duplicate_data(
         raise HTTPException(status_code=409, detail=f"object {existing.id} already holds this data")
 
 
+def _structural_operator(flagged: Sequence[uuid.UUID], name: str) -> uuid.UUID:
+    if not flagged:
+        raise HTTPException(status_code=400, detail=f"no {name} operator is configured")
+    return sorted(flagged)[0]
+
+
+async def _relate(
+    session: AsyncSession,
+    operator_id: uuid.UUID,
+    inputs: Sequence[uuid.UUID],
+    outputs: Sequence[uuid.UUID],
+) -> None:
+    for oid in [*inputs, *outputs]:
+        await get_object_or_404(session, oid)
+    relation = await repository.create_relation(session, operator_id)
+    for position, oid in enumerate(inputs):
+        repository.add_relation_input(session, relation.id, oid, position)
+    for position, oid in enumerate(outputs):
+        repository.add_relation_output(session, relation.id, oid, position)
+
+
 async def create_object(session: AsyncSession, body: ObjectCreate) -> Object:
     await _refuse_duplicate_data(session, body.data)
     obj = await repository.add_object(
         session, body.latex, body.description, _linkable(body.image_url), body.data
     )
     await _replace_references(session, obj.id, body.references)
+    if body.member_of:
+        element_of = _structural_operator(
+            await repository.list_membership_operator_ids(session), "membership"
+        )
+        for type_id in body.member_of:
+            await _relate(session, element_of, [obj.id], [type_id])
+    if body.subtype_of:
+        subset_of = _structural_operator(
+            await repository.list_subtype_operator_ids(session), "subtype"
+        )
+        for type_id in body.subtype_of:
+            await _relate(session, subset_of, [obj.id], [type_id])
+    if body.signature is not None:
+        signature_of = _structural_operator(
+            await repository.list_signature_operator_ids(session), "signature"
+        )
+        await _relate(
+            session, signature_of, [obj.id], [body.signature.domain_id, body.signature.codomain_id]
+        )
     events.add_event(session, "object_created", obj.id, body.contributor, "manual")
     await session.commit()
     await session.refresh(obj)
@@ -171,7 +230,8 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
     obj = await get_object_or_404(session, object_id)
     membership_ops = await repository.list_membership_operator_ids(session)
     subtype_ops = await repository.list_subtype_operator_ids(session)
-    structural_ops = [*membership_ops, *subtype_ops]
+    signature_ops = await repository.list_signature_operator_ids(session)
+    structural_ops = [*membership_ops, *subtype_ops, *signature_ops]
 
     as_operator = await repository.list_relations_by_operator(session, object_id)
     as_input_ids = await repository.list_relation_ids_by_input(
@@ -198,12 +258,23 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         session, subtype_ops, object_id, "up", transitive=False
     )
     members = children.get(object_id, [])
+    signature = await _signature_of(session, signature_ops, object_id)
 
     role: ObjectRole = "instance"
-    if as_operator or await implementations.has_implementation(session, object_id):
+    if (
+        as_operator
+        or signature is not None
+        or await implementations.has_implementation(session, object_id)
+    ):
         role = "map"
-    elif members or subtype_ids or supertype_ids:
+    elif subtype_ids or supertype_ids:
         role = "type"
+    elif members:
+        role = "section"
+
+    maps_from = await repository.list_maps_with_signature_slot(session, signature_ops, object_id, 0)
+    maps_to = await repository.list_maps_with_signature_slot(session, signature_ops, object_id, 1)
+    provenance = await _provenance(session, "object_created", [object_id])
 
     return ObjectDetailOut(
         id=obj.id,
@@ -212,8 +283,12 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         image_url=obj.image_url,
         data=obj.data,
         role=role,
+        provenance=provenance.get(object_id),
         subtypes=await _objects_in_latex_order(session, subtype_ids),
         supertypes=await _objects_in_latex_order(session, supertype_ids),
+        signature=signature,
+        maps_from=await _objects_in_latex_order(session, maps_from),
+        maps_to=await _objects_in_latex_order(session, maps_to),
         references=[ObjectReferenceOut.model_validate(row) for row in references],
         is_top_level=is_top_level,
         sections=await _objects_in_latex_order(session, parents.get(object_id, [])),
@@ -221,6 +296,22 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         as_operator=await load_relations(session, as_operator),
         as_input=await load_relations(session, as_input),
         as_output=await load_relations(session, as_output),
+    )
+
+
+async def _signature_of(
+    session: AsyncSession, signature_ops: Sequence[uuid.UUID], map_id: uuid.UUID
+) -> SignatureOut | None:
+    slots = await repository.list_signature_slots(session, signature_ops, map_id)
+    if not slots:
+        return None
+    first = [slot.object_id for slot in slots if slot.relation_id == slots[0].relation_id]
+    if len(first) != 2:
+        return None
+    found = {obj.id: obj for obj in await repository.list_objects_by_ids(session, first)}
+    return SignatureOut(
+        domain=ObjectOut.model_validate(found[first[0]]),
+        codomain=ObjectOut.model_validate(found[first[1]]),
     )
 
 
@@ -326,6 +417,7 @@ async def get_operator_display(session: AsyncSession, operator_id: uuid.UUID) ->
             hidden_by_default=False,
             is_membership=False,
             is_subtype=False,
+            is_signature=False,
         )
     return OperatorDisplayOut.model_validate(row)
 
@@ -341,6 +433,7 @@ async def set_operator_display(
         body.hidden_by_default,
         body.is_membership,
         body.is_subtype,
+        body.is_signature,
     )
     return OperatorDisplayOut.model_validate(row)
 
@@ -548,6 +641,7 @@ async def query_objects(
     transitive: bool,
     data_equals: str | None,
     data_contains: str | None,
+    description_contains: str | None,
     where: Sequence[str],
 ) -> list[Object]:
     types: list[uuid.UUID] | None = None
@@ -565,6 +659,7 @@ async def query_objects(
         member_of=types,
         data_equals=_json_object("data_equals", data_equals),
         data_contains=_json_object("data_contains", data_contains),
+        description_contains=(description_contains or "").strip() or None,
         where=[_property_filter(raw) for raw in where],
         limit=MAX_QUERY_RESULTS,
     )
@@ -583,3 +678,10 @@ async def list_related_types(
         session, subtype_ops, type_id, direction, transitive=transitive
     )
     return await _objects_in_latex_order(session, found)
+
+
+async def list_types(session: AsyncSession) -> list[ObjectOut]:
+    subtype_ops = await repository.list_subtype_operator_ids(session)
+    return await _objects_in_latex_order(
+        session, await repository.list_type_ids(session, subtype_ops)
+    )

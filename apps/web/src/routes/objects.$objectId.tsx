@@ -10,16 +10,20 @@ import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
 import { invalidateObjectGraph } from "../lib/queries";
 import type { ObjectReferenceIn } from "../lib/types";
+import { Comments } from "./-components/Comments";
 import { ConvergenceCallout } from "./-components/ConvergenceCallout";
 import { LoopCallout } from "./-components/LoopCallout";
 import { MemberList } from "./-components/MemberList";
 import { OperatorDisplayForm } from "./-components/OperatorDisplayForm";
+import { Provenance } from "./-components/Provenance";
 import { ReferenceEditor } from "./-components/ReferenceEditor";
 import { ReferenceList } from "./-components/ReferenceList";
 import { RelationList } from "./-components/RelationList";
 import { ImplementationEditor } from "./-components/ImplementationEditor";
 import { Operations } from "./-components/Operations";
+import { RoleBadge } from "./-components/RoleBadge";
 import { SectionTags } from "./-components/SectionTags";
+import { SignatureLine } from "./-components/SignatureLine";
 
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
@@ -143,11 +147,14 @@ function ObjectDetail() {
         ) : (
           <>
             <div>
+              <RoleBadge role={obj.role} />
               <h1 className="font-display text-2xl text-ink">
                 <Latex>{obj.latex}</Latex>
               </h1>
               {obj.description && <p className="mt-1 text-sm text-ink-soft">{obj.description}</p>}
+              <SignatureLine signature={obj.signature} />
               <SectionTags sections={obj.sections} />
+              <Provenance provenance={obj.provenance} />
             </div>
             <div className="flex shrink-0 gap-2">
               {obj.is_top_level ? (
@@ -254,7 +261,14 @@ function ObjectDetail() {
       )}
       <ConvergenceCallout asOutput={obj.as_output} currentObjectId={objectId} />
 
-      <MemberList members={obj.members} />
+      <MemberList title="A kind of" members={obj.supertypes} />
+      <MemberList title="Subtypes" members={obj.subtypes} />
+      <MemberList
+        title={obj.role === "section" ? "Filed under this section" : "Instances"}
+        members={obj.members}
+      />
+      <MemberList title="Maps from this type" members={obj.maps_from} />
+      <MemberList title="Maps into this type" members={obj.maps_to} />
       <RelationList
         title="Used as operator in"
         relations={obj.as_operator}
@@ -275,10 +289,10 @@ function ObjectDetail() {
 
       {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 
-      {allObjects.data && implementations.data && (
+      {obj.role === "instance" && allObjects.data && implementations.data && (
         <Operations
-          key={`${obj.id}:${obj.latex}`}
-          object={{ id: obj.id, latex: obj.latex }}
+          key={`${obj.id}:${JSON.stringify(obj.data)}`}
+          object={{ id: obj.id, latex: obj.latex, data: obj.data }}
           objects={allObjects.data}
           implementations={implementations.data}
           relations={allRelations.data ?? []}
@@ -286,13 +300,15 @@ function ObjectDetail() {
         />
       )}
 
-      {implementations.data && (
+      {obj.role === "map" && implementations.data && (
         <ImplementationEditor
           object={{ id: obj.id, latex: obj.latex }}
           implementations={implementations.data}
           onChanged={invalidateAll}
         />
       )}
+
+      <Comments objectId={objectId} />
 
       <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
         Add a relation

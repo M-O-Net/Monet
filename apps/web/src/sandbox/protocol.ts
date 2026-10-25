@@ -22,7 +22,13 @@ export interface RunRequest {
   inputs: SandboxValue[];
 }
 
-export type SandboxRequest = ProbeRequest | RunRequest;
+export interface DescribeRequest {
+  id: string;
+  kind: "describe";
+  latex: string;
+}
+
+export type SandboxRequest = ProbeRequest | RunRequest | DescribeRequest;
 
 export interface ProbeResult {
   applicable: string[];
@@ -34,7 +40,7 @@ export interface RunResult {
 
 export type SandboxResponse =
   | { kind: "ready" }
-  | { kind: "result"; id: string; ok: true; value: ProbeResult | RunResult }
+  | { kind: "result"; id: string; ok: true; value: ProbeResult | RunResult | SandboxValue }
   | { kind: "result"; id: string; ok: false; error: string };
 
 export function isSandboxResponse(value: unknown): value is SandboxResponse {

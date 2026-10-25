@@ -53,10 +53,15 @@ async def query_objects(
     member_of: Sequence[uuid.UUID] | None,
     data_equals: dict[str, Any] | None,
     data_contains: dict[str, Any] | None,
+    description_contains: str | None,
     where: Sequence[tuple[uuid.UUID, uuid.UUID]],
     limit: int,
 ) -> list[Object]:
     query = select(Object)
+    if description_contains is not None:
+        query = query.where(
+            col(Object.description).icontains(description_contains, autoescape=True)
+        )
     if member_of is not None:
         query = query.where(
             col(Object.id).in_(
@@ -318,6 +323,69 @@ async def list_subtype_operator_ids(session: AsyncSession) -> list[uuid.UUID]:
     )
 
 
+async def list_signature_operator_ids(session: AsyncSession) -> list[uuid.UUID]:
+    return list(
+        (
+            await session.exec(
+                select(OperatorDisplay.operator_id).where(col(OperatorDisplay.is_signature))
+            )
+        ).all()
+    )
+
+
+async def list_type_ids(session: AsyncSession, subtype_ops: Sequence[uuid.UUID]) -> list[uuid.UUID]:
+    if not subtype_ops:
+        return []
+    typed = union(
+        _participants(RelationInput, subtype_ops),
+        _participants(RelationOutput, subtype_ops),
+    )
+    return list((await session.exec(typed)).scalars().all())  # type: ignore[call-overload]
+
+
+def _participants(
+    slots: type[RelationInput] | type[RelationOutput], operator_ids: Sequence[uuid.UUID]
+) -> SelectOfScalar[uuid.UUID]:
+    return (
+        select(slots.object_id)
+        .join(Relation, col(Relation.id) == col(slots.relation_id))
+        .where(col(Relation.operator_id).in_(operator_ids))
+    )
+
+
+async def list_signature_slots(
+    session: AsyncSession, signature_ops: Sequence[uuid.UUID], map_id: uuid.UUID
+) -> list[RelationOutput]:
+    if not signature_ops:
+        return []
+    return list(
+        (
+            await session.exec(
+                select(RelationOutput)
+                .join(Relation, col(Relation.id) == col(RelationOutput.relation_id))
+                .join(RelationInput, col(RelationInput.relation_id) == col(Relation.id))
+                .where(col(Relation.operator_id).in_(signature_ops))
+                .where(RelationInput.object_id == map_id)
+                .order_by(col(RelationOutput.relation_id), col(RelationOutput.position))
+            )
+        ).all()
+    )
+
+
+async def list_maps_with_signature_slot(
+    session: AsyncSession, signature_ops: Sequence[uuid.UUID], type_id: uuid.UUID, position: int
+) -> list[uuid.UUID]:
+    if not signature_ops:
+        return []
+    found = await session.exec(
+        _inputs_mapped_to(
+            signature_ops,
+            (col(RelationOutput.object_id) == type_id) & (col(RelationOutput.position) == position),
+        ).distinct()
+    )
+    return list(found.all())
+
+
 async def get_operator_display(
     session: AsyncSession, operator_id: uuid.UUID
 ) -> OperatorDisplay | None:
@@ -345,6 +413,7 @@ async def upsert_operator_display(
     hidden_by_default: bool,
     is_membership: bool,
     is_subtype: bool,
+    is_signature: bool,
 ) -> OperatorDisplay:
     row = await session.get(OperatorDisplay, operator_id)
     if row is None:
@@ -353,6 +422,7 @@ async def upsert_operator_display(
     row.hidden_by_default = hidden_by_default
     row.is_membership = is_membership
     row.is_subtype = is_subtype
+    row.is_signature = is_signature
     session.add(row)
     await session.commit()
     await session.refresh(row)

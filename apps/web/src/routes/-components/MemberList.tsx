@@ -5,15 +5,13 @@ import type { ObjectOut } from "../../lib/types";
 
 const MAX_MEMBERS = 50;
 
-export function MemberList({ members }: { members: ObjectOut[] }) {
+export function MemberList({ title, members }: { title: string; members: ObjectOut[] }) {
   if (members.length === 0) return null;
   const shown = members.slice(0, MAX_MEMBERS);
 
   return (
     <div className="mb-7">
-      <h2 className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">
-        Filed under this section
-      </h2>
+      <h2 className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">{title}</h2>
       <ul className="divide-y divide-mist rounded-sm border border-mist bg-white/40 shadow-[0_1px_3px_rgba(35,50,43,0.06)]">
         {shown.map((member) => (
           <li key={member.id}>
@@ -25,6 +23,9 @@ export function MemberList({ members }: { members: ObjectOut[] }) {
               <span className="min-w-0 flex-1 text-sm text-ink">
                 <Latex>{member.latex}</Latex>
               </span>
+              {member.description && (
+                <span className="truncate text-xs text-ink-soft">{member.description}</span>
+              )}
             </Link>
           </li>
         ))}

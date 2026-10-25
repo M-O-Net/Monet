@@ -3,6 +3,8 @@ import { useState } from "react";
 import { formatApiError } from "@monet/api-client";
 
 import { api } from "../lib/api";
+import { useContributor } from "../lib/contributor";
+import { ContributorField } from "./ContributorField";
 import { Latex } from "./Latex";
 import { ObjectPicker } from "./ObjectPicker";
 
@@ -87,6 +89,7 @@ export function RelationForm({
   const [inputs, setInputs] = useState<string[]>([]);
   const [outputs, setOutputs] = useState<string[]>([]);
   const createRelation = api.useMutation("post", "/relations");
+  const [contributor, setContributor] = useContributor();
 
   const canSubmit = operatorId && inputs.length > 0 && outputs.length > 0;
 
@@ -101,6 +104,7 @@ export function RelationForm({
               operator_id: operatorId,
               input_object_ids: inputs,
               output_object_ids: outputs,
+              contributor,
             },
           },
           {
@@ -144,13 +148,16 @@ export function RelationForm({
         <p className="text-xs text-rust">{formatApiError(createRelation.error)}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={!canSubmit || createRelation.isPending}
-        className="rounded-sm bg-pond px-3 py-1.5 text-xs font-medium text-paper hover:bg-pond-deep disabled:opacity-50"
-      >
-        Create relation
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ContributorField value={contributor} onChange={setContributor} />
+        <button
+          type="submit"
+          disabled={!canSubmit || createRelation.isPending}
+          className="rounded-sm bg-pond px-3 py-1.5 text-xs font-medium text-paper hover:bg-pond-deep disabled:opacity-50"
+        >
+          Create relation
+        </button>
+      </div>
     </form>
   );
 }

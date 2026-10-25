@@ -41,6 +41,7 @@ async def query_objects(
     transitive: bool = True,
     data_equals: str | None = None,
     data_contains: str | None = None,
+    description_contains: str | None = None,
     where: Annotated[list[str] | None, Query()] = None,
 ) -> list[Object]:
     return await service.query_objects(
@@ -49,8 +50,14 @@ async def query_objects(
         transitive=transitive,
         data_equals=data_equals,
         data_contains=data_contains,
+        description_contains=description_contains,
         where=where or [],
     )
+
+
+@router.get("/types", response_model=list[ObjectOut], operation_id="list_types")
+async def list_types(session: DbSession) -> list[ObjectOut]:
+    return await service.list_types(session)
 
 
 @router.get(

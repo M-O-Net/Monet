@@ -57,6 +57,7 @@ function handle(request: SandboxRequest, pyodide: PyodideApi): unknown {
       JSON.stringify(request.implementations),
     );
   }
+  if (request.kind === "describe") return call(pyodide, "describe", request.latex);
   return call(pyodide, "run", request.code, JSON.stringify(request.inputs));
 }
 

@@ -115,3 +115,4 @@ class OperatorDisplay(SQLModel, table=True):
     hidden_by_default: bool = False
     is_membership: bool = False
     is_subtype: bool = False
+    is_signature: bool = False

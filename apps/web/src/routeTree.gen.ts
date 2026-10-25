@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ContributeRouteImport } from './routes/contribute'
 import { Route as MapRouteImport } from './routes/map'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as ObjectsObjectIdRouteImport } from './routes/objects.$objectId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,9 +20,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContributeRoute = ContributeRouteImport.update({
+  id: '/contribute',
+  path: '/contribute',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MapRoute = MapRouteImport.update({
   id: '/map',
   path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ObjectsObjectIdRoute = ObjectsObjectIdRouteImport.update({
@@ -31,31 +43,40 @@ const ObjectsObjectIdRoute = ObjectsObjectIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/contribute': typeof ContributeRoute
   '/map': typeof MapRoute
+  '/search': typeof SearchRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/contribute': typeof ContributeRoute
   '/map': typeof MapRoute
+  '/search': typeof SearchRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/contribute': typeof ContributeRoute
   '/map': typeof MapRoute
+  '/search': typeof SearchRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/map' | '/objects/$objectId'
+  fullPaths: '/' | '/contribute' | '/map' | '/search' | '/objects/$objectId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/map' | '/objects/$objectId'
-  id: '__root__' | '/' | '/map' | '/objects/$objectId'
+  to: '/' | '/contribute' | '/map' | '/search' | '/objects/$objectId'
+  id:
+    '__root__' | '/' | '/contribute' | '/map' | '/search' | '/objects/$objectId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ContributeRoute: typeof ContributeRoute
   MapRoute: typeof MapRoute
+  SearchRoute: typeof SearchRoute
   ObjectsObjectIdRoute: typeof ObjectsObjectIdRoute
 }
 
@@ -68,11 +89,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contribute': {
+      id: '/contribute'
+      path: '/contribute'
+      fullPath: '/contribute'
+      preLoaderRoute: typeof ContributeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/map': {
       id: '/map'
       path: '/map'
       fullPath: '/map'
       preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/objects/$objectId': {
@@ -87,7 +122,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ContributeRoute: ContributeRoute,
   MapRoute: MapRoute,
+  SearchRoute: SearchRoute,
   ObjectsObjectIdRoute: ObjectsObjectIdRoute,
 }
 export const routeTree = rootRouteImport

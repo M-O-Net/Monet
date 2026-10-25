@@ -24,6 +24,22 @@ async def list_events(session: AsyncSession, contributor: str | None, limit: int
     return list((await session.exec(query.order_by(col(Event.at).desc()).limit(limit))).all())
 
 
+async def list_events_for(
+    session: AsyncSession, kind: str, subject_ids: Sequence[uuid.UUID]
+) -> list[Event]:
+    if not subject_ids:
+        return []
+    return list(
+        (
+            await session.exec(
+                select(Event)
+                .where(Event.kind == kind)
+                .where(col(Event.subject_id).in_(subject_ids))
+            )
+        ).all()
+    )
+
+
 async def delete_events_for(session: AsyncSession, subject_ids: Sequence[uuid.UUID]) -> None:
     if subject_ids:
         await session.exec(delete(Event).where(col(Event.subject_id).in_(subject_ids)))
