@@ -1,9 +1,8 @@
 # Render Blueprint — the API, the static frontend and Postgres, deployed together from one
 # workspace. See root AGENTS.md > Deployment.
 #
-# Two things to confirm on a first deploy: that the service names below were still free (Render
-# appends a suffix if not, which would make the two URLs here wrong), and that the static host
-# serves .mjs as JavaScript — if it doesn't, the sandbox alone fails.
+# One thing to confirm on a first deploy: that the static host serves .mjs as JavaScript — if it
+# doesn't, the sandbox alone fails.
 
 databases:
   - name: monet-db
@@ -17,13 +16,15 @@ services:
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
     plan: 0.5c-512mb
+    domains:
+      - api.monet.wiki
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: monet-db
           property: connectionString
       - key: CORS_ORIGINS
-        value: '["https://monet-web.onrender.com"]' # adjust to the actual static site URL
+        value: '["https://monet.wiki", "https://www.monet.wiki"]'
     # Render execs dockerCommand directly rather than through a shell, so this has to be one
     # script, not a `&&` chain. Both steps in it are idempotent.
     dockerCommand: ./scripts/start.sh
@@ -33,10 +34,12 @@ services:
     runtime: static
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @monet/web build
     staticPublishPath: apps/web/dist
+    domains:
+      - monet.wiki
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
         value: "*"
     envVars:
       - key: VITE_API_URL
-        value: https://monet-api.onrender.com # adjust to the actual API URL
+        value: https://api.monet.wiki
