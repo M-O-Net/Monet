@@ -50,7 +50,12 @@ function call(pyodide: PyodideApi, name: string, ...args: string[]): unknown {
 
 function handle(request: SandboxRequest, pyodide: PyodideApi): unknown {
   if (request.kind === "probe") {
-    return call(pyodide, "probe", request.latex, JSON.stringify(request.implementations));
+    return call(
+      pyodide,
+      "probe",
+      JSON.stringify(request.input),
+      JSON.stringify(request.implementations),
+    );
   }
   return call(pyodide, "run", request.code, JSON.stringify(request.inputs));
 }

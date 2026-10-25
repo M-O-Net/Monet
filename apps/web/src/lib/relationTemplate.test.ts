@@ -7,7 +7,12 @@ const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-const object = (id: string, latex: string): ObjectOut => ({ id, latex, description: null });
+const object = (id: string, latex: string): ObjectOut => ({
+  id,
+  latex,
+  description: null,
+  data: null,
+});
 
 function relation(inputs: ObjectOut[], outputs: ObjectOut[]): RelationOut {
   return {

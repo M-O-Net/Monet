@@ -9,10 +9,11 @@ import { ObjectPicker } from "../../components/ObjectPicker";
 import { api } from "../../lib/api";
 import { findCyclesThrough } from "../../lib/cycles";
 import type { Cycle } from "../../lib/cycles";
-import { normalizeLatex } from "../../lib/latex";
+import { sameData, type ObjectData } from "../../lib/data";
 import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { RelationOut } from "../../lib/types";
 import { probe, run } from "../../sandbox/client";
+import type { SandboxValue } from "../../sandbox/protocol";
 import { useSandboxStatus } from "../../sandbox/useSandboxStatus";
 import { Callout } from "./Callout";
 import { CycleChain } from "./CycleChain";
@@ -22,6 +23,7 @@ interface ObjectSummary {
   id: string;
   latex: string;
   description?: string | null;
+  data?: ObjectData | null;
 }
 
 interface Implementation {
@@ -33,7 +35,7 @@ interface Implementation {
 interface Result {
   implementation: Implementation;
   inputIds: string[];
-  outputs: string[];
+  outputs: SandboxValue[];
 }
 
 interface Receipt {
@@ -68,6 +70,12 @@ export function Operations({
   const [runError, setRunError] = useState<string | null>(null);
 
   const probeKey = implementations.map((i) => `${i.id}:${i.code}`).join("\u0000");
+  const dataKey = JSON.stringify(object.data ?? null);
+  const input = useMemo(
+    () => ({ latex: object.latex, data: object.data ?? null }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [object.latex, dataKey],
+  );
   const payload = useMemo(
     () => implementations.map((i) => ({ id: i.id, code: i.code })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,7 +85,7 @@ export function Operations({
   useEffect(() => {
     if (payload.length === 0) return;
     let cancelled = false;
-    probe(object.latex, payload).then(
+    probe(input, payload).then(
       (ids) => {
         if (!cancelled) setApplicable(ids);
       },
@@ -88,7 +96,7 @@ export function Operations({
     return () => {
       cancelled = true;
     };
-  }, [object.latex, payload]);
+  }, [input, payload]);
 
   const start = (implementation: Implementation) => {
     const inputIds = [object.id, ...(extraInputs[implementation.id] ?? [])];
@@ -96,8 +104,11 @@ export function Operations({
     setResult(null);
     setReceipt(null);
     setRunning(implementation.id);
-    const inputLatex = inputIds.map((id) => objects.find((o) => o.id === id)?.latex ?? "");
-    run(implementation.code, inputLatex).then(
+    const inputs = inputIds.map((id) => {
+      const found = objects.find((o) => o.id === id);
+      return { latex: found?.latex ?? "", data: found?.data ?? null };
+    });
+    run(implementation.code, inputs).then(
       (outputs) => {
         setRunning(null);
         setResult({ implementation, inputIds, outputs });
@@ -116,7 +127,8 @@ export function Operations({
         body: {
           operator_id: result.implementation.operator.id,
           input_object_ids: result.inputIds,
-          output_latex: result.outputs,
+          outputs: result.outputs,
+          implementation_id: result.implementation.id,
         },
       },
       {
@@ -144,10 +156,7 @@ export function Operations({
     );
   };
 
-  const existingFor = (latex: string) => {
-    const key = normalizeLatex(latex);
-    return objects.find((o) => normalizeLatex(o.latex) === key);
-  };
+  const existingFor = (output: SandboxValue) => objects.find((o) => sameData(o.data, output.data));
 
   if (implementations.length === 0) return null;
 
@@ -237,12 +246,12 @@ export function Operations({
             <Latex>{result.implementation.operator.latex}</Latex> produced:
           </p>
           <ul className="mb-4 space-y-2">
-            {result.outputs.map((latex, i) => {
-              const existing = existingFor(latex);
+            {result.outputs.map((output, i) => {
+              const existing = existingFor(output);
               return (
                 <li key={i} className="flex items-baseline gap-3">
                   <span className="font-display text-base text-ink">
-                    <Latex>{latex}</Latex>
+                    <Latex>{output.latex}</Latex>
                   </span>
                   <span className="text-[11px] text-ink-soft">
                     {existing ? "already in the network" : "new object"}

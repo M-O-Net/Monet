@@ -1,7 +1,7 @@
 import re
 
 import sympy
-from sympy import Matrix
+from sympy import Matrix, Symbol
 from sympy.parsing.sympy_parser import (
     convert_xor,
     implicit_multiplication_application,
@@ -71,11 +71,71 @@ def render(value):
     return sympy.latex(sympy.sympify(value))
 
 
+_JS_SAFE_INTEGER = 2**53
+
+
+def _json_int(n):
+    return n if abs(n) < _JS_SAFE_INTEGER else str(n)
+
+
+def _polynomial_data(value):
+    symbols = value.free_symbols
+    if len(symbols) != 1:
+        return None
+    (var,) = symbols
+    if not value.is_polynomial(var):
+        return None
+    poly = sympy.Poly(value, var)
+    coeffs = poly.all_coeffs()[::-1]
+    if poly.degree() < 1 or not all(c.is_Rational for c in coeffs):
+        return None
+    return {
+        "poly": {
+            "var": str(var),
+            "degree": poly.degree(),
+            "coeffs": {str(power): to_data(c) for power, c in enumerate(coeffs)},
+        }
+    }
+
+
+def to_data(value):
+    if isinstance(value, bool) or isinstance(value, sympy.logic.boolalg.BooleanAtom):
+        return {"bool": bool(value)}
+    if isinstance(value, sympy.MatrixBase):
+        return {"matrix": [[to_data(value[i, j]) for j in range(value.cols)] for i in range(value.rows)]}
+    value = sympy.sympify(value)
+    if value.is_Integer:
+        return {"int": _json_int(int(value))}
+    if value.is_Rational:
+        return {"rational": [_json_int(int(value.p)), _json_int(int(value.q))]}
+    return _polynomial_data(value) or {"expr": sympy.srepr(value)}
+
+
+def from_data(data):
+    ((kind, payload),) = data.items()
+    if kind == "bool":
+        return payload
+    if kind == "int":
+        return sympy.Integer(int(payload))
+    if kind == "rational":
+        return sympy.Rational(int(payload[0]), int(payload[1]))
+    if kind == "matrix":
+        return Matrix([[from_data(cell) for cell in row] for row in payload])
+    if kind == "poly":
+        var = Symbol(payload["var"])
+        return sympy.Add(*(from_data(c) * var ** int(power) for power, c in payload["coeffs"].items()))
+    if kind == "expr":
+        return sympy.sympify(payload)
+    raise LookupError(f"no sympy value for {kind}")
+
+
 def namespace():
     ns = {name: getattr(sympy, name) for name in sympy.__all__}
     ns["MatrixBase"] = sympy.MatrixBase
     ns["sympy"] = sympy
     ns["parse"] = parse
     ns["render"] = render
+    ns["to_data"] = to_data
+    ns["from_data"] = from_data
     return ns
 

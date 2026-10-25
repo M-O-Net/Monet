@@ -73,8 +73,8 @@ exploring the network, including the closed-loop example above.
 than only record.
 
 **Still ahead**: a canonical representation for each object type, so that two ways of writing the
-same matrix are recognised as one object rather than two — today identity is exact-string, give or
-take whitespace. And operator implementations in more than one language.
+same matrix are recognised as one object rather than two — today identity is exact equality of
+each object's structured `data`. And operator implementations in more than one language.
 
 **Beyond that**, staged in roughly this order:
 

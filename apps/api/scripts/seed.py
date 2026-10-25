@@ -11,10 +11,13 @@ import asyncio
 import pathlib
 import sys
 import uuid
+from typing import Any
 
 from sqlmodel import delete, func, select
 
+from monet_api.comments.models import Comment
 from monet_api.core.db import async_session
+from monet_api.events.models import Event
 from monet_api.implementations.models import Implementation
 from monet_api.objects.models import (
     Object,
@@ -26,6 +29,32 @@ from monet_api.objects.models import (
     TopLevelObject,
 )
 
+Data = dict[str, Any]
+
+
+def integer(n: int) -> Data:
+    return {"int": n}
+
+
+def matrix(rows: list[list[int]]) -> Data:
+    return {"matrix": [[integer(cell) for cell in row] for row in rows]}
+
+
+def polynomial(*coeffs_from_constant: int) -> Data:
+    return {
+        "poly": {
+            "var": "x",
+            "degree": len(coeffs_from_constant) - 1,
+            "coeffs": {str(power): integer(c) for power, c in enumerate(coeffs_from_constant)},
+        }
+    }
+
+
+def seifert(size: int) -> Data:
+    return matrix(
+        [[-1 if i == j else 1 if j == i + 1 else 0 for j in range(size)] for i in range(size)]
+    )
+
 
 async def seed() -> None:
     async with async_session() as session:
@@ -35,6 +64,8 @@ async def seed() -> None:
                 print(f"objects table already has {count} rows, skipping (--if-empty)")
                 return
 
+        await session.exec(delete(Event))
+        await session.exec(delete(Comment))
         await session.exec(delete(Implementation))
         await session.exec(delete(ObjectReference))
         await session.exec(delete(OperatorDisplay))
@@ -61,6 +92,10 @@ async def seed() -> None:
                 "The plain numbers and truth values that relations produce as answers.",
             ),
             "Matrices": (r"\text{Matrices}", "Square arrays of numbers."),
+            "SymmetricMatrices": (
+                r"\text{Symmetric Matrices}",
+                "Matrices equal to their own transpose.",
+            ),
             "MatrixOperations": (
                 r"\text{Matrix Operations}",
                 "Operations taking matrices as "
@@ -68,6 +103,10 @@ async def seed() -> None:
                 "determinants, sums.",
             ),
             "Polynomials": (r"\text{Polynomials}", "Single-variable polynomials."),
+            "CyclotomicPolynomials": (
+                r"\text{Cyclotomic Polynomials}",
+                "The minimal polynomials of the primitive roots of unity.",
+            ),
             "PolynomialOperations": (
                 r"\text{Polynomial Operations}",
                 "Operations taking polynomials as their input: companion matrices, degree.",
@@ -86,6 +125,10 @@ async def seed() -> None:
                 "Knots, and the matrices and polynomials that identify them.",
             ),
             "Knots": (r"\text{Knots}", "Specific knots, named the standard way."),
+            "TorusKnots": (
+                r"\text{Torus Knots}",
+                "Knots that lie on the surface of an unknotted torus.",
+            ),
             "KnotOperations": (
                 r"\text{Knot Operations}",
                 "Operations taking a knot or its Seifert matrix as input: Seifert matrices, "
@@ -250,6 +293,11 @@ async def seed() -> None:
                 "membership operator, so the GUI renders its relations as tags and "
                 "member lists rather than as ordinary rows.",
             ),
+            "SubsetOf": (
+                r"\text{Subset Of}",
+                "Marks a section as a subtype of another: every member of the first is a "
+                "member of the second.",
+            ),
         }
 
         objects: dict[str, Specimen] = {
@@ -264,6 +312,41 @@ async def seed() -> None:
             **knot_operators,
             **number_operators,
             **sectioning_operators,
+        }
+
+        data: dict[str, Data] = {
+            "A": matrix([[2, 1], [1, 2]]),
+            "B": matrix([[1, 0], [0, 1]]),
+            "D": matrix([[0, 1], [1, 0]]),
+            "E": matrix([[3, 1], [1, 3]]),
+            "C": matrix([[0, -3], [1, 4]]),
+            "V3": seifert(2),
+            "V5": seifert(4),
+            "V7": seifert(6),
+            "S": matrix([[1, 2], [2, 4]]),
+            "CompPhi6": matrix([[0, -1], [1, 1]]),
+            "P": polynomial(3, -4, 1),
+            "Q": polynomial(1, -2, 1),
+            "R": polynomial(-1, 0, 1),
+            "Phi6": polynomial(1, -1, 1),
+            "Phi10": polynomial(1, -1, 1, -1, 1),
+            "Phi14": polynomial(1, -1, 1, -1, 1, -1, 1),
+            "zero": integer(0),
+            "one": integer(1),
+            "neg_one": integer(-1),
+            "two": integer(2),
+            "three": integer(3),
+            "four": integer(4),
+            "five": integer(5),
+            "six": integer(6),
+            "seven": integer(7),
+            "ten": integer(10),
+            "fourteen": integer(14),
+            "true": {"bool": True},
+            "false": {"bool": False},
+            "K3": {"knot": "3_1"},
+            "K5": {"knot": "5_1"},
+            "K7": {"knot": "7_1"},
         }
 
         images: dict[str, str] = {
@@ -315,7 +398,12 @@ async def seed() -> None:
 
         ids: dict[str, uuid.UUID] = {}
         for key, (latex, description) in objects.items():
-            obj = Object(latex=latex, description=description, image_url=images.get(key))
+            obj = Object(
+                latex=latex,
+                description=description,
+                image_url=images.get(key),
+                data=data.get(key),
+            )
             session.add(obj)
             await session.flush()
             ids[key] = obj.id
@@ -381,8 +469,18 @@ async def seed() -> None:
 
         relation_count = 39
 
+        subtypes = {
+            "SymmetricMatrices": "Matrices",
+            "CyclotomicPolynomials": "Polynomials",
+            "TorusKnots": "Knots",
+        }
+        for subtype, supertype in subtypes.items():
+            await add_relation("SubsetOf", [subtype], [supertype])
+            relation_count += 1
+
         displays: dict[str, tuple[str | None, bool, bool]] = {
             "ElementOf": (None, False, True),
+            "SubsetOf": (None, False, False),
             "Add": (r"{in0} \op{+} {in1} = {out0}", True, False),
             "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
             "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
@@ -401,12 +499,13 @@ async def seed() -> None:
                     template=template,
                     hidden_by_default=hidden,
                     is_membership=membership,
+                    is_subtype=operator == "SubsetOf",
                 )
             )
 
         sections = {
-            "LinearAlgebra": ["Matrices", "MatrixOperations"],
-            "PolynomialAlgebra": ["Polynomials", "PolynomialOperations"],
+            "LinearAlgebra": ["Matrices", "SymmetricMatrices", "MatrixOperations"],
+            "PolynomialAlgebra": ["Polynomials", "CyclotomicPolynomials", "PolynomialOperations"],
             "Values": ["Integers", "Booleans", "NumberOperations"],
             "Matrices": ["A", "B", "D", "E", "C", "S", "V3", "V5", "V7", "CompPhi6"],
             "MatrixOperations": [
@@ -418,7 +517,9 @@ async def seed() -> None:
                 "MatrixOrder",
                 "Eigenvalues",
             ],
+            "SymmetricMatrices": ["A", "B", "D", "E", "S"],
             "Polynomials": ["P", "Q", "R", "Phi6", "Phi10", "Phi14"],
+            "CyclotomicPolynomials": ["Phi6", "Phi10", "Phi14"],
             "PolynomialOperations": [
                 "CompanionMatrix",
                 "Degree",
@@ -440,8 +541,9 @@ async def seed() -> None:
             ],
             "Booleans": ["true", "false"],
             "NumberOperations": ["EulerTotient"],
-            "KnotTheory": ["Knots", "KnotOperations"],
+            "KnotTheory": ["Knots", "TorusKnots", "KnotOperations"],
             "Knots": ["K3", "K5", "K7"],
+            "TorusKnots": ["K3", "K5", "K7"],
             "KnotOperations": ["SeifertMatrix", "AlexanderPolynomial", "KnotDeterminant"],
         }
         for section, members in sections.items():

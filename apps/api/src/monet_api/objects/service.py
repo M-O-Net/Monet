@@ -3,22 +3,29 @@
 Orchestrates repository.py calls; owns no SQL of its own.
 """
 
+import json
 import re
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
+from typing import Any, Literal
 
 from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from monet_api.comments import repository as comments
+from monet_api.events import repository as events
+from monet_api.implementations import repository as implementations
 from monet_api.objects import repository
 from monet_api.objects.models import Object, Relation, RelationInput, RelationOutput
 from monet_api.objects.schemas import (
+    ComputedOutput,
     ObjectCreate,
     ObjectDetailOut,
     ObjectOut,
     ObjectReferenceIn,
     ObjectReferenceOut,
+    ObjectRole,
     ObjectUpdate,
     OperatorDisplayOut,
     OperatorDisplayUpdate,
@@ -33,6 +40,7 @@ from monet_api.objects.schemas import (
 
 MAX_SECTION_DEPTH = 6
 MAX_SECTION_NODES = 500
+MAX_QUERY_RESULTS = 500
 
 
 async def get_object_or_404(session: AsyncSession, object_id: uuid.UUID) -> Object:
@@ -49,9 +57,7 @@ async def get_relation_or_404(session: AsyncSession, relation_id: uuid.UUID) -> 
     return relation
 
 
-async def _load_relations_out(
-    session: AsyncSession, relations: Sequence[Relation]
-) -> list[RelationOut]:
+async def load_relations(session: AsyncSession, relations: Sequence[Relation]) -> list[RelationOut]:
     if not relations:
         return []
 
@@ -100,7 +106,7 @@ async def _load_relations_out(
 
 
 async def _load_relation_out(session: AsyncSession, relation: Relation) -> RelationOut:
-    return (await _load_relations_out(session, [relation]))[0]
+    return (await load_relations(session, [relation]))[0]
 
 
 async def list_objects(session: AsyncSession) -> list[Object]:
@@ -139,11 +145,23 @@ async def _replace_references(
         repository.add_object_reference(session, object_id, reference.label.strip(), url, position)
 
 
+async def _refuse_duplicate_data(
+    session: AsyncSession, data: dict[str, Any] | None, own_id: uuid.UUID | None = None
+) -> None:
+    if data is None:
+        return
+    existing = await repository.find_object_by_data(session, data)
+    if existing is not None and existing.id != own_id:
+        raise HTTPException(status_code=409, detail=f"object {existing.id} already holds this data")
+
+
 async def create_object(session: AsyncSession, body: ObjectCreate) -> Object:
+    await _refuse_duplicate_data(session, body.data)
     obj = await repository.add_object(
-        session, body.latex, body.description, _linkable(body.image_url)
+        session, body.latex, body.description, _linkable(body.image_url), body.data
     )
     await _replace_references(session, obj.id, body.references)
+    events.add_event(session, "object_created", obj.id, body.contributor, "manual")
     await session.commit()
     await session.refresh(obj)
     return obj
@@ -152,13 +170,15 @@ async def create_object(session: AsyncSession, body: ObjectCreate) -> Object:
 async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> ObjectDetailOut:
     obj = await get_object_or_404(session, object_id)
     membership_ops = await repository.list_membership_operator_ids(session)
+    subtype_ops = await repository.list_subtype_operator_ids(session)
+    structural_ops = [*membership_ops, *subtype_ops]
 
     as_operator = await repository.list_relations_by_operator(session, object_id)
     as_input_ids = await repository.list_relation_ids_by_input(
-        session, object_id, exclude_operator_ids=membership_ops
+        session, object_id, exclude_operator_ids=structural_ops
     )
     as_output_ids = await repository.list_relation_ids_by_output(
-        session, object_id, exclude_operator_ids=membership_ops
+        session, object_id, exclude_operator_ids=structural_ops
     )
 
     as_input = await repository.list_relations_by_ids(session, as_input_ids)
@@ -171,18 +191,36 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
 
     references = await repository.list_object_references(session, object_id)
 
+    subtype_ids = await repository.list_related_types(
+        session, subtype_ops, object_id, "down", transitive=False
+    )
+    supertype_ids = await repository.list_related_types(
+        session, subtype_ops, object_id, "up", transitive=False
+    )
+    members = children.get(object_id, [])
+
+    role: ObjectRole = "instance"
+    if as_operator or await implementations.has_implementation(session, object_id):
+        role = "map"
+    elif members or subtype_ids or supertype_ids:
+        role = "type"
+
     return ObjectDetailOut(
         id=obj.id,
         latex=obj.latex,
         description=obj.description,
         image_url=obj.image_url,
+        data=obj.data,
+        role=role,
+        subtypes=await _objects_in_latex_order(session, subtype_ids),
+        supertypes=await _objects_in_latex_order(session, supertype_ids),
         references=[ObjectReferenceOut.model_validate(row) for row in references],
         is_top_level=is_top_level,
         sections=await _objects_in_latex_order(session, parents.get(object_id, [])),
-        members=await _objects_in_latex_order(session, children.get(object_id, [])),
-        as_operator=await _load_relations_out(session, as_operator),
-        as_input=await _load_relations_out(session, as_input),
-        as_output=await _load_relations_out(session, as_output),
+        members=await _objects_in_latex_order(session, members),
+        as_operator=await load_relations(session, as_operator),
+        as_input=await load_relations(session, as_input),
+        as_output=await load_relations(session, as_output),
     )
 
 
@@ -283,7 +321,11 @@ async def get_operator_display(session: AsyncSession, operator_id: uuid.UUID) ->
     row = await repository.get_operator_display(session, operator_id)
     if row is None:
         return OperatorDisplayOut(
-            operator_id=operator_id, template=None, hidden_by_default=False, is_membership=False
+            operator_id=operator_id,
+            template=None,
+            hidden_by_default=False,
+            is_membership=False,
+            is_subtype=False,
         )
     return OperatorDisplayOut.model_validate(row)
 
@@ -293,20 +335,31 @@ async def set_operator_display(
 ) -> OperatorDisplayOut:
     await get_object_or_404(session, operator_id)
     row = await repository.upsert_operator_display(
-        session, operator_id, body.template, body.hidden_by_default, body.is_membership
+        session,
+        operator_id,
+        body.template,
+        body.hidden_by_default,
+        body.is_membership,
+        body.is_subtype,
     )
     return OperatorDisplayOut.model_validate(row)
 
 
 async def update_object(session: AsyncSession, object_id: uuid.UUID, body: ObjectUpdate) -> Object:
     obj = await get_object_or_404(session, object_id)
+    await _refuse_duplicate_data(session, body.data, object_id)
     image_url = _linkable(body.image_url)
     await _replace_references(session, object_id, body.references)
-    return await repository.update_object(session, obj, body.latex, body.description, image_url)
+    return await repository.update_object(
+        session, obj, body.latex, body.description, image_url, body.data
+    )
 
 
 async def delete_object(session: AsyncSession, object_id: uuid.UUID) -> None:
     obj = await get_object_or_404(session, object_id)
+    touching = await repository.list_relation_ids_touching(session, object_id)
+    remarks = [comment.id for comment in await comments.list_comments_for(session, object_id)]
+    await events.delete_events_for(session, [object_id, *touching, *remarks])
     await repository.delete_relations_referencing_object(session, object_id)
     await repository.delete_object(session, obj)
 
@@ -328,7 +381,7 @@ async def unmark_top_level_object(session: AsyncSession, object_id: uuid.UUID) -
 
 
 async def list_relations(session: AsyncSession) -> list[RelationOut]:
-    return await _load_relations_out(session, await repository.list_relations(session))
+    return await load_relations(session, await repository.list_relations(session))
 
 
 async def _validate_relation_operands(session: AsyncSession, body: RelationCreate) -> None:
@@ -345,6 +398,7 @@ async def create_relation(session: AsyncSession, body: RelationCreate) -> Relati
         repository.add_relation_input(session, relation.id, oid, position)
     for position, oid in enumerate(body.output_object_ids):
         repository.add_relation_output(session, relation.id, oid, position)
+    events.add_event(session, "relation_created", relation.id, body.contributor, "manual")
 
     await session.commit()
     await session.refresh(relation)
@@ -378,41 +432,18 @@ async def replace_relation(
 
 async def delete_relation(session: AsyncSession, relation_id: uuid.UUID) -> None:
     relation = await get_relation_or_404(session, relation_id)
+    await events.delete_events_for(session, [relation_id])
     await repository.delete_relation(session, relation)
 
 
-_TEXT_GROUP = re.compile(r"\\text\{[^{}]*\}")
-
-
-def _without_whitespace(latex: str) -> str:
-    return "".join(latex.split())
-
-
-def _with_whitespace_collapsed(latex: str) -> str:
-    return " ".join(latex.split())
-
-
-def normalize_latex(latex: str) -> str:
-    parts: list[str] = []
-    last = 0
-    for match in _TEXT_GROUP.finditer(latex):
-        parts.append(_without_whitespace(latex[last : match.start()]))
-        parts.append(_with_whitespace_collapsed(match.group()))
-        last = match.end()
-    parts.append(_without_whitespace(latex[last:]))
-    return "".join(parts)
-
-
-async def _find_or_create_object(
-    session: AsyncSession, latex: str, existing: list[Object]
+async def _find_or_create_output(
+    session: AsyncSession, output: ComputedOutput
 ) -> tuple[Object, bool]:
-    key = normalize_latex(latex)
-    for obj in existing:
-        if normalize_latex(obj.latex) == key:
-            return obj, False
-    obj = await repository.add_object(session, latex, None)
-    existing.append(obj)
-    return obj, True
+    if output.data is not None:
+        existing = await repository.find_object_by_data(session, output.data)
+        if existing is not None:
+            return existing, False
+    return await repository.add_object(session, output.latex, None, data=output.data), True
 
 
 def _operands_by_relation(
@@ -447,21 +478,24 @@ async def _find_matching_relation(
 
 
 async def assert_relation(session: AsyncSession, body: RelationAssert) -> RelationAssertOut:
-    if not body.output_latex:
+    if not body.outputs:
         raise HTTPException(status_code=400, detail="a relation needs at least one output")
 
     await get_object_or_404(session, body.operator_id)
     for oid in body.input_object_ids:
         await get_object_or_404(session, oid)
 
-    existing = await repository.list_objects(session)
+    source = (
+        "computed" if body.implementation_id is None else f"implementation:{body.implementation_id}"
+    )
     outputs: list[Object] = []
     created_object_ids: list[uuid.UUID] = []
-    for latex in body.output_latex:
-        obj, was_created = await _find_or_create_object(session, latex, existing)
+    for output in body.outputs:
+        obj, was_created = await _find_or_create_output(session, output)
         outputs.append(obj)
         if was_created:
             created_object_ids.append(obj.id)
+            events.add_event(session, "object_created", obj.id, body.contributor, source)
 
     output_ids = [obj.id for obj in outputs]
     relation = await _find_matching_relation(
@@ -474,6 +508,7 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
             repository.add_relation_input(session, relation.id, oid, position)
         for position, oid in enumerate(output_ids):
             repository.add_relation_output(session, relation.id, oid, position)
+        events.add_event(session, "relation_created", relation.id, body.contributor, source)
 
     await session.commit()
     await session.refresh(relation)
@@ -482,3 +517,69 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
         created_object_ids=created_object_ids,
         created_relation=created_relation,
     )
+
+
+def _json_object(name: str, raw: str | None) -> dict[str, Any] | None:
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise HTTPException(status_code=400, detail=f"{name} is not valid JSON") from error
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=400, detail=f"{name} must be a JSON object")
+    return parsed
+
+
+def _property_filter(raw: str) -> tuple[uuid.UUID, uuid.UUID]:
+    operator, _, output = raw.partition(":")
+    try:
+        return uuid.UUID(operator), uuid.UUID(output)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400, detail="where must be <operator id>:<output object id>"
+        ) from error
+
+
+async def query_objects(
+    session: AsyncSession,
+    *,
+    member_of: uuid.UUID | None,
+    transitive: bool,
+    data_equals: str | None,
+    data_contains: str | None,
+    where: Sequence[str],
+) -> list[Object]:
+    types: list[uuid.UUID] | None = None
+    if member_of is not None:
+        await get_object_or_404(session, member_of)
+        types = [member_of]
+        if transitive:
+            subtype_ops = await repository.list_subtype_operator_ids(session)
+            types += await repository.list_related_types(
+                session, subtype_ops, member_of, "down", transitive=True
+            )
+    return await repository.query_objects(
+        session,
+        membership_ops=await repository.list_membership_operator_ids(session),
+        member_of=types,
+        data_equals=_json_object("data_equals", data_equals),
+        data_contains=_json_object("data_contains", data_contains),
+        where=[_property_filter(raw) for raw in where],
+        limit=MAX_QUERY_RESULTS,
+    )
+
+
+async def list_related_types(
+    session: AsyncSession,
+    type_id: uuid.UUID,
+    direction: Literal["down", "up"],
+    *,
+    transitive: bool,
+) -> list[ObjectOut]:
+    await get_object_or_404(session, type_id)
+    subtype_ops = await repository.list_subtype_operator_ids(session)
+    found = await repository.list_related_types(
+        session, subtype_ops, type_id, direction, transitive=transitive
+    )
+    return await _objects_in_latex_order(session, found)

@@ -1,16 +1,30 @@
 import uuid
+from typing import Any
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 
 class Object(SQLModel, table=True):
     __tablename__ = "objects"
+    __table_args__ = (
+        sa.Index("ix_objects_data_equality", "data", postgresql_using="hash"),
+        sa.Index(
+            "ix_objects_data_containment",
+            "data",
+            postgresql_using="gin",
+            postgresql_ops={"data": "jsonb_path_ops"},
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     latex: str
     description: str | None = None
     image_url: str | None = None
+    data: dict[str, Any] | None = Field(
+        default=None, sa_column=sa.Column(JSONB(none_as_null=True), nullable=True)
+    )
 
 
 class ObjectReference(SQLModel, table=True):
@@ -24,7 +38,9 @@ class ObjectReference(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     object_id: uuid.UUID = Field(
-        sa_column=sa.Column(sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False)
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False, index=True
+        )
     )
     label: str
     url: str
@@ -36,29 +52,37 @@ class Relation(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     operator_id: uuid.UUID = Field(
-        sa_column=sa.Column(sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False)
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False, index=True
+        )
     )
 
 
 class RelationInput(SQLModel, table=True):
     __tablename__ = "relation_input"
+    __table_args__ = (
+        sa.Index("ix_relation_input_relation_id_position", "relation_id", "position"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     relation_id: uuid.UUID = Field(
         sa_column=sa.Column(sa.ForeignKey("relations.id", ondelete="CASCADE"), nullable=False)
     )
-    object_id: uuid.UUID = Field(foreign_key="objects.id")
+    object_id: uuid.UUID = Field(foreign_key="objects.id", index=True)
     position: int
 
 
 class RelationOutput(SQLModel, table=True):
     __tablename__ = "relation_output"
+    __table_args__ = (
+        sa.Index("ix_relation_output_relation_id_position", "relation_id", "position"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     relation_id: uuid.UUID = Field(
         sa_column=sa.Column(sa.ForeignKey("relations.id", ondelete="CASCADE"), nullable=False)
     )
-    object_id: uuid.UUID = Field(foreign_key="objects.id")
+    object_id: uuid.UUID = Field(foreign_key="objects.id", index=True)
     position: int
 
 
@@ -90,3 +114,4 @@ class OperatorDisplay(SQLModel, table=True):
     template: str | None = None
     hidden_by_default: bool = False
     is_membership: bool = False
+    is_subtype: bool = False

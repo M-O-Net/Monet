@@ -2,10 +2,12 @@
 
 import uuid
 from collections.abc import Sequence
+from typing import Any, Literal
 
-from sqlalchemy import or_
+from sqlalchemy import ColumnElement, or_, union
 from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql.expression import SelectOfScalar
 
 from monet_api.objects.models import (
     Object,
@@ -40,13 +42,102 @@ async def list_objects_by_ids(
     )
 
 
+async def find_object_by_data(session: AsyncSession, data: dict[str, Any]) -> Object | None:
+    return (await session.exec(select(Object).where(col(Object.data) == data).limit(1))).first()
+
+
+async def query_objects(
+    session: AsyncSession,
+    *,
+    membership_ops: Sequence[uuid.UUID],
+    member_of: Sequence[uuid.UUID] | None,
+    data_equals: dict[str, Any] | None,
+    data_contains: dict[str, Any] | None,
+    where: Sequence[tuple[uuid.UUID, uuid.UUID]],
+    limit: int,
+) -> list[Object]:
+    query = select(Object)
+    if member_of is not None:
+        query = query.where(
+            col(Object.id).in_(
+                _inputs_mapped_to(membership_ops, col(RelationOutput.object_id).in_(member_of))
+            )
+        )
+    if data_equals is not None:
+        query = query.where(col(Object.data) == data_equals)
+    if data_contains is not None:
+        query = query.where(col(Object.data).contains(data_contains))
+    for operator_id, output_id in where:
+        query = query.where(
+            col(Object.id).in_(
+                _inputs_mapped_to([operator_id], col(RelationOutput.object_id) == output_id)
+            )
+        )
+    return list((await session.exec(query.order_by(col(Object.latex)).limit(limit))).all())
+
+
+def _inputs_mapped_to(
+    operator_ids: Sequence[uuid.UUID], output_matches: ColumnElement[bool]
+) -> SelectOfScalar[uuid.UUID]:
+    return (
+        select(RelationInput.object_id)
+        .join(Relation, col(Relation.id) == col(RelationInput.relation_id))
+        .join(RelationOutput, col(RelationOutput.relation_id) == col(Relation.id))
+        .where(col(Relation.operator_id).in_(operator_ids))
+        .where(output_matches)
+    )
+
+
+async def list_related_types(
+    session: AsyncSession,
+    subtype_ops: Sequence[uuid.UUID],
+    start_id: uuid.UUID,
+    direction: Literal["down", "up"],
+    *,
+    transitive: bool,
+) -> list[uuid.UUID]:
+    if not subtype_ops:
+        return []
+    edges = (
+        select(
+            col(RelationInput.object_id).label("sub"),
+            col(RelationOutput.object_id).label("super"),
+        )
+        .join(Relation, col(Relation.id) == col(RelationInput.relation_id))
+        .join(RelationOutput, col(RelationOutput.relation_id) == col(Relation.id))
+        .where(col(Relation.operator_id).in_(subtype_ops))
+        .subquery()
+    )
+    near, far = (
+        (edges.c.super, edges.c.sub) if direction == "down" else (edges.c.sub, edges.c.super)
+    )
+    if not transitive:
+        return list((await session.exec(select(far).where(near == start_id).distinct())).all())
+
+    reached = select(far.label("id")).where(near == start_id).cte(recursive=True)
+    reached = reached.union(select(far).join(reached, near == reached.c.id))
+    return list((await session.exec(select(reached.c.id))).all())
+
+
+async def list_relation_ids_touching(
+    session: AsyncSession, object_id: uuid.UUID
+) -> list[uuid.UUID]:
+    touching = union(
+        select(Relation.id).where(Relation.operator_id == object_id),
+        select(RelationInput.relation_id).where(RelationInput.object_id == object_id),
+        select(RelationOutput.relation_id).where(RelationOutput.object_id == object_id),
+    )
+    return list((await session.exec(touching)).scalars().all())  # type: ignore[call-overload]
+
+
 async def add_object(
     session: AsyncSession,
     latex: str,
     description: str | None,
     image_url: str | None = None,
+    data: dict[str, Any] | None = None,
 ) -> Object:
-    obj = Object(latex=latex, description=description, image_url=image_url)
+    obj = Object(latex=latex, description=description, image_url=image_url, data=data)
     session.add(obj)
     await session.flush()
     return obj
@@ -58,10 +149,12 @@ async def update_object(
     latex: str,
     description: str | None,
     image_url: str | None,
+    data: dict[str, Any] | None,
 ) -> Object:
     obj.latex = latex
     obj.description = description
     obj.image_url = image_url
+    obj.data = data
     session.add(obj)
     await session.commit()
     await session.refresh(obj)
@@ -215,6 +308,16 @@ async def list_membership_operator_ids(session: AsyncSession) -> list[uuid.UUID]
     )
 
 
+async def list_subtype_operator_ids(session: AsyncSession) -> list[uuid.UUID]:
+    return list(
+        (
+            await session.exec(
+                select(OperatorDisplay.operator_id).where(col(OperatorDisplay.is_subtype))
+            )
+        ).all()
+    )
+
+
 async def get_operator_display(
     session: AsyncSession, operator_id: uuid.UUID
 ) -> OperatorDisplay | None:
@@ -241,6 +344,7 @@ async def upsert_operator_display(
     template: str | None,
     hidden_by_default: bool,
     is_membership: bool,
+    is_subtype: bool,
 ) -> OperatorDisplay:
     row = await session.get(OperatorDisplay, operator_id)
     if row is None:
@@ -248,6 +352,7 @@ async def upsert_operator_display(
     row.template = template
     row.hidden_by_default = hidden_by_default
     row.is_membership = is_membership
+    row.is_subtype = is_subtype
     session.add(row)
     await session.commit()
     await session.refresh(row)

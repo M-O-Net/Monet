@@ -40,3 +40,10 @@ async def update_implementation(
 async def delete_implementation(session: AsyncSession, implementation: Implementation) -> None:
     await session.delete(implementation)
     await session.commit()
+
+
+async def has_implementation(session: AsyncSession, operator_id: uuid.UUID) -> bool:
+    found = await session.exec(
+        select(Implementation.id).where(Implementation.operator_id == operator_id).limit(1)
+    )
+    return found.first() is not None

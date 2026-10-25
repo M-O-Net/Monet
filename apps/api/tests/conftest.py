@@ -5,7 +5,9 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import delete
 
+from monet_api.comments.models import Comment
 from monet_api.core.db import async_session
+from monet_api.events.models import Event
 from monet_api.implementations.models import Implementation
 from monet_api.main import app
 from monet_api.objects.models import (
@@ -21,6 +23,8 @@ from monet_api.objects.models import (
 @pytest_asyncio.fixture(autouse=True)
 async def _clean_db() -> AsyncGenerator[None]:
     async with async_session() as session:
+        await session.exec(delete(Event))  # type: ignore[call-overload]
+        await session.exec(delete(Comment))  # type: ignore[call-overload]
         await session.exec(delete(Implementation))  # type: ignore[call-overload]
         await session.exec(delete(OperatorDisplay))  # type: ignore[call-overload]
         await session.exec(delete(TopLevelObject))  # type: ignore[call-overload]

@@ -5,6 +5,8 @@ Backend-local conventions. See root `AGENTS.md` first — this only adds detail 
 
 - `src/monet_api/core/` — cross-cutting: `config.py` (pydantic-settings), `db.py` (async engine +
   `get_session` dependency), `schemas.py` (the shared `ORMModel` base).
+- `src/monet_api/comments/`, `src/monet_api/events/` — same split; `events` is the append-only
+  log behind the feed, written by the other domains' services.
 - `src/monet_api/implementations/` — the second domain, same split. Stores and serves implementation
   `code` as opaque text: **nothing here ever executes it**, and there is no sympy dependency. It
   runs in the visitor's browser (see root `AGENTS.md` > Implementations).
@@ -14,7 +16,7 @@ Backend-local conventions. See root `AGENTS.md` first — this only adds detail 
   logic (404/400 translation, assembling a response schema out of several repository calls) and
   owns no SQL of its own; `repository.py` is the only file that touches `select`/`session.exec`.
   Plus `models.py` (SQLModel tables) and `schemas.py` (I/O models).
-- `scripts/implementations/*.py` — the seven seeded implementations. **Seed data, not code**:
+- `scripts/implementations/*.py` — the seeded implementations. **Seed data, not code**:
   `seed.py` reads each file's text into the `implementations` table. They are written against the
   sympy names the browser sandbox injects, which is why `ruff.toml` exempts the directory from
   F821. Nothing imports them, and nothing on the server executes them.
@@ -62,11 +64,8 @@ stack's database.
 - `mypy --strict`'s `disallow_any_explicit` is **not** enabled here — it false-positives against
   SQLModel/Pydantic's own plugin-generated code on essentially every model field, not against
   anything we actually write.
-- `objects/service.py`'s `normalize_latex` decides object identity for `POST /relations/assert`:
-  whitespace outside `\text{...}` is stripped, whitespace inside it collapsed. That keeps
-  `x^{2} - 4 x + 3` and `x^{2}-4x+3` the same object while keeping `\text{Is Singular}` distinct
-  from `\text{IsSingular}`. It is whitespace-insensitivity, not the canonical form (equivalent
-  ways of writing the same matrix) that root `AGENTS.md` still defers.
+- `POST /relations/assert` matches each output to an existing object by exact `data` equality
+  (hash-indexed), never by LaTeX; an output without `data` always becomes a new object.
 - Deleting an object deletes its edges. Foreign keys do nearly all of it: `ON DELETE CASCADE`
   carries away its contents-page entry, its implementation, its references, the relations it
   operates, and those relations' slots. The one case a foreign key cannot express is an object used as a relation's
