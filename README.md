@@ -2,6 +2,8 @@
 
 **Mathematical Object Network** — a live, connected database of mathematical objects.
 
+What Monet should become, feature by feature: [`docs/PRD.md`](docs/PRD.md).
+
 Monet stores mathematical **objects** (a specific matrix, a specific polynomial, a specific
 group, a specific knot) and the **relations** that connect them, across all of mathematics rather
 than a single domain. Objects come to point at one another through those relations: a matrix
