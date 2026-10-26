@@ -54,6 +54,7 @@ services:
       - /app/apps/web/node_modules
       - ./packages/api-client:/app/packages/api-client:ro
       - /app/packages/api-client/node_modules
+      - ./docs:/app/docs:ro
     environment:
       # The browser (not this container) makes the actual API calls, so this has to be a
       # host-reachable URL, not the Docker-internal service name.
