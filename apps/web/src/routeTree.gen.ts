@@ -8,131 +8,139 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as ContributeRouteImport } from "./routes/contribute";
-import { Route as FeedRouteImport } from "./routes/feed";
-import { Route as MapRouteImport } from "./routes/map";
-import { Route as SearchRouteImport } from "./routes/search";
-import { Route as ObjectsObjectIdRouteImport } from "./routes/objects.$objectId";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as ContributeRouteImport } from './routes/contribute'
+import { Route as FeedRouteImport } from './routes/feed'
+import { Route as MapRouteImport } from './routes/map'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as ObjectsObjectIdRouteImport } from './routes/objects.$objectId'
 
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ContributeRoute = ContributeRouteImport.update({
-  id: "/contribute",
-  path: "/contribute",
+  id: '/contribute',
+  path: '/contribute',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const FeedRoute = FeedRouteImport.update({
-  id: "/feed",
-  path: "/feed",
+  id: '/feed',
+  path: '/feed',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const MapRoute = MapRouteImport.update({
-  id: "/map",
-  path: "/map",
+  id: '/map',
+  path: '/map',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SearchRoute = SearchRouteImport.update({
-  id: "/search",
-  path: "/search",
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ObjectsObjectIdRoute = ObjectsObjectIdRouteImport.update({
-  id: "/objects/$objectId",
-  path: "/objects/$objectId",
+  id: '/objects/$objectId',
+  path: '/objects/$objectId',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
-  "/contribute": typeof ContributeRoute;
-  "/feed": typeof FeedRoute;
-  "/map": typeof MapRoute;
-  "/search": typeof SearchRoute;
-  "/objects/$objectId": typeof ObjectsObjectIdRoute;
+  '/': typeof IndexRoute
+  '/contribute': typeof ContributeRoute
+  '/feed': typeof FeedRoute
+  '/map': typeof MapRoute
+  '/search': typeof SearchRoute
+  '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/contribute": typeof ContributeRoute;
-  "/feed": typeof FeedRoute;
-  "/map": typeof MapRoute;
-  "/search": typeof SearchRoute;
-  "/objects/$objectId": typeof ObjectsObjectIdRoute;
+  '/': typeof IndexRoute
+  '/contribute': typeof ContributeRoute
+  '/feed': typeof FeedRoute
+  '/map': typeof MapRoute
+  '/search': typeof SearchRoute
+  '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
-  "/contribute": typeof ContributeRoute;
-  "/feed": typeof FeedRoute;
-  "/map": typeof MapRoute;
-  "/search": typeof SearchRoute;
-  "/objects/$objectId": typeof ObjectsObjectIdRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/contribute': typeof ContributeRoute
+  '/feed': typeof FeedRoute
+  '/map': typeof MapRoute
+  '/search': typeof SearchRoute
+  '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: "/" | "/contribute" | "/feed" | "/map" | "/search" | "/objects/$objectId";
-  fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/contribute" | "/feed" | "/map" | "/search" | "/objects/$objectId";
-  id: "__root__" | "/" | "/contribute" | "/feed" | "/map" | "/search" | "/objects/$objectId";
-  fileRoutesById: FileRoutesById;
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    '/' | '/contribute' | '/feed' | '/map' | '/search' | '/objects/$objectId'
+  fileRoutesByTo: FileRoutesByTo
+  to: '/' | '/contribute' | '/feed' | '/map' | '/search' | '/objects/$objectId'
+  id:
+    | '__root__'
+    | '/'
+    | '/contribute'
+    | '/feed'
+    | '/map'
+    | '/search'
+    | '/objects/$objectId'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  ContributeRoute: typeof ContributeRoute;
-  FeedRoute: typeof FeedRoute;
-  MapRoute: typeof MapRoute;
-  SearchRoute: typeof SearchRoute;
-  ObjectsObjectIdRoute: typeof ObjectsObjectIdRoute;
+  IndexRoute: typeof IndexRoute
+  ContributeRoute: typeof ContributeRoute
+  FeedRoute: typeof FeedRoute
+  MapRoute: typeof MapRoute
+  SearchRoute: typeof SearchRoute
+  ObjectsObjectIdRoute: typeof ObjectsObjectIdRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/": {
-      id: "/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/contribute": {
-      id: "/contribute";
-      path: "/contribute";
-      fullPath: "/contribute";
-      preLoaderRoute: typeof ContributeRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/feed": {
-      id: "/feed";
-      path: "/feed";
-      fullPath: "/feed";
-      preLoaderRoute: typeof FeedRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/map": {
-      id: "/map";
-      path: "/map";
-      fullPath: "/map";
-      preLoaderRoute: typeof MapRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/search": {
-      id: "/search";
-      path: "/search";
-      fullPath: "/search";
-      preLoaderRoute: typeof SearchRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/objects/$objectId": {
-      id: "/objects/$objectId";
-      path: "/objects/$objectId";
-      fullPath: "/objects/$objectId";
-      preLoaderRoute: typeof ObjectsObjectIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contribute': {
+      id: '/contribute'
+      path: '/contribute'
+      fullPath: '/contribute'
+      preLoaderRoute: typeof ContributeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed': {
+      id: '/feed'
+      path: '/feed'
+      fullPath: '/feed'
+      preLoaderRoute: typeof FeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/objects/$objectId': {
+      id: '/objects/$objectId'
+      path: '/objects/$objectId'
+      fullPath: '/objects/$objectId'
+      preLoaderRoute: typeof ObjectsObjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -143,7 +151,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   SearchRoute: SearchRoute,
   ObjectsObjectIdRoute: ObjectsObjectIdRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
