@@ -21,6 +21,7 @@ function relation(inputs: ObjectOut[], outputs: ObjectOut[]): RelationOut {
     inputs: inputs.map((obj, position) => ({ position, object: obj })),
     outputs: outputs.map((obj, position) => ({ position, object: obj })),
     display: null,
+    provenance: null,
   };
 }
 

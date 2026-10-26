@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from typing import Any, Literal
 
@@ -23,12 +24,20 @@ class ObjectReferenceOut(ORMModel):
     url: str
 
 
+class SignatureIn(BaseModel):
+    domain_id: uuid.UUID
+    codomain_id: uuid.UUID
+
+
 class ObjectCreate(BaseModel):
     latex: str
     description: str | None = None
     image_url: str | None = None
     data: dict[str, Any] | None = None
     references: list[ObjectReferenceIn] = Field(default_factory=list)
+    member_of: list[uuid.UUID] = Field(default_factory=list)
+    subtype_of: list[uuid.UUID] = Field(default_factory=list)
+    signature: SignatureIn | None = None
     contributor: Contributor = None
 
 
@@ -45,6 +54,13 @@ class RelationDisplayOut(ORMModel):
     hidden_by_default: bool
     is_membership: bool
     is_subtype: bool
+    is_signature: bool
+
+
+class ProvenanceOut(ORMModel):
+    at: datetime.datetime
+    contributor: str | None
+    source: str | None
 
 
 class RelationSlotOut(BaseModel):
@@ -58,6 +74,7 @@ class RelationOut(BaseModel):
     inputs: list[RelationSlotOut]
     outputs: list[RelationSlotOut]
     display: RelationDisplayOut | None
+    provenance: ProvenanceOut | None
 
 
 class RelationCreate(BaseModel):
@@ -67,7 +84,12 @@ class RelationCreate(BaseModel):
     contributor: Contributor = None
 
 
-ObjectRole = Literal["type", "map", "instance"]
+ObjectRole = Literal["type", "map", "section", "instance"]
+
+
+class SignatureOut(BaseModel):
+    domain: ObjectOut
+    codomain: ObjectOut
 
 
 class ObjectDetailOut(BaseModel):
@@ -77,8 +99,12 @@ class ObjectDetailOut(BaseModel):
     image_url: str | None
     data: dict[str, Any] | None
     role: ObjectRole
+    provenance: ProvenanceOut | None
     subtypes: list[ObjectOut]
     supertypes: list[ObjectOut]
+    signature: SignatureOut | None
+    maps_from: list[ObjectOut]
+    maps_to: list[ObjectOut]
     references: list[ObjectReferenceOut]
     is_top_level: bool
     sections: list[ObjectOut]
@@ -126,6 +152,7 @@ class OperatorDisplayOut(ORMModel):
     hidden_by_default: bool
     is_membership: bool
     is_subtype: bool
+    is_signature: bool
 
 
 class OperatorDisplayUpdate(BaseModel):
@@ -133,3 +160,4 @@ class OperatorDisplayUpdate(BaseModel):
     hidden_by_default: bool
     is_membership: bool
     is_subtype: bool = False
+    is_signature: bool = False

@@ -21,6 +21,7 @@ const relation = (inputs: ObjectOut[], outputs: ObjectOut[]): RelationOut => ({
   inputs: inputs.map((object, position) => ({ position, object })),
   outputs: outputs.map((object, position) => ({ position, object })),
   display: null,
+  provenance: null,
 });
 
 const objects = Array.from({ length: 8 }, (_unused, i) => object(i, `x_{${String(i)}}`));

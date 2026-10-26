@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
-import { ObjectSearch } from "./ObjectSearch";
+const NAV_LINK_CLASS =
+  "text-xs text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond";
 
 export function Header() {
   return (
@@ -58,11 +59,13 @@ export function Header() {
             The field journal of mathematics
           </span>
           <div className="flex items-center gap-3">
-            <ObjectSearch />
-            <Link
-              to="/map"
-              className="text-xs text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
-            >
+            <Link to="/search" className={NAV_LINK_CLASS}>
+              search
+            </Link>
+            <Link to="/contribute" className={NAV_LINK_CLASS}>
+              contribute
+            </Link>
+            <Link to="/map" className={NAV_LINK_CLASS}>
               the network
             </Link>
           </div>

@@ -161,6 +161,7 @@ async def test_operator_display_defaults_when_unconfigured(client: AsyncClient) 
         "hidden_by_default": False,
         "is_membership": False,
         "is_subtype": False,
+        "is_signature": False,
     }
 
 

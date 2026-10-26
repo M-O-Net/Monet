@@ -34,7 +34,9 @@ const relation = (
     hidden_by_default: false,
     is_membership: membership,
     is_subtype: false,
+    is_signature: false,
   },
+  provenance: null,
 });
 
 describe("buildGraph", () => {

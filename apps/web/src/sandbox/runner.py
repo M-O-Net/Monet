@@ -87,3 +87,11 @@ def run(code, inputs_json):
     if not outputs:
         raise ValueError("compute() returned no outputs")
     return json.dumps({"outputs": outputs})
+
+
+def _describe(latex):
+    return _described(_parse(latex))
+
+
+def describe(latex):
+    return json.dumps(_with_line_deadline(_PYTHON_LINE_DEADLINE_SECONDS, _describe, latex))

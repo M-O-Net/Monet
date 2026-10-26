@@ -79,6 +79,10 @@ async def seed() -> None:
         Specimen = tuple[str, str | None]
 
         section_objects: dict[str, Specimen] = {
+            "MathematicalObjects": (
+                r"\text{Mathematical Objects}",
+                "Every kind of object Monet catalogues. Each type sits somewhere beneath it.",
+            ),
             "LinearAlgebra": (
                 r"\text{Linear Algebra}",
                 "Matrices and the operations that act on them.",
@@ -293,6 +297,10 @@ async def seed() -> None:
                 "membership operator, so the GUI renders its relations as tags and "
                 "member lists rather than as ordinary rows.",
             ),
+            "Signature": (
+                r"\text{Signature}",
+                "Records what a map takes and gives: the map, then its domain, then its codomain.",
+            ),
             "SubsetOf": (
                 r"\text{Subset Of}",
                 "Marks a section as a subtype of another: every member of the first is a "
@@ -470,6 +478,11 @@ async def seed() -> None:
         relation_count = 39
 
         subtypes = {
+            "Matrices": "MathematicalObjects",
+            "Polynomials": "MathematicalObjects",
+            "Integers": "MathematicalObjects",
+            "Booleans": "MathematicalObjects",
+            "Knots": "MathematicalObjects",
             "SymmetricMatrices": "Matrices",
             "CyclotomicPolynomials": "Polynomials",
             "TorusKnots": "Knots",
@@ -478,9 +491,29 @@ async def seed() -> None:
             await add_relation("SubsetOf", [subtype], [supertype])
             relation_count += 1
 
+        signatures = {
+            "CharacteristicPolynomial": ("Matrices", "Polynomials"),
+            "Inverse": ("Matrices", "Matrices"),
+            "Determinant": ("Matrices", "Integers"),
+            "Add": ("Matrices", "Matrices"),
+            "IsSingular": ("Matrices", "Booleans"),
+            "MatrixOrder": ("Matrices", "Integers"),
+            "CompanionMatrix": ("Polynomials", "Matrices"),
+            "Degree": ("Polynomials", "Integers"),
+            "CyclotomicPolynomial": ("Integers", "CyclotomicPolynomials"),
+            "EulerTotient": ("Integers", "Integers"),
+            "SeifertMatrix": ("Knots", "Matrices"),
+            "AlexanderPolynomial": ("Matrices", "Polynomials"),
+            "KnotDeterminant": ("Matrices", "Integers"),
+        }
+        for operator, (domain, codomain) in signatures.items():
+            await add_relation("Signature", [operator], [domain, codomain])
+            relation_count += 1
+
         displays: dict[str, tuple[str | None, bool, bool]] = {
             "ElementOf": (None, False, True),
             "SubsetOf": (None, False, False),
+            "Signature": (None, False, False),
             "Add": (r"{in0} \op{+} {in1} = {out0}", True, False),
             "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
             "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
@@ -500,6 +533,7 @@ async def seed() -> None:
                     hidden_by_default=hidden,
                     is_membership=membership,
                     is_subtype=operator == "SubsetOf",
+                    is_signature=operator == "Signature",
                 )
             )
 

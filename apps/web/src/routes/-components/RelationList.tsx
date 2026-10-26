@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Latex } from "../../components/Latex";
 import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { ObjectOut, RelationOut } from "../../lib/types";
+import { Provenance } from "./Provenance";
 import { RelationExpression } from "./RelationExpression";
 
 const TAG_CLASS = "relation-tag inline-block rounded-sm px-2 py-0.5 text-xs";
@@ -60,6 +61,7 @@ function RelationRow({
       <div className="mt-1 text-sm">
         <RelationExpression html={html} />
       </div>
+      <Provenance provenance={relation.provenance} />
     </li>
   );
 }
