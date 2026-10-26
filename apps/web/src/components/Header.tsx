@@ -65,6 +65,9 @@ export function Header() {
             <Link to="/contribute" className={NAV_LINK_CLASS}>
               contribute
             </Link>
+            <Link to="/feed" className={NAV_LINK_CLASS}>
+              recent
+            </Link>
             <Link to="/map" className={NAV_LINK_CLASS}>
               the network
             </Link>

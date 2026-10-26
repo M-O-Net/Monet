@@ -1,6 +1,6 @@
 import type { ProvenanceOut } from "./types";
 
-function how(source: string | null): string {
+export function describeSource(source: string | null): string {
   if (source === "manual") return "entered by hand";
   if (source === "runner") return "found by the runner";
   if (source?.startsWith("implementation:") === true) return "computed by an implementation";
@@ -15,5 +15,5 @@ export function describeProvenance(provenance: ProvenanceOut): string {
     day: "numeric",
   });
   const who = provenance.contributor === null ? "" : ` by ${provenance.contributor}`;
-  return `${how(provenance.source)}${who} · ${day}`;
+  return `${describeSource(provenance.source)}${who} · ${day}`;
 }

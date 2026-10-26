@@ -17,10 +17,14 @@ def add_event(
     session.add(Event(kind=kind, subject_id=subject_id, contributor=contributor, source=source))
 
 
-async def list_events(session: AsyncSession, contributor: str | None, limit: int) -> list[Event]:
+async def list_events(
+    session: AsyncSession, contributor: str | None, kind: str | None, limit: int
+) -> list[Event]:
     query = select(Event)
     if contributor is not None:
         query = query.where(Event.contributor == contributor)
+    if kind is not None:
+        query = query.where(Event.kind == kind)
     return list((await session.exec(query.order_by(col(Event.at).desc()).limit(limit))).all())
 
 
