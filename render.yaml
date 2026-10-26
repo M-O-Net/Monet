@@ -25,8 +25,11 @@ services:
           property: connectionString
       - key: CORS_ORIGINS
         value: '["https://monet.wiki", "https://www.monet.wiki"]'
-    # Render execs dockerCommand directly rather than through a shell, so this has to be one
-    # script, not a `&&` chain. Both steps in it are idempotent.
+      - key: RESEED_ON_DEPLOY
+        value: "true"
+    # Render execs these directly rather than through a shell, so each has to be one script, not
+    # a `&&` chain.
+    preDeployCommand: ./scripts/predeploy.sh
     dockerCommand: ./scripts/start.sh
 
   - type: web
