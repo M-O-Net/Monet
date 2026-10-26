@@ -12,3 +12,5 @@ export type RelationDisplayOut = components["schemas"]["RelationDisplayOut"];
 export type ProvenanceOut = components["schemas"]["ProvenanceOut"];
 export type CommentOut = components["schemas"]["CommentOut"];
 export type ObjectRole = ObjectDetailOut["role"];
+export type EventOut = components["schemas"]["EventOut"];
+export type EventKind = EventOut["kind"];

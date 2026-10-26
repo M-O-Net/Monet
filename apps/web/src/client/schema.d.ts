@@ -393,8 +393,11 @@ export interface components {
        * Format: date-time
        */
       at: string;
-      /** Kind */
-      kind: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "object_created" | "relation_created" | "comment_created";
       /** Contributor */
       contributor: string | null;
       /** Source */
@@ -1585,6 +1588,7 @@ export interface operations {
     parameters: {
       query?: {
         contributor?: string | null;
+        kind?: ("object_created" | "relation_created" | "comment_created") | null;
         limit?: number;
       };
       header?: never;

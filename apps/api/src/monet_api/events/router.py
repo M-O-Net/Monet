@@ -5,7 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.db import get_session
 from monet_api.events import service
-from monet_api.events.schemas import EventOut
+from monet_api.events.schemas import EventKind, EventOut
 
 router = APIRouter()
 
@@ -16,6 +16,7 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 async def list_events(
     session: DbSession,
     contributor: str | None = None,
+    kind: EventKind | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[EventOut]:
-    return await service.list_events(session, contributor, limit)
+    return await service.list_events(session, contributor, kind, limit)
