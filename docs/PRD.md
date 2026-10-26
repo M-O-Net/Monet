@@ -54,7 +54,8 @@ Objects and types will have pages with comments, links, etc etc
 - Composite edges as composite definitions:
   - Alex poly is a composition of determinant with some other stuff,
 - Theorems ( alex poly is a knot invariant. Etc etc). These will preferably have a DB realization (example - map from knot->poly, instead of just from braidword->poly)
-- Claims (conjectures, theorems, refuted claims). A claim is a node holding its statement (words, LaTeX, Lean when there is one) and a test against the DB: a query whose results are counterexamples (example - "the determinant of a singular matrix is 0" = every singular matrix whose determinant is not 0).
+- Claims (conjectures, theorems, refuted claims) - not in the first POC, but the design should leave room for them. A claim holds its statement (words, LaTeX, Lean when there is one) and a test against the DB: a query whose results are counterexamples (example - "the determinant of a singular matrix is 0" = every singular matrix whose determinant is not 0).
+  - claims are kept separate from objects (no types or subtypes), but have their own pages, comments and layers - this may change
   - the test reports three counts, not a yes/no: supported (checked and holds), refuted (counterexamples), unknown (the hypothesis holds but the conclusion was never computed) - an empty result only means no counterexample among what is recorded
   - a conjecture is a claim with no counterexample; a theorem is a conjecture with a Lean formulation or a literature link; a refuted claim keeps its counterexamples (interesting mistakes)
   - the test is stored in a structured form (for every x in type T, map(x) ...) and compiled to a query, so it survives changes to the DB
