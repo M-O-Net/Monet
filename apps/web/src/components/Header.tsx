@@ -71,6 +71,9 @@ export function Header() {
             <Link to="/map" className={NAV_LINK_CLASS}>
               the network
             </Link>
+            <Link to="/about" className={NAV_LINK_CLASS}>
+              about
+            </Link>
           </div>
         </div>
       </div>

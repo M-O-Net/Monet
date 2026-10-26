@@ -21,6 +21,7 @@ CMD ["pnpm", "exec", "vite", "--host", "0.0.0.0", "--port", "5173"]
 FROM deps AS final
 COPY packages/api-client packages/api-client
 COPY apps/web apps/web
+COPY docs docs
 COPY render.yaml render.yaml
 WORKDIR /app/apps/web
 RUN pnpm run build

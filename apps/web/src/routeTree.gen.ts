@@ -8,6 +8,8 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ContributeRouteImport } from './routes/contribute'
@@ -16,11 +18,18 @@ import { Route as MapRouteImport } from './routes/map'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ObjectsObjectIdRouteImport } from './routes/objects.$objectId'
 
+const AboutLazyRouteImport = createFileRoute('/about')()
+
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutLazyRoute = AboutLazyRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/about.lazy').then((d) => d.Route))
 const ContributeRoute = ContributeRouteImport.update({
   id: '/contribute',
   path: '/contribute',
@@ -53,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/feed': typeof FeedRoute
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
+  '/about': typeof AboutLazyRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +71,7 @@ export interface FileRoutesByTo {
   '/feed': typeof FeedRoute
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
+  '/about': typeof AboutLazyRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRoutesById {
@@ -70,14 +81,28 @@ export interface FileRoutesById {
   '/feed': typeof FeedRoute
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
+  '/about': typeof AboutLazyRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/contribute' | '/feed' | '/map' | '/search' | '/objects/$objectId'
+    | '/'
+    | '/contribute'
+    | '/feed'
+    | '/map'
+    | '/search'
+    | '/about'
+    | '/objects/$objectId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/contribute' | '/feed' | '/map' | '/search' | '/objects/$objectId'
+  to:
+    | '/'
+    | '/contribute'
+    | '/feed'
+    | '/map'
+    | '/search'
+    | '/about'
+    | '/objects/$objectId'
   id:
     | '__root__'
     | '/'
@@ -85,6 +110,7 @@ export interface FileRouteTypes {
     | '/feed'
     | '/map'
     | '/search'
+    | '/about'
     | '/objects/$objectId'
   fileRoutesById: FileRoutesById
 }
@@ -94,6 +120,7 @@ export interface RootRouteChildren {
   FeedRoute: typeof FeedRoute
   MapRoute: typeof MapRoute
   SearchRoute: typeof SearchRoute
+  AboutLazyRoute: typeof AboutLazyRoute
   ObjectsObjectIdRoute: typeof ObjectsObjectIdRoute
 }
 
@@ -104,6 +131,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contribute': {
@@ -150,6 +184,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeedRoute: FeedRoute,
   MapRoute: MapRoute,
   SearchRoute: SearchRoute,
+  AboutLazyRoute: AboutLazyRoute,
   ObjectsObjectIdRoute: ObjectsObjectIdRoute,
 }
 export const routeTree = rootRouteImport
