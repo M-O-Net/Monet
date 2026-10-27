@@ -75,10 +75,26 @@ async def test_deleting_an_operator_deletes_its_implementation(client: AsyncClie
     assert (await client.get("/implementations")).json() == []
 
 
-async def test_assert_creates_the_output_object_and_relation(client: AsyncClient) -> None:
+async def _polynomial_types(client: AsyncClient) -> tuple[str, str]:
+    polys = await client.post(
+        "/objects", json={"latex": "\\text{Polynomials}", "as_type": {"data_kind": "poly"}}
+    )
+    cyclotomic = await client.post(
+        "/objects",
+        json={
+            "latex": "\\text{Cyclotomic Polynomials}",
+            "as_type": {"data_kind": "poly", "supertype_ids": [polys.json()["id"]]},
+        },
+    )
+    return polys.json()["id"], cyclotomic.json()["id"]
+
+
+async def test_assert_files_a_new_output_under_the_broadest_type_of_its_kind(
+    client: AsyncClient,
+) -> None:
+    polys, _ = await _polynomial_types(client)
     operator_id = await _operator(client, "\\text{Characteristic Polynomial}")
-    resp = await client.post("/objects", json={"latex": "\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}"})
-    matrix_id = resp.json()["id"]
+    matrix_id = (await client.post("/objects", json={"latex": "A"})).json()["id"]
 
     resp = await client.post(
         "/relations/assert",
@@ -88,18 +104,38 @@ async def test_assert_creates_the_output_object_and_relation(client: AsyncClient
             "outputs": [{"latex": "x^{2} - 4 x + 3", "data": CHAR_POLY_OF_A}],
         },
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["created_relation"] is True
     assert len(body["created_object_ids"]) == 1
-    assert body["relation"]["outputs"][0]["object"]["latex"] == "x^{2} - 4 x + 3"
-    assert body["relation"]["outputs"][0]["object"]["data"] == CHAR_POLY_OF_A
+    output = body["relation"]["outputs"][0]["object"]
+    assert output["latex"] == "x^{2} - 4 x + 3"
+    assert output["facets"] == [{"type_id": polys, "data": CHAR_POLY_OF_A}]
+
+
+async def test_assert_refuses_data_no_type_holds(client: AsyncClient) -> None:
+    operator_id = await _operator(client)
+    resp = await client.post(
+        "/relations/assert",
+        json={
+            "operator_id": operator_id,
+            "input_object_ids": [],
+            "outputs": [{"latex": "3", "data": {"int": 3}}],
+        },
+    )
+    assert resp.status_code == 400
+    assert "int" in resp.json()["detail"]
+    assert len((await client.get("/objects")).json()) == 1
 
 
 async def test_assert_is_idempotent_and_matches_outputs_by_data(client: AsyncClient) -> None:
+    _, cyclotomic = await _polynomial_types(client)
     operator_id = await _operator(client, "\\text{Characteristic Polynomial}")
     matrix_id = (await client.post("/objects", json={"latex": "A"})).json()["id"]
-    existing = await client.post("/objects", json={"latex": "3 - 4x + x^2", "data": CHAR_POLY_OF_A})
+    existing = await client.post(
+        "/objects",
+        json={"latex": "3 - 4x + x^2", "facets": [{"type_id": cyclotomic, "data": CHAR_POLY_OF_A}]},
+    )
     existing_id = existing.json()["id"]
 
     payload = {
@@ -118,6 +154,7 @@ async def test_assert_is_idempotent_and_matches_outputs_by_data(client: AsyncCli
 
 
 async def test_assert_never_matches_outputs_by_latex(client: AsyncClient) -> None:
+    await _polynomial_types(client)
     operator_id = await _operator(client)
     input_id = (await client.post("/objects", json={"latex": "A"})).json()["id"]
     same_latex = await client.post("/objects", json={"latex": "x^{2} - 4 x + 3"})

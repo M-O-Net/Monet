@@ -9,7 +9,7 @@ const object = (n: number, latex: string): ObjectOut => ({
   id: id(n),
   latex,
   description: null,
-  data: null,
+  facets: [],
 });
 
 const OPERATOR = object(99, "\\text{Add}");

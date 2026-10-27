@@ -64,8 +64,10 @@ stack's database.
 - `mypy --strict`'s `disallow_any_explicit` is **not** enabled here — it false-positives against
   SQLModel/Pydantic's own plugin-generated code on essentially every model field, not against
   anything we actually write.
-- `POST /relations/assert` matches each output to an existing object by exact `data` equality
-  (hash-indexed), never by LaTeX; an output without `data` always becomes a new object.
+- `POST /relations/assert` matches each output to the object holding equal `data` in any
+  membership (hash-indexed), never by LaTeX. A new output is filed under the one broadest type
+  of its data kind, and refused when there is no single such type; an output without `data`
+  always becomes a new object.
 - Deleting an object deletes its edges. Foreign keys do nearly all of it: `ON DELETE CASCADE`
   carries away its contents-page entry, its implementation, its references, the relations it
   operates, and those relations' slots. The one case a foreign key cannot express is an object used as a relation's

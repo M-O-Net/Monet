@@ -11,7 +11,7 @@ const object = (id: string, latex: string): ObjectOut => ({
   id,
   latex,
   description: null,
-  data: null,
+  facets: [],
 });
 
 function relation(inputs: ObjectOut[], outputs: ObjectOut[]): RelationOut {

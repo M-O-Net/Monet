@@ -6,8 +6,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.db import get_session
 from monet_api.objects import service
-from monet_api.objects.models import Object
 from monet_api.objects.schemas import (
+    FacetData,
     ObjectCreate,
     ObjectDetailOut,
     ObjectOut,
@@ -19,6 +19,8 @@ from monet_api.objects.schemas import (
     RelationCreate,
     RelationOut,
     SectionNode,
+    SignatureIn,
+    SignatureOut,
 )
 
 router = APIRouter()
@@ -30,7 +32,7 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 
 
 @router.get("/objects", response_model=list[ObjectOut], operation_id="list_objects")
-async def list_objects(session: DbSession) -> list[Object]:
+async def list_objects(session: DbSession) -> list[ObjectOut]:
     return await service.list_objects(session)
 
 
@@ -43,7 +45,7 @@ async def query_objects(
     data_contains: str | None = None,
     description_contains: str | None = None,
     where: Annotated[list[str] | None, Query()] = None,
-) -> list[Object]:
+) -> list[ObjectOut]:
     return await service.query_objects(
         session,
         member_of=member_of,
@@ -58,6 +60,11 @@ async def query_objects(
 @router.get("/types", response_model=list[ObjectOut], operation_id="list_types")
 async def list_types(session: DbSession) -> list[ObjectOut]:
     return await service.list_types(session)
+
+
+@router.get("/sections", response_model=list[ObjectOut], operation_id="list_sections")
+async def list_sections(session: DbSession) -> list[ObjectOut]:
+    return await service.list_sections(session)
 
 
 @router.get(
@@ -81,7 +88,7 @@ async def list_supertypes(
 
 
 @router.post("/objects", response_model=ObjectOut, operation_id="create_object", status_code=201)
-async def create_object(body: ObjectCreate, session: DbSession) -> Object:
+async def create_object(body: ObjectCreate, session: DbSession) -> ObjectOut:
     return await service.create_object(session, body)
 
 
@@ -91,13 +98,46 @@ async def get_object(object_id: uuid.UUID, session: DbSession) -> ObjectDetailOu
 
 
 @router.patch("/objects/{object_id}", response_model=ObjectOut, operation_id="update_object")
-async def update_object(object_id: uuid.UUID, body: ObjectUpdate, session: DbSession) -> Object:
+async def update_object(object_id: uuid.UUID, body: ObjectUpdate, session: DbSession) -> ObjectOut:
     return await service.update_object(session, object_id, body)
 
 
 @router.delete("/objects/{object_id}", status_code=204, operation_id="delete_object")
 async def delete_object(object_id: uuid.UUID, session: DbSession) -> None:
     await service.delete_object(session, object_id)
+
+
+@router.put(
+    "/objects/{object_id}/facets/{type_id}", response_model=ObjectOut, operation_id="set_facet"
+)
+async def set_facet(
+    object_id: uuid.UUID, type_id: uuid.UUID, body: FacetData, session: DbSession
+) -> ObjectOut:
+    return await service.set_facet(session, object_id, type_id, body)
+
+
+@router.delete(
+    "/objects/{object_id}/facets/{type_id}", status_code=204, operation_id="remove_facet"
+)
+async def remove_facet(object_id: uuid.UUID, type_id: uuid.UUID, session: DbSession) -> None:
+    await service.remove_facet(session, object_id, type_id)
+
+
+@router.post(
+    "/objects/{object_id}/signatures",
+    response_model=SignatureOut,
+    operation_id="add_signature",
+    status_code=201,
+)
+async def add_signature(
+    object_id: uuid.UUID, body: SignatureIn, session: DbSession
+) -> SignatureOut:
+    return await service.add_signature(session, object_id, body)
+
+
+@router.delete("/signatures/{signature_id}", status_code=204, operation_id="remove_signature")
+async def remove_signature(signature_id: uuid.UUID, session: DbSession) -> None:
+    await service.remove_signature(session, signature_id)
 
 
 # ── top-level objects ────────────────────────────────────────────────────────
@@ -107,7 +147,7 @@ async def delete_object(object_id: uuid.UUID, session: DbSession) -> None:
 @router.get(
     "/top-level-objects", response_model=list[ObjectOut], operation_id="list_top_level_objects"
 )
-async def list_top_level_objects(session: DbSession) -> list[Object]:
+async def list_top_level_objects(session: DbSession) -> list[ObjectOut]:
     return await service.list_top_level_objects(session)
 
 

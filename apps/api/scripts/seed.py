@@ -20,13 +20,18 @@ from monet_api.core.db import async_session
 from monet_api.events.models import Event
 from monet_api.implementations.models import Implementation
 from monet_api.objects.models import (
+    Membership,
     Object,
     ObjectReference,
     OperatorDisplay,
     Relation,
     RelationInput,
     RelationOutput,
+    SectionFiling,
+    Signature,
+    Subtype,
     TopLevelObject,
+    Type,
 )
 
 Data = dict[str, Any]
@@ -129,6 +134,15 @@ async def seed() -> None:
                 "Knots, and the matrices and polynomials that identify them.",
             ),
             "Knots": (r"\text{Knots}", "Specific knots, named the standard way."),
+            "RationalNumbers": (r"\text{Rational Numbers}", "Fractions of integers."),
+            "Expressions": (
+                r"\text{Symbolic Expressions}",
+                "Exact values no narrower type holds yet, such as square roots.",
+            ),
+            "RealFunctions": (
+                r"\text{Real Functions}",
+                "Functions from the real numbers to the real numbers.",
+            ),
             "TorusKnots": (
                 r"\text{Torus Knots}",
                 "Knots that lie on the surface of an unknotted torus.",
@@ -290,24 +304,6 @@ async def seed() -> None:
             ),
         }
 
-        sectioning_operators: dict[str, Specimen] = {
-            "ElementOf": (
-                r"\text{Element Of}",
-                "Marks an object as belonging to a section. Flagged as the "
-                "membership operator, so the GUI renders its relations as tags and "
-                "member lists rather than as ordinary rows.",
-            ),
-            "Signature": (
-                r"\text{Signature}",
-                "Records what a map takes and gives: the map, then its domain, then its codomain.",
-            ),
-            "SubsetOf": (
-                r"\text{Subset Of}",
-                "Marks a section as a subtype of another: every member of the first is a "
-                "member of the second.",
-            ),
-        }
-
         objects: dict[str, Specimen] = {
             **section_objects,
             **matrices,
@@ -319,8 +315,33 @@ async def seed() -> None:
             **polynomial_operators,
             **knot_operators,
             **number_operators,
-            **sectioning_operators,
         }
+
+        types: dict[str, str | None] = {
+            "MathematicalObjects": None,
+            "Matrices": "matrix",
+            "SymmetricMatrices": "matrix",
+            "Polynomials": "poly",
+            "CyclotomicPolynomials": "poly",
+            "RationalNumbers": "rational",
+            "Integers": "int",
+            "Booleans": "bool",
+            "Knots": "knot",
+            "TorusKnots": "knot",
+            "Expressions": "expr",
+            "RealFunctions": None,
+        }
+
+        most_specific_type = {
+            **dict.fromkeys(["A", "B", "D", "E", "S"], "SymmetricMatrices"),
+            **dict.fromkeys(["C", "V3", "V5", "V7", "CompPhi6"], "Matrices"),
+            **dict.fromkeys(["P", "Q", "R"], "Polynomials"),
+            **dict.fromkeys(["Phi6", "Phi10", "Phi14"], "CyclotomicPolynomials"),
+            **dict.fromkeys(integers, "Integers"),
+            **dict.fromkeys(booleans, "Booleans"),
+            **dict.fromkeys(knots, "TorusKnots"),
+        }
+        also_functions = ["P", "Phi6"]
 
         data: dict[str, Data] = {
             "A": matrix([[2, 1], [1, 2]]),
@@ -406,12 +427,7 @@ async def seed() -> None:
 
         ids: dict[str, uuid.UUID] = {}
         for key, (latex, description) in objects.items():
-            obj = Object(
-                latex=latex,
-                description=description,
-                image_url=images.get(key),
-                data=data.get(key),
-            )
+            obj = Object(latex=latex, description=description, image_url=images.get(key))
             session.add(obj)
             await session.flush()
             ids[key] = obj.id
@@ -477,71 +493,75 @@ async def seed() -> None:
 
         relation_count = 39
 
+        for key, data_kind in types.items():
+            session.add(Type(object_id=ids[key], data_kind=data_kind))
+        await session.flush()
+
         subtypes = {
             "Matrices": "MathematicalObjects",
             "Polynomials": "MathematicalObjects",
-            "Integers": "MathematicalObjects",
+            "RationalNumbers": "MathematicalObjects",
             "Booleans": "MathematicalObjects",
             "Knots": "MathematicalObjects",
+            "Expressions": "MathematicalObjects",
+            "RealFunctions": "MathematicalObjects",
+            "Integers": "RationalNumbers",
             "SymmetricMatrices": "Matrices",
             "CyclotomicPolynomials": "Polynomials",
             "TorusKnots": "Knots",
         }
         for subtype, supertype in subtypes.items():
-            await add_relation("SubsetOf", [subtype], [supertype])
-            relation_count += 1
+            session.add(Subtype(type_id=ids[subtype], supertype_id=ids[supertype]))
 
-        signatures = {
-            "CharacteristicPolynomial": ("Matrices", "Polynomials"),
-            "Inverse": ("Matrices", "Matrices"),
-            "Determinant": ("Matrices", "Integers"),
-            "Add": ("Matrices", "Matrices"),
-            "IsSingular": ("Matrices", "Booleans"),
-            "MatrixOrder": ("Matrices", "Integers"),
-            "CompanionMatrix": ("Polynomials", "Matrices"),
-            "Degree": ("Polynomials", "Integers"),
-            "CyclotomicPolynomial": ("Integers", "CyclotomicPolynomials"),
-            "EulerTotient": ("Integers", "Integers"),
-            "SeifertMatrix": ("Knots", "Matrices"),
-            "AlexanderPolynomial": ("Matrices", "Polynomials"),
-            "KnotDeterminant": ("Matrices", "Integers"),
-        }
-        for operator, (domain, codomain) in signatures.items():
-            await add_relation("Signature", [operator], [domain, codomain])
-            relation_count += 1
+        for key, type_key in most_specific_type.items():
+            session.add(Membership(object_id=ids[key], type_id=ids[type_key], data=data[key]))
+        for key in also_functions:
+            session.add(
+                Membership(object_id=ids[key], type_id=ids["RealFunctions"], data=data[key])
+            )
 
-        displays: dict[str, tuple[str | None, bool, bool]] = {
-            "ElementOf": (None, False, True),
-            "SubsetOf": (None, False, False),
-            "Signature": (None, False, False),
-            "Add": (r"{in0} \op{+} {in1} = {out0}", True, False),
-            "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False, False),
-            "Inverse": (r"{in0}^{\op{-1}} = {out0}", False, False),
-            "Degree": (r"\op{\deg(}{in0}\op{)} = {out0}", False, False),
-            "SeifertMatrix": (r"\op{V(}{in0}\op{)} = {out0}", False, False),
-            "AlexanderPolynomial": (r"\op{\Delta(}{in0}\op{)} = {out0}", False, False),
-            "CyclotomicPolynomial": (r"\op{\Phi}_{{in0}}(x) = {out0}", False, False),
-            "KnotDeterminant": (r"\op{\det{}_{K}(}{in0}\op{)} = {out0}", False, False),
-            "MatrixOrder": (r"\op{\mathrm{ord}(}{in0}\op{)} = {out0}", False, False),
-            "EulerTotient": (r"\op{\varphi(}{in0}\op{)} = {out0}", False, False),
+        signatures = [
+            ("CharacteristicPolynomial", "Matrices", "Polynomials"),
+            ("Inverse", "Matrices", "Matrices"),
+            ("Inverse", "SymmetricMatrices", "SymmetricMatrices"),
+            ("Determinant", "Matrices", "Integers"),
+            ("Add", "Matrices", "Matrices"),
+            ("IsSingular", "Matrices", "Booleans"),
+            ("MatrixOrder", "Matrices", "Integers"),
+            ("CompanionMatrix", "Polynomials", "Matrices"),
+            ("Degree", "Polynomials", "Integers"),
+            ("CyclotomicPolynomial", "Integers", "CyclotomicPolynomials"),
+            ("EulerTotient", "Integers", "Integers"),
+            ("SeifertMatrix", "Knots", "Matrices"),
+            ("AlexanderPolynomial", "Matrices", "Polynomials"),
+            ("KnotDeterminant", "Matrices", "Integers"),
+        ]
+        for operator, domain, codomain in signatures:
+            session.add(
+                Signature(map_id=ids[operator], domain_id=ids[domain], codomain_id=ids[codomain])
+            )
+
+        displays: dict[str, tuple[str | None, bool]] = {
+            "Add": (r"{in0} \op{+} {in1} = {out0}", True),
+            "Determinant": (r"\op{\det(}{in0}\op{)} = {out0}", False),
+            "Inverse": (r"{in0}^{\op{-1}} = {out0}", False),
+            "Degree": (r"\op{\deg(}{in0}\op{)} = {out0}", False),
+            "SeifertMatrix": (r"\op{V(}{in0}\op{)} = {out0}", False),
+            "AlexanderPolynomial": (r"\op{\Delta(}{in0}\op{)} = {out0}", False),
+            "CyclotomicPolynomial": (r"\op{\Phi}_{{in0}}(x) = {out0}", False),
+            "KnotDeterminant": (r"\op{\det{}_{K}(}{in0}\op{)} = {out0}", False),
+            "MatrixOrder": (r"\op{\mathrm{ord}(}{in0}\op{)} = {out0}", False),
+            "EulerTotient": (r"\op{\varphi(}{in0}\op{)} = {out0}", False),
         }
-        for operator, (template, hidden, membership) in displays.items():
+        for operator, (template, hidden) in displays.items():
             session.add(
                 OperatorDisplay(
-                    operator_id=ids[operator],
-                    template=template,
-                    hidden_by_default=hidden,
-                    is_membership=membership,
-                    is_subtype=operator == "SubsetOf",
-                    is_signature=operator == "Signature",
+                    operator_id=ids[operator], template=template, hidden_by_default=hidden
                 )
             )
 
-        sections = {
+        filings = {
             "LinearAlgebra": ["Matrices", "SymmetricMatrices", "MatrixOperations"],
-            "PolynomialAlgebra": ["Polynomials", "CyclotomicPolynomials", "PolynomialOperations"],
-            "Values": ["Integers", "Booleans", "NumberOperations"],
-            "Matrices": ["A", "B", "D", "E", "C", "S", "V3", "V5", "V7", "CompPhi6"],
             "MatrixOperations": [
                 "CharacteristicPolynomial",
                 "Inverse",
@@ -551,39 +571,23 @@ async def seed() -> None:
                 "MatrixOrder",
                 "Eigenvalues",
             ],
-            "SymmetricMatrices": ["A", "B", "D", "E", "S"],
-            "Polynomials": ["P", "Q", "R", "Phi6", "Phi10", "Phi14"],
-            "CyclotomicPolynomials": ["Phi6", "Phi10", "Phi14"],
-            "PolynomialOperations": [
-                "CompanionMatrix",
-                "Degree",
-                "Roots",
-                "CyclotomicPolynomial",
+            "PolynomialAlgebra": ["Polynomials", "CyclotomicPolynomials", "PolynomialOperations"],
+            "PolynomialOperations": ["CompanionMatrix", "Degree", "Roots", "CyclotomicPolynomial"],
+            "Values": [
+                "Integers",
+                "RationalNumbers",
+                "Booleans",
+                "Expressions",
+                "RealFunctions",
+                "NumberOperations",
             ],
-            "Integers": [
-                "zero",
-                "one",
-                "neg_one",
-                "two",
-                "three",
-                "four",
-                "five",
-                "six",
-                "seven",
-                "ten",
-                "fourteen",
-            ],
-            "Booleans": ["true", "false"],
             "NumberOperations": ["EulerTotient"],
             "KnotTheory": ["Knots", "TorusKnots", "KnotOperations"],
-            "Knots": ["K3", "K5", "K7"],
-            "TorusKnots": ["K3", "K5", "K7"],
             "KnotOperations": ["SeifertMatrix", "AlexanderPolynomial", "KnotDeterminant"],
         }
-        for section, members in sections.items():
-            for member in members:
-                await add_relation("ElementOf", [member], [section])
-                relation_count += 1
+        for section, filed in filings.items():
+            for key in filed:
+                session.add(SectionFiling(object_id=ids[key], section_id=ids[section]))
 
         for root in ("LinearAlgebra", "PolynomialAlgebra", "KnotTheory", "Values"):
             session.add(TopLevelObject(object_id=ids[root]))
@@ -616,7 +620,7 @@ async def seed() -> None:
         await session.commit()
         reference_count = sum(len(entries) for entries in references.values())
         print(
-            f"seeded {len(objects)} objects, {relation_count} relations, "
+            f"seeded {len(objects)} objects ({len(types)} types), {relation_count} relations, "
             f"{len(implementations)} implementations, {len(images)} images "
             f"and {reference_count} references"
         )

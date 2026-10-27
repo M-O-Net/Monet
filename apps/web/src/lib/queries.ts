@@ -6,6 +6,7 @@ export function invalidateObjectGraph(queryClient: QueryClient): void {
     ["get", "/objects/{object_id}"],
     ["get", "/objects/query"],
     ["get", "/types"],
+    ["get", "/sections"],
     ["get", "/events"],
     ["get", "/contents"],
     ["get", "/top-level-objects"],

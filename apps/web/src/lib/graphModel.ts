@@ -1,4 +1,3 @@
-import { isMembership } from "./cycles";
 import type { ObjectOut, RelationOut } from "./types";
 
 export interface ObjectNode {
@@ -38,7 +37,6 @@ export function buildGraph(relations: readonly RelationOut[]): Graph {
   };
 
   for (const relation of relations) {
-    if (isMembership(relation)) continue;
     nodes.push({ kind: "relation", id: relation.id, relation });
     for (const input of relation.inputs) {
       remember(input.object);

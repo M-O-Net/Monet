@@ -8,7 +8,7 @@ const object = (n: number, latex: string): ObjectOut => ({
   id: id(n),
   latex,
   description: null,
-  data: null,
+  facets: [],
 });
 
 const PHI6 = object(1, "x^{2} - x + 1");

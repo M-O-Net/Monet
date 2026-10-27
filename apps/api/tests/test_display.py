@@ -1,8 +1,9 @@
 from httpx import AsyncClient
 
 
-async def make_object(client: AsyncClient, latex: str) -> str:
-    resp = await client.post("/objects", json={"latex": latex})
+async def make_object(client: AsyncClient, latex: str, **extra: object) -> str:
+    resp = await client.post("/objects", json={"latex": latex, **extra})
+    assert resp.status_code == 201, resp.text
     result: str = resp.json()["id"]
     return result
 
@@ -20,96 +21,72 @@ async def relate(client: AsyncClient, operator: str, inputs: list[str], outputs:
 
 
 async def set_display(
-    client: AsyncClient,
-    operator: str,
-    *,
-    template: str | None = None,
-    hidden: bool = False,
-    membership: bool = False,
+    client: AsyncClient, operator: str, *, template: str | None = None, hidden: bool = False
 ) -> None:
     resp = await client.put(
         f"/operator-displays/{operator}",
-        json={
-            "template": template,
-            "hidden_by_default": hidden,
-            "is_membership": membership,
-        },
+        json={"template": template, "hidden_by_default": hidden},
     )
     assert resp.status_code == 200
 
 
-async def test_membership_relations_become_sections_not_rows(client: AsyncClient) -> None:
-    element_of = await make_object(client, "\\text{Element Of}")
-    inverse = await make_object(client, "\\text{Inverse}")
-    matrices = await make_object(client, "\\text{Matrices}")
-    a = await make_object(client, "A")
-    b = await make_object(client, "B")
-
-    await set_display(client, element_of, membership=True)
-    await relate(client, element_of, [a], [matrices])
-    await relate(client, inverse, [a], [b])
-
-    detail = (await client.get(f"/objects/{a}")).json()
-    assert [s["id"] for s in detail["sections"]] == [matrices]
-    assert [r["operator"]["id"] for r in detail["as_input"]] == [inverse]
-
-
-async def test_membership_is_driven_by_the_flag_not_the_name(client: AsyncClient) -> None:
-    element_of = await make_object(client, "\\text{Element Of}")
-    matrices = await make_object(client, "\\text{Matrices}")
-    a = await make_object(client, "A")
-
-    await relate(client, element_of, [a], [matrices])
-
-    detail = (await client.get(f"/objects/{a}")).json()
-    assert detail["sections"] == []
-    assert [r["operator"]["id"] for r in detail["as_input"]] == [element_of]
-
-
-async def test_section_members_are_listed_in_latex_order(client: AsyncClient) -> None:
-    element_of = await make_object(client, "\\text{Element Of}")
-    matrices = await make_object(client, "\\text{Matrices}")
-    await set_display(client, element_of, membership=True)
-
-    c = await make_object(client, "C")
-    a = await make_object(client, "A")
-    b = await make_object(client, "B")
-    outsider = await make_object(client, "Z")
-    for member in (c, a, b):
-        await relate(client, element_of, [member], [matrices])
-
-    detail = (await client.get(f"/objects/{matrices}")).json()
-    assert [m["latex"] for m in detail["members"]] == ["A", "B", "C"]
-    assert outsider not in [m["id"] for m in detail["members"]]
-
-
-async def test_contents_tree_nests_sections_and_omits_specimens(client: AsyncClient) -> None:
-    element_of = await make_object(client, "\\text{Element Of}")
-    await set_display(client, element_of, membership=True)
-
+async def test_filing_under_a_section_is_editorial_not_a_relation(client: AsyncClient) -> None:
     linear_algebra = await make_object(client, "\\text{Linear Algebra}")
-    matrices = await make_object(client, "\\text{Matrices}")
-    a = await make_object(client, "A")
+    inverse = await make_object(client, "\\text{Inverse}", sections=[linear_algebra])
 
-    await relate(client, element_of, [matrices], [linear_algebra])
-    await relate(client, element_of, [a], [matrices])
+    detail = (await client.get(f"/objects/{inverse}")).json()
+    assert [s["id"] for s in detail["sections"]] == [linear_algebra]
+    assert detail["as_input"] == []
+
+    section = (await client.get(f"/objects/{linear_algebra}")).json()
+    assert [o["id"] for o in section["filed"]] == [inverse]
+    assert section["roles"] == ["section"]
+    assert (await client.get("/relations")).json() == []
+
+
+async def test_filed_objects_are_listed_in_latex_order(client: AsyncClient) -> None:
+    section = await make_object(client, "\\text{Operations}")
+    for latex in ("C", "A", "B"):
+        await make_object(client, latex, sections=[section])
+    await make_object(client, "Z")
+
+    filed = (await client.get(f"/objects/{section}")).json()["filed"]
+    assert [o["latex"] for o in filed] == ["A", "B", "C"]
+
+
+async def test_contents_tree_nests_sections_and_counts_instances(client: AsyncClient) -> None:
+    linear_algebra = await make_object(client, "\\text{Linear Algebra}")
+    matrices = await make_object(
+        client, "\\text{Matrices}", as_type={"data_kind": "matrix"}, sections=[linear_algebra]
+    )
+    await make_object(
+        client, "A", facets=[{"type_id": matrices, "data": {"matrix": [[{"int": 1}]]}}]
+    )
     await client.put(f"/top-level-objects/{linear_algebra}")
+
+    symmetric = await make_object(
+        client,
+        "\\text{Symmetric Matrices}",
+        as_type={"data_kind": "matrix", "supertype_ids": [matrices]},
+    )
+    await make_object(
+        client, "B", facets=[{"type_id": symmetric, "data": {"matrix": [[{"int": 2}]]}}]
+    )
+    await make_object(client, "\\text{Empty}", as_type={}, sections=[linear_algebra])
+    await make_object(client, "\\text{Unfiled note}", sections=[linear_algebra])
 
     contents = (await client.get("/contents")).json()
     assert [node["id"] for node in contents] == [linear_algebra]
-    assert [node["id"] for node in contents[0]["children"]] == [matrices]
-    assert contents[0]["children"][0]["children"] == []
-    assert contents[0]["children"][0]["member_count"] == 1
+    children = {node["latex"]: node["member_count"] for node in contents[0]["children"]}
+    assert children == {"\\text{Matrices}": 2, "\\text{Empty}": 0}
+    assert contents[0]["member_count"] == 3
 
 
 async def test_contents_tree_survives_a_cycle(client: AsyncClient) -> None:
-    element_of = await make_object(client, "\\text{Element Of}")
-    await set_display(client, element_of, membership=True)
-
     first = await make_object(client, "\\text{First}")
-    second = await make_object(client, "\\text{Second}")
-    await relate(client, element_of, [second], [first])
-    await relate(client, element_of, [first], [second])
+    second = await make_object(client, "\\text{Second}", sections=[first])
+    third = await make_object(client, "\\text{Third}", sections=[second])
+    await make_object(client, "\\text{Leaf}", sections=[third])
     await client.put(f"/top-level-objects/{first}")
 
     resp = await client.get("/contents")
@@ -155,14 +132,7 @@ async def test_operator_display_defaults_when_unconfigured(client: AsyncClient) 
     operator = await make_object(client, "\\text{Inverse}")
     resp = await client.get(f"/operator-displays/{operator}")
     assert resp.status_code == 200
-    assert resp.json() == {
-        "operator_id": operator,
-        "template": None,
-        "hidden_by_default": False,
-        "is_membership": False,
-        "is_subtype": False,
-        "is_signature": False,
-    }
+    assert resp.json() == {"operator_id": operator, "template": None, "hidden_by_default": False}
 
 
 async def test_operator_display_requires_an_existing_object(client: AsyncClient) -> None:
@@ -179,40 +149,3 @@ async def test_deleting_an_object_is_never_blocked_by_its_own_gui_rows(
 
     assert (await client.delete(f"/objects/{obj}")).status_code == 204
     assert (await client.get("/top-level-objects")).json() == []
-
-
-async def test_a_membership_relation_carries_every_one_of_its_members(
-    client: AsyncClient,
-) -> None:
-    element_of = await make_object(client, "\\text{Element Of}")
-    matrices = await make_object(client, "\\text{Matrices}")
-    a = await make_object(client, "A")
-    b = await make_object(client, "B")
-
-    await set_display(client, element_of, membership=True)
-    await relate(client, element_of, [a, b], [matrices])
-
-    members = (await client.get(f"/objects/{matrices}")).json()["members"]
-    assert sorted(m["id"] for m in members) == sorted([a, b])
-
-    await client.put(f"/top-level-objects/{matrices}")
-    contents = (await client.get("/contents")).json()
-    assert contents[0]["member_count"] == 2
-
-
-async def test_list_relations_reports_which_operators_are_membership(client: AsyncClient) -> None:
-    element_of = await make_object(client, "\\text{Element Of}")
-    inverse = await make_object(client, "\\text{Inverse}")
-    matrices = await make_object(client, "\\text{Matrices}")
-    a = await make_object(client, "A")
-    b = await make_object(client, "B")
-
-    await set_display(client, element_of, membership=True)
-    await set_display(client, inverse, template="{in0}^{-1} = {out0}")
-    await relate(client, element_of, [a], [matrices])
-    await relate(client, inverse, [a], [b])
-
-    rows = (await client.get("/relations")).json()
-    by_operator = {r["operator"]["id"]: r["display"] for r in rows}
-    assert by_operator[element_of]["is_membership"] is True
-    assert by_operator[inverse]["is_membership"] is False

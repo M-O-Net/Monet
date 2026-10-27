@@ -7,11 +7,16 @@ from pydantic import BaseModel, Field
 from monet_api.core.schemas import Contributor, ORMModel
 
 
-class ObjectOut(ORMModel):
+class FacetOut(ORMModel):
+    type_id: uuid.UUID
+    data: dict[str, Any] | None
+
+
+class ObjectOut(BaseModel):
     id: uuid.UUID
     latex: str
     description: str | None
-    data: dict[str, Any] | None
+    facets: list[FacetOut]
 
 
 class ObjectReferenceIn(BaseModel):
@@ -24,6 +29,16 @@ class ObjectReferenceOut(ORMModel):
     url: str
 
 
+class FacetIn(BaseModel):
+    type_id: uuid.UUID
+    data: dict[str, Any] | None = None
+
+
+class TypeIn(BaseModel):
+    data_kind: str | None = None
+    supertype_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
 class SignatureIn(BaseModel):
     domain_id: uuid.UUID
     codomain_id: uuid.UUID
@@ -33,11 +48,11 @@ class ObjectCreate(BaseModel):
     latex: str
     description: str | None = None
     image_url: str | None = None
-    data: dict[str, Any] | None = None
     references: list[ObjectReferenceIn] = Field(default_factory=list)
-    member_of: list[uuid.UUID] = Field(default_factory=list)
-    subtype_of: list[uuid.UUID] = Field(default_factory=list)
-    signature: SignatureIn | None = None
+    facets: list[FacetIn] = Field(default_factory=list)
+    as_type: TypeIn | None = None
+    signatures: list[SignatureIn] = Field(default_factory=list)
+    sections: list[uuid.UUID] = Field(default_factory=list)
     contributor: Contributor = None
 
 
@@ -45,16 +60,16 @@ class ObjectUpdate(BaseModel):
     latex: str
     description: str | None = None
     image_url: str | None = None
-    data: dict[str, Any] | None = None
     references: list[ObjectReferenceIn] = Field(default_factory=list)
+
+
+class FacetData(BaseModel):
+    data: dict[str, Any] | None = None
 
 
 class RelationDisplayOut(ORMModel):
     template: str | None
     hidden_by_default: bool
-    is_membership: bool
-    is_subtype: bool
-    is_signature: bool
 
 
 class ProvenanceOut(ORMModel):
@@ -87,7 +102,17 @@ class RelationCreate(BaseModel):
 ObjectRole = Literal["type", "map", "section", "instance"]
 
 
+class FacetDetailOut(BaseModel):
+    type: ObjectOut
+    data: dict[str, Any] | None
+
+
+class TypeOut(BaseModel):
+    data_kind: str | None
+
+
 class SignatureOut(BaseModel):
+    id: uuid.UUID
     domain: ObjectOut
     codomain: ObjectOut
 
@@ -97,18 +122,20 @@ class ObjectDetailOut(BaseModel):
     latex: str
     description: str | None
     image_url: str | None
-    data: dict[str, Any] | None
-    role: ObjectRole
+    roles: list[ObjectRole]
     provenance: ProvenanceOut | None
+    facets: list[FacetDetailOut]
+    as_type: TypeOut | None
     subtypes: list[ObjectOut]
     supertypes: list[ObjectOut]
-    signature: SignatureOut | None
+    instances: list[ObjectOut]
+    signatures: list[SignatureOut]
     maps_from: list[ObjectOut]
     maps_to: list[ObjectOut]
     references: list[ObjectReferenceOut]
     is_top_level: bool
     sections: list[ObjectOut]
-    members: list[ObjectOut]
+    filed: list[ObjectOut]
     as_operator: list[RelationOut]
     as_input: list[RelationOut]
     as_output: list[RelationOut]
@@ -150,14 +177,8 @@ class OperatorDisplayOut(ORMModel):
     operator_id: uuid.UUID
     template: str | None
     hidden_by_default: bool
-    is_membership: bool
-    is_subtype: bool
-    is_signature: bool
 
 
 class OperatorDisplayUpdate(BaseModel):
     template: str | None
     hidden_by_default: bool
-    is_membership: bool
-    is_subtype: bool = False
-    is_signature: bool = False

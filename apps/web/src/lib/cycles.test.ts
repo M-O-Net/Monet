@@ -9,7 +9,7 @@ const object = (n: number, latex: string): ObjectOut => ({
   id: id(n),
   latex,
   description: null,
-  data: null,
+  facets: [],
 });
 
 const P = object(1, "x^{2} - 1");
@@ -18,16 +18,9 @@ const A = object(3, "\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}");
 const CHARPOLY = object(4, "\\text{Characteristic Polynomial}");
 const COMPANION = object(5, "\\text{Companion Matrix}");
 const INVERSE = object(6, "\\text{Inverse}");
-const ELEMENT_OF = object(7, "\\text{Element Of}");
-const MATRICES = object(8, "\\text{Matrices}");
 
 let next = 100;
-function relation(
-  operator: ObjectOut,
-  inputs: ObjectOut[],
-  outputs: ObjectOut[],
-  membership = false,
-): RelationOut {
+function relation(operator: ObjectOut, inputs: ObjectOut[], outputs: ObjectOut[]): RelationOut {
   return {
     id: id((next += 1)),
     operator,
@@ -36,9 +29,6 @@ function relation(
     display: {
       template: null,
       hidden_by_default: false,
-      is_membership: membership,
-      is_subtype: false,
-      is_signature: false,
     },
     provenance: null,
   };
@@ -65,14 +55,6 @@ describe("findCyclesThrough", () => {
     const relations = [relation(CHARPOLY, [A], [P]), relation(CHARPOLY, [D], [P])];
     expect(findCyclesThrough(relations, A.id)).toEqual([]);
     expect(findCyclesThrough(relations, P.id)).toEqual([]);
-  });
-
-  it("ignores membership relations, so a shared section is not a loop", () => {
-    const relations = [
-      relation(ELEMENT_OF, [A], [MATRICES], true),
-      relation(ELEMENT_OF, [MATRICES], [A], true),
-    ];
-    expect(findCyclesThrough(relations, A.id)).toEqual([]);
   });
 
   it("walks every input of a relation that takes more than one", () => {

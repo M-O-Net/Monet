@@ -34,7 +34,7 @@ export function MapForm({
             body: {
               latex: textLatex(name),
               description: description.trim() || null,
-              signature: { domain_id: domainId, codomain_id: codomainId },
+              signatures: [{ domain_id: domainId, codomain_id: codomainId }],
               contributor,
             },
           },
