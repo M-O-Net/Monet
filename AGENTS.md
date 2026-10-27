@@ -40,23 +40,32 @@ across a line wrap.
    close them.
 3. Never report something done, ready, or landed while a gap remains. "Done, except…" is not done.
 
-## v0 schema
+## Schema
 
-Deliberately bare — four tables, no bookkeeping columns:
+Nodes and edges, then what an object is, then editorial filing — no bookkeeping columns:
 
 ```
-objects(id uuid pk, latex text, data jsonb)
+objects(id uuid pk, latex text)
 relations(id uuid pk, operator_id uuid fk -> objects)
 relation_input(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk -> objects, position int)
 relation_output(id uuid pk, relation_id uuid fk -> relations, object_id uuid fk -> objects, position int)
+types(object_id pk fk -> objects, data_kind text)
+memberships(object_id fk -> objects, type_id fk -> types, data jsonb)
+subtypes(type_id fk -> types, supertype_id fk -> types)
+signatures(map_id fk -> objects, domain_id fk -> types, codomain_id fk -> types)
+section_filings(object_id fk -> objects, section_id fk -> objects)
 ```
 
 - `objects` has no type/kind tag, no label, no canonical hash, no timestamps. Its `latex` is
-  display only; identity and queries run on `data` — see "LaTeX is display, not data".
-- An object is an "operator" purely by being referenced as some relation's `operator_id` — no
-  separate flag, no separate table.
-- Deleting an object deletes its edges: every relation it appears in, plus its contents-page
-  entry and its implementation. See `apps/api/AGENTS.md` for why the relation half of that can't
+  display only — see "LaTeX is display, not data".
+- What an object is lives in `memberships`: one row per type it is an instance of, holding its
+  `data` read as that type. Only the most specific type is stored; queries walk `subtypes`.
+  Equal `data` never belongs to two objects, and it must carry the type's `data_kind` as its one
+  top-level key.
+- An object is a map by operating some relation, having an implementation, or having
+  `signatures`, several allowed. Contents-page headings are `section_filings`, never types.
+- Deleting an object deletes its edges: every relation it appears in, plus its typing, filing,
+  contents-page entry and implementation. See `apps/api/AGENTS.md` for why the relation half of that can't
   be a foreign key.
 - `position` on the junction tables is the one structural (not bookkeeping) field: it preserves
   operand order for non-commutative operators and distinguishes outputs when a relation produces

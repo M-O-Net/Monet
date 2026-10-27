@@ -54,9 +54,8 @@ export function InstanceForm({
           {
             body: {
               latex: notationOnly || read === null ? text.trim() : read.latex,
-              data: notationOnly || read === null ? null : read.data,
               description: description.trim() || null,
-              member_of: [typeId],
+              facets: [{ type_id: typeId, data: notationOnly || read === null ? null : read.data }],
               contributor,
             },
           },

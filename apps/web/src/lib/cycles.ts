@@ -11,13 +11,9 @@ export interface CycleStep {
 
 export type Cycle = CycleStep[];
 
-export const isMembership = (relation: RelationOut): boolean =>
-  relation.display?.is_membership ?? false;
-
 function stepsOutOf(relations: readonly RelationOut[]): Map<string, CycleStep[]> {
   const outgoing = new Map<string, CycleStep[]>();
   for (const relation of relations) {
-    if (isMembership(relation)) continue;
     for (const input of relation.inputs) {
       const from = input.object;
       const steps = outgoing.get(from.id) ?? [];

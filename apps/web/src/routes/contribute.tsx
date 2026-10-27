@@ -28,6 +28,7 @@ function ContributePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const types = api.useQuery("get", "/types");
+  const sections = api.useQuery("get", "/sections");
   const allObjects = api.useQuery("get", "/objects");
   const [contributor, setContributor] = useContributor();
   const [kind, setKind] = useState<Kind>("instance");
@@ -75,7 +76,12 @@ function ContributePage() {
         <InstanceForm types={types.data ?? []} contributor={contributor} onCreated={open} />
       )}
       {kind === "type" && (
-        <TypeForm types={types.data ?? []} contributor={contributor} onCreated={open} />
+        <TypeForm
+          types={types.data ?? []}
+          sections={sections.data ?? []}
+          contributor={contributor}
+          onCreated={open}
+        />
       )}
       {kind === "map" && (
         <MapForm types={types.data ?? []} contributor={contributor} onCreated={open} />

@@ -8,23 +8,16 @@ const object = (n: number, latex: string): ObjectOut => ({
   id: id(n),
   latex,
   description: null,
-  data: null,
+  facets: [],
 });
 
 const A = object(1, "A");
 const B = object(2, "B");
 const E = object(3, "E");
 const ADD = object(4, "\\text{Add}");
-const ELEMENT_OF = object(5, "\\text{Element Of}");
-const MATRICES = object(6, "\\text{Matrices}");
 
 let next = 100;
-const relation = (
-  operator: ObjectOut,
-  inputs: ObjectOut[],
-  outputs: ObjectOut[],
-  membership = false,
-): RelationOut => ({
+const relation = (operator: ObjectOut, inputs: ObjectOut[], outputs: ObjectOut[]): RelationOut => ({
   id: id((next += 1)),
   operator,
   inputs: inputs.map((object, position) => ({ position, object })),
@@ -32,9 +25,6 @@ const relation = (
   display: {
     template: null,
     hidden_by_default: false,
-    is_membership: membership,
-    is_subtype: false,
-    is_signature: false,
   },
   provenance: null,
 });
@@ -50,12 +40,6 @@ describe("buildGraph", () => {
     expect(graph.edges.filter((edge) => edge.source === add.id).map((edge) => edge.target)).toEqual(
       [E.id],
     );
-  });
-
-  it("leaves membership relations out entirely", () => {
-    const graph = buildGraph([relation(ELEMENT_OF, [A], [MATRICES], true)]);
-    expect(graph.nodes.filter((node) => node.kind === "relation")).toEqual([]);
-    expect(graph.edges).toEqual([]);
   });
 
   it("leaves out an object that takes part in no computation", () => {

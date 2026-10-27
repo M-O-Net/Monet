@@ -22,10 +22,11 @@ going," below, for how it's staged.
 
 Everything in Monet is one of two things: an **object**, or a **relation** between objects.
 
-**Objects** are specific mathematical things — not families or types. The matrix
-`[[2,1],[1,2]]`, not "2×2 matrices." The polynomial `x²−4x+3`, not "quadratics." A specific finite
-group, not "the class of finite simple groups." A specific knot, not "trefoil knots." Every object
-is identified and displayed by its own rendered mathematical notation.
+**Objects** are mathematical things: a specific matrix `[[2,1],[1,2]]`, a polynomial
+`x²−4x+3`, a knot — and the types they belong to, like Matrices or Polynomials. An object can be
+an instance of several types at once, carrying its value as each one reads it: `x²−x+1` is a
+cyclotomic polynomial and also a real function. That value, not its notation, is what identifies
+it; notation is only how it is shown.
 
 A deliberate design choice: **operators are objects too.** `CharacteristicPolynomial`,
 `Inverse`, `Determinant` — the operations themselves are nodes in the network, on equal footing

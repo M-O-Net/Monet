@@ -8,6 +8,7 @@ import { ConfirmButton } from "../components/ConfirmButton";
 import { Latex } from "../components/Latex";
 import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
+import { primaryData } from "../lib/data";
 import { invalidateObjectGraph } from "../lib/queries";
 import type { ObjectReferenceIn } from "../lib/types";
 import { Comments } from "./-components/Comments";
@@ -21,9 +22,10 @@ import { ReferenceList } from "./-components/ReferenceList";
 import { RelationList } from "./-components/RelationList";
 import { ImplementationEditor } from "./-components/ImplementationEditor";
 import { Operations } from "./-components/Operations";
-import { RoleBadge } from "./-components/RoleBadge";
+import { Facets } from "./-components/Facets";
+import { RoleBadges } from "./-components/RoleBadge";
 import { SectionTags } from "./-components/SectionTags";
-import { SignatureLine } from "./-components/SignatureLine";
+import { Signatures } from "./-components/Signatures";
 
 export const Route = createFileRoute("/objects/$objectId")({
   component: ObjectDetail,
@@ -41,6 +43,7 @@ function ObjectDetail() {
   const allObjects = api.useQuery("get", "/objects");
   const allRelations = api.useQuery("get", "/relations");
   const implementations = api.useQuery("get", "/implementations");
+  const types = api.useQuery("get", "/types");
   const updateObject = api.useMutation("patch", "/objects/{object_id}");
   const deleteObject = api.useMutation("delete", "/objects/{object_id}");
   const markTopLevel = api.useMutation("put", "/top-level-objects/{object_id}");
@@ -64,7 +67,12 @@ function ObjectDetail() {
   const edgeCount = new Set(
     [...obj.as_operator, ...obj.as_input, ...obj.as_output].map((r) => r.id),
   ).size;
-  const isIsolated = edgeCount === 0 && obj.sections.length === 0 && obj.members.length === 0;
+  const isIsolated =
+    edgeCount === 0 &&
+    obj.roles.length === 0 &&
+    obj.sections.length === 0 &&
+    obj.facets.length === 0;
+  const isMap = obj.roles.includes("map");
   const firstAsOperator = obj.as_operator.at(0);
 
   return (
@@ -147,12 +155,11 @@ function ObjectDetail() {
         ) : (
           <>
             <div>
-              <RoleBadge role={obj.role} />
+              <RoleBadges roles={obj.roles} />
               <h1 className="font-display text-2xl text-ink">
                 <Latex>{obj.latex}</Latex>
               </h1>
               {obj.description && <p className="mt-1 text-sm text-ink-soft">{obj.description}</p>}
-              <SignatureLine signature={obj.signature} />
               <SectionTags sections={obj.sections} />
               <Provenance provenance={obj.provenance} />
             </div>
@@ -261,12 +268,26 @@ function ObjectDetail() {
       )}
       <ConvergenceCallout asOutput={obj.as_output} currentObjectId={objectId} />
 
+      {(obj.facets.length > 0 || !obj.roles.includes("type")) && (
+        <Facets
+          objectId={objectId}
+          facets={obj.facets}
+          types={types.data ?? []}
+          onChanged={invalidateAll}
+        />
+      )}
       <MemberList title="A kind of" members={obj.supertypes} />
       <MemberList title="Subtypes" members={obj.subtypes} />
-      <MemberList
-        title={obj.role === "section" ? "Filed under this section" : "Instances"}
-        members={obj.members}
-      />
+      <MemberList title="Instances" members={obj.instances} />
+      <MemberList title="Filed under this section" members={obj.filed} />
+      {isMap && (
+        <Signatures
+          mapId={objectId}
+          signatures={obj.signatures}
+          types={types.data ?? []}
+          onChanged={invalidateAll}
+        />
+      )}
       <MemberList title="Maps from this type" members={obj.maps_from} />
       <MemberList title="Maps into this type" members={obj.maps_to} />
       <RelationList
@@ -289,10 +310,10 @@ function ObjectDetail() {
 
       {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 
-      {obj.role === "instance" && allObjects.data && implementations.data && (
+      {obj.roles.includes("instance") && allObjects.data && implementations.data && (
         <Operations
-          key={`${obj.id}:${JSON.stringify(obj.data)}`}
-          object={{ id: obj.id, latex: obj.latex, data: obj.data }}
+          key={`${obj.id}:${JSON.stringify(primaryData(obj))}`}
+          object={{ id: obj.id, latex: obj.latex, data: primaryData(obj) }}
           objects={allObjects.data}
           implementations={implementations.data}
           relations={allRelations.data ?? []}
@@ -300,7 +321,7 @@ function ObjectDetail() {
         />
       )}
 
-      {obj.role === "map" && implementations.data && (
+      {isMap && implementations.data && (
         <ImplementationEditor
           object={{ id: obj.id, latex: obj.latex }}
           implementations={implementations.data}

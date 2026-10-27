@@ -16,3 +16,9 @@ export function sameData(
   if (a === null || a === undefined || b === null || b === undefined) return false;
   return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 }
+
+export function primaryData(object: {
+  facets: readonly { data: ObjectData | null }[];
+}): ObjectData | null {
+  return object.facets.find((facet) => facet.data !== null)?.data ?? null;
+}

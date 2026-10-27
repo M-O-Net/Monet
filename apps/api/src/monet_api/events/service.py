@@ -7,7 +7,6 @@ from monet_api.events import repository
 from monet_api.events.schemas import EventKind, EventOut
 from monet_api.objects import repository as objects
 from monet_api.objects import service as objects_service
-from monet_api.objects.schemas import ObjectOut
 
 _KIND: TypeAdapter[EventKind] = TypeAdapter(EventKind)
 
@@ -24,8 +23,10 @@ async def list_events(
     }
     commented = [comment.object_id for comment in found_comments.values()]
     found_objects = {
-        obj.id: ObjectOut.model_validate(obj)
-        for obj in await objects.list_objects_by_ids(session, [*subjects, *commented])
+        obj.id: obj
+        for obj in await objects_service.objects_out(
+            session, await objects.list_objects_by_ids(session, [*subjects, *commented])
+        )
     }
     found_relations = {
         relation.id: relation

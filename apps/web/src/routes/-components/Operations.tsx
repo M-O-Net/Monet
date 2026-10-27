@@ -9,9 +9,9 @@ import { ObjectPicker } from "../../components/ObjectPicker";
 import { api } from "../../lib/api";
 import { findCyclesThrough } from "../../lib/cycles";
 import type { Cycle } from "../../lib/cycles";
-import { sameData, type ObjectData } from "../../lib/data";
+import { primaryData, sameData, type ObjectData } from "../../lib/data";
 import { buildRelationHtml } from "../../lib/relationTemplate";
-import type { RelationOut } from "../../lib/types";
+import type { ObjectOut, RelationOut } from "../../lib/types";
 import { probe, run } from "../../sandbox/client";
 import type { SandboxValue } from "../../sandbox/protocol";
 import { useSandboxStatus } from "../../sandbox/useSandboxStatus";
@@ -53,7 +53,7 @@ export function Operations({
   onCommitted,
 }: {
   object: ObjectSummary;
-  objects: ObjectSummary[];
+  objects: ObjectOut[];
   implementations: Implementation[];
   relations: RelationOut[];
   onCommitted: () => void;
@@ -106,7 +106,7 @@ export function Operations({
     setRunning(implementation.id);
     const inputs = inputIds.map((id) => {
       const found = objects.find((o) => o.id === id);
-      return { latex: found?.latex ?? "", data: found?.data ?? null };
+      return { latex: found?.latex ?? "", data: found ? primaryData(found) : null };
     });
     run(implementation.code, inputs).then(
       (outputs) => {
@@ -156,7 +156,8 @@ export function Operations({
     );
   };
 
-  const existingFor = (output: SandboxValue) => objects.find((o) => sameData(o.data, output.data));
+  const existingFor = (output: SandboxValue) =>
+    objects.find((o) => o.facets.some((facet) => sameData(facet.data, output.data)));
 
   if (implementations.length === 0) return null;
 

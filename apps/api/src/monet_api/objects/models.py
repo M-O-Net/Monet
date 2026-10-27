@@ -8,23 +8,11 @@ from sqlmodel import Field, SQLModel
 
 class Object(SQLModel, table=True):
     __tablename__ = "objects"
-    __table_args__ = (
-        sa.Index("ix_objects_data_equality", "data", postgresql_using="hash"),
-        sa.Index(
-            "ix_objects_data_containment",
-            "data",
-            postgresql_using="gin",
-            postgresql_ops={"data": "jsonb_path_ops"},
-        ),
-    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     latex: str
     description: str | None = None
     image_url: str | None = None
-    data: dict[str, Any] | None = Field(
-        default=None, sa_column=sa.Column(JSONB(none_as_null=True), nullable=True)
-    )
 
 
 class ObjectReference(SQLModel, table=True):
@@ -113,6 +101,84 @@ class OperatorDisplay(SQLModel, table=True):
     )
     template: str | None = None
     hidden_by_default: bool = False
-    is_membership: bool = False
-    is_subtype: bool = False
-    is_signature: bool = False
+
+
+def _owned_by(column: str) -> sa.Column[uuid.UUID]:
+    return sa.Column(sa.ForeignKey(column, ondelete="CASCADE"), nullable=False, index=True)
+
+
+class Type(SQLModel, table=True):
+    __tablename__ = "types"
+
+    object_id: uuid.UUID = Field(
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), primary_key=True, nullable=False
+        )
+    )
+    data_kind: str | None = None
+
+
+class Membership(SQLModel, table=True):
+    __tablename__ = "memberships"
+    __table_args__ = (
+        sa.UniqueConstraint("object_id", "type_id"),
+        sa.Index("ix_memberships_data_equality", "data", postgresql_using="hash"),
+        sa.Index(
+            "ix_memberships_data_containment",
+            "data",
+            postgresql_using="gin",
+            postgresql_ops={"data": "jsonb_path_ops"},
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    object_id: uuid.UUID = Field(sa_column=_owned_by("objects.id"))
+    type_id: uuid.UUID = Field(sa_column=_owned_by("types.object_id"))
+    data: dict[str, Any] | None = Field(
+        default=None, sa_column=sa.Column(JSONB(none_as_null=True), nullable=True)
+    )
+
+
+class Subtype(SQLModel, table=True):
+    __tablename__ = "subtypes"
+
+    type_id: uuid.UUID = Field(
+        sa_column=sa.Column(
+            sa.ForeignKey("types.object_id", ondelete="CASCADE"), primary_key=True, nullable=False
+        )
+    )
+    supertype_id: uuid.UUID = Field(
+        sa_column=sa.Column(
+            sa.ForeignKey("types.object_id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+            index=True,
+        )
+    )
+
+
+class Signature(SQLModel, table=True):
+    __tablename__ = "signatures"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    map_id: uuid.UUID = Field(sa_column=_owned_by("objects.id"))
+    domain_id: uuid.UUID = Field(sa_column=_owned_by("types.object_id"))
+    codomain_id: uuid.UUID = Field(sa_column=_owned_by("types.object_id"))
+
+
+class SectionFiling(SQLModel, table=True):
+    __tablename__ = "section_filings"
+
+    object_id: uuid.UUID = Field(
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), primary_key=True, nullable=False
+        )
+    )
+    section_id: uuid.UUID = Field(
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+            index=True,
+        )
+    )

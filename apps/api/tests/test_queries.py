@@ -7,12 +7,31 @@ from sqlalchemy import text
 
 from monet_api.core.db import engine
 
+Data = dict[str, Any]
 
-async def make(client: AsyncClient, latex: str, data: dict[str, Any] | None = None) -> str:
-    resp = await client.post("/objects", json={"latex": latex, "data": data})
-    assert resp.status_code == 201
+
+def matrix(rows: list[list[int]]) -> Data:
+    return {"matrix": [[{"int": cell} for cell in row] for row in rows]}
+
+
+def square_plus(constant: int, var: str) -> Data:
+    coeffs = {"0": {"int": constant}, "1": {"int": 0}, "2": {"int": 1}}
+    return {"poly": {"var": var, "degree": 2, "coeffs": coeffs}}
+
+
+async def make(client: AsyncClient, latex: str, **extra: object) -> str:
+    resp = await client.post("/objects", json={"latex": latex, **extra})
+    assert resp.status_code == 201, resp.text
     result: str = resp.json()["id"]
     return result
+
+
+async def make_type(client: AsyncClient, latex: str, kind: str | None, *above: str) -> str:
+    return await make(client, latex, as_type={"data_kind": kind, "supertype_ids": list(above)})
+
+
+async def make_instance(client: AsyncClient, latex: str, type_id: str, data: Data) -> str:
+    return await make(client, latex, facets=[{"type_id": type_id, "data": data}])
 
 
 async def relate(client: AsyncClient, operator: str, inputs: list[str], outputs: list[str]) -> str:
@@ -25,19 +44,6 @@ async def relate(client: AsyncClient, operator: str, inputs: list[str], outputs:
     return result
 
 
-async def flag(client: AsyncClient, operator: str, *, membership: bool, subtype: bool) -> None:
-    resp = await client.put(
-        f"/operator-displays/{operator}",
-        json={
-            "template": None,
-            "hidden_by_default": False,
-            "is_membership": membership,
-            "is_subtype": subtype,
-        },
-    )
-    assert resp.status_code == 200
-
-
 async def query(client: AsyncClient, **params: str | bool) -> list[str]:
     resp = await client.get("/objects/query", params=params)
     assert resp.status_code == 200, resp.text
@@ -45,52 +51,61 @@ async def query(client: AsyncClient, **params: str | bool) -> list[str]:
 
 
 async def taxonomy(client: AsyncClient) -> dict[str, str]:
-    ids = {
-        "element_of": await make(client, "\\text{Element Of}"),
-        "subset_of": await make(client, "\\text{Subset Of}"),
-        "matrices": await make(client, "\\text{Matrices}"),
-        "symmetric": await make(client, "\\text{Symmetric Matrices}"),
-        "diagonal": await make(client, "\\text{Diagonal Matrices}"),
-        "identity": await make(
-            client, "I", {"matrix": [[{"int": 1}, {"int": 0}], [{"int": 0}, {"int": 1}]]}
-        ),
-        "swap": await make(
-            client, "D", {"matrix": [[{"int": 0}, {"int": 1}], [{"int": 1}, {"int": 0}]]}
-        ),
-        "shear": await make(
-            client, "N", {"matrix": [[{"int": 1}, {"int": 1}], [{"int": 0}, {"int": 1}]]}
-        ),
+    matrices = await make_type(client, "\\text{Matrices}", "matrix")
+    symmetric = await make_type(client, "\\text{Symmetric Matrices}", "matrix", matrices)
+    diagonal = await make_type(client, "\\text{Diagonal Matrices}", "matrix", symmetric)
+    return {
+        "matrices": matrices,
+        "symmetric": symmetric,
+        "diagonal": diagonal,
+        "identity": await make_instance(client, "I", diagonal, matrix([[1, 0], [0, 1]])),
+        "swap": await make_instance(client, "D", symmetric, matrix([[0, 1], [1, 0]])),
+        "shear": await make_instance(client, "N", matrices, matrix([[1, 1], [0, 1]])),
     }
-    await flag(client, ids["element_of"], membership=True, subtype=False)
-    await flag(client, ids["subset_of"], membership=False, subtype=True)
-    await relate(client, ids["subset_of"], [ids["symmetric"]], [ids["matrices"]])
-    await relate(client, ids["subset_of"], [ids["diagonal"]], [ids["symmetric"]])
-    await relate(client, ids["element_of"], [ids["identity"]], [ids["diagonal"]])
-    await relate(client, ids["element_of"], [ids["swap"]], [ids["symmetric"]])
-    await relate(client, ids["element_of"], [ids["shear"]], [ids["matrices"]])
-    return ids
 
 
 async def test_objects_sharing_latex_are_distinct(client: AsyncClient) -> None:
-    first = await make(client, "x^{2} + 1", {"poly": {"var": "x"}})
-    second = await make(client, "x^{2} + 1", {"poly": {"var": "z"}})
+    polys = await make_type(client, "\\text{Polynomials}", "poly")
+    first = await make_instance(client, "x^{2} + 1", polys, square_plus(1, "x"))
+    second = await make_instance(client, "x^{2} + 1", polys, square_plus(1, "z"))
     third = await make(client, "x^{2} + 1")
     assert len({first, second, third}) == 3
 
 
-async def test_data_is_an_identity(client: AsyncClient) -> None:
-    data = {"int": 17}
-    held = await make(client, "17", data)
+async def test_data_belongs_to_one_object(client: AsyncClient) -> None:
+    integers = await make_type(client, "\\text{Integers}", "int")
+    numbers = await make_type(client, "\\text{Numbers}", None)
+    held = await make_instance(client, "17", integers, {"int": 17})
 
-    resp = await client.post("/objects", json={"latex": "17", "data": data})
+    resp = await client.post(
+        "/objects",
+        json={"latex": "17", "facets": [{"type_id": numbers, "data": {"int": 17}}]},
+    )
     assert resp.status_code == 409
     assert held in resp.json()["detail"]
 
-    other = await make(client, "18", {"int": 18})
-    resp = await client.patch(f"/objects/{other}", json={"latex": "17", "data": data})
-    assert resp.status_code == 409
-    resp = await client.patch(f"/objects/{held}", json={"latex": "17", "data": data})
+    resp = await client.put(f"/objects/{held}/facets/{numbers}", json={"data": {"int": 17}})
     assert resp.status_code == 200
+    assert sorted(f["type_id"] for f in resp.json()["facets"]) == sorted([integers, numbers])
+
+
+async def test_a_facet_must_fit_its_type(client: AsyncClient) -> None:
+    integers = await make_type(client, "\\text{Integers}", "int")
+    plain = await make(client, "A")
+    resp = await client.post(
+        "/objects", json={"latex": "x", "facets": [{"type_id": integers, "data": {"poly": {}}}]}
+    )
+    assert resp.status_code == 400
+    resp = await client.post(
+        "/objects",
+        json={"latex": "x", "facets": [{"type_id": integers, "data": {"int": 1, "poly": {}}}]},
+    )
+    assert resp.status_code == 400
+    resp = await client.post(
+        "/objects", json={"latex": "x", "facets": [{"type_id": plain, "data": {"int": 1}}]}
+    )
+    assert resp.status_code == 404
+    assert len((await client.get("/objects")).json()) == 2
 
 
 async def test_subtypes_and_supertypes(client: AsyncClient) -> None:
@@ -107,16 +122,7 @@ async def test_subtypes_and_supertypes(client: AsyncClient) -> None:
     assert sorted(o["id"] for o in above.json()) == sorted([symmetric, matrices])
 
 
-async def test_subtype_walk_survives_a_cycle(client: AsyncClient) -> None:
-    ids = await taxonomy(client)
-    await relate(client, ids["subset_of"], [ids["matrices"]], [ids["diagonal"]])
-    every = await client.get(f"/objects/{ids['matrices']}/subtypes", params={"transitive": True})
-    assert sorted(o["id"] for o in every.json()) == sorted(
-        [ids["symmetric"], ids["diagonal"], ids["matrices"]]
-    )
-
-
-async def test_query_by_membership(client: AsyncClient) -> None:
+async def test_query_by_membership_walks_subtypes(client: AsyncClient) -> None:
     ids = await taxonomy(client)
     every = await query(client, member_of=ids["matrices"])
     assert every == sorted([ids["identity"], ids["swap"], ids["shear"]])
@@ -129,19 +135,18 @@ async def test_query_by_membership(client: AsyncClient) -> None:
 
 async def test_query_by_data(client: AsyncClient) -> None:
     ids = await taxonomy(client)
-    one = {"int": 1}
-    equal = {"matrix": [[one, {"int": 0}], [{"int": 0}, one]]}
+    equal = matrix([[1, 0], [0, 1]])
     assert await query(client, data_equals=json.dumps(equal)) == [ids["identity"]]
+    assert await query(client, member_of=ids["symmetric"], data_equals=json.dumps(equal)) == [
+        ids["identity"]
+    ]
 
 
 async def test_query_by_polynomial_ignoring_its_variable(client: AsyncClient) -> None:
-    def square_plus(constant: int, var: str) -> dict[str, Any]:
-        coeffs = {"0": {"int": constant}, "1": {"int": 0}, "2": {"int": 1}}
-        return {"poly": {"var": var, "degree": 2, "coeffs": coeffs}}
-
-    in_x = await make(client, "x^{2} + 1", square_plus(1, "x"))
-    in_z = await make(client, "z^{2} + 1", square_plus(1, "z"))
-    await make(client, "x^{2} + 2", square_plus(2, "x"))
+    polys = await make_type(client, "\\text{Polynomials}", "poly")
+    in_x = await make_instance(client, "x^{2} + 1", polys, square_plus(1, "x"))
+    in_z = await make_instance(client, "z^{2} + 1", polys, square_plus(1, "z"))
+    await make_instance(client, "x^{2} + 2", polys, square_plus(2, "x"))
 
     any_variable = square_plus(1, "x")
     del any_variable["poly"]["var"]
@@ -151,9 +156,10 @@ async def test_query_by_polynomial_ignoring_its_variable(client: AsyncClient) ->
 
 async def test_query_by_property(client: AsyncClient) -> None:
     ids = await taxonomy(client)
+    integers = await make_type(client, "\\text{Integers}", "int")
     determinant = await make(client, "\\text{Determinant}")
-    one = await make(client, "1", {"int": 1})
-    minus_one = await make(client, "-1", {"int": -1})
+    one = await make_instance(client, "1", integers, {"int": 1})
+    minus_one = await make_instance(client, "-1", integers, {"int": -1})
     await relate(client, determinant, [ids["identity"]], [one])
     await relate(client, determinant, [ids["shear"]], [one])
     await relate(client, determinant, [ids["swap"]], [minus_one])
@@ -173,33 +179,32 @@ async def test_query_rejects_malformed_filters(client: AsyncClient) -> None:
         {"where": "not-a-pair"},
     ):
         assert (await client.get("/objects/query", params=params)).status_code == 400
+    plain = await make(client, "A")
+    assert (await client.get("/objects/query", params={"member_of": plain})).status_code == 404
 
 
-async def test_role_is_derived_from_the_network(client: AsyncClient) -> None:
+async def test_roles_are_a_set(client: AsyncClient) -> None:
     ids = await taxonomy(client)
-    roles = {
-        name: (await client.get(f"/objects/{ids[name]}")).json()["role"]
-        for name in ("element_of", "matrices", "diagonal", "identity")
+    polys = await make_type(client, "\\text{Polynomials}", "poly")
+    p = await make_instance(client, "x^{2} + 1", polys, square_plus(1, "x"))
+    three = await make_instance(client, "M", ids["matrices"], matrix([[3]]))
+    ten = await make_instance(client, "M'", ids["matrices"], matrix([[10]]))
+    await relate(client, p, [three], [ten])
+
+    def roles(object_id: str) -> list[str]:
+        return detail[object_id]["roles"]
+
+    detail = {
+        object_id: (await client.get(f"/objects/{object_id}")).json()
+        for object_id in (ids["matrices"], ids["identity"], p)
     }
-    assert roles == {
-        "element_of": "map",
-        "matrices": "type",
-        "diagonal": "type",
-        "identity": "instance",
-    }
+    assert roles(ids["matrices"]) == ["type"]
+    assert roles(ids["identity"]) == ["instance"]
+    assert roles(p) == ["map", "instance"]
 
     lonely_map = await make(client, "\\text{Trace}")
     await client.post("/implementations", json={"operator_id": lonely_map, "code": ""})
-    assert (await client.get(f"/objects/{lonely_map}")).json()["role"] == "map"
-
-
-async def test_subtype_relations_are_not_listed_as_ordinary_relations(client: AsyncClient) -> None:
-    ids = await taxonomy(client)
-    detail = (await client.get(f"/objects/{ids['symmetric']}")).json()
-    assert detail["as_input"] == []
-    assert detail["as_output"] == []
-    assert [o["id"] for o in detail["subtypes"]] == [ids["diagonal"]]
-    assert [o["id"] for o in detail["supertypes"]] == [ids["matrices"]]
+    assert (await client.get(f"/objects/{lonely_map}")).json()["roles"] == ["map"]
 
 
 async def test_feed_records_who_did_what(client: AsyncClient) -> None:
@@ -227,21 +232,23 @@ async def test_feed_records_who_did_what(client: AsyncClient) -> None:
 
 
 async def test_assert_records_its_implementation_as_the_source(client: AsyncClient) -> None:
+    await make_type(client, "\\text{Integers}", "int")
     operator = await make(client, "\\text{Determinant}")
     implementation = await client.post(
         "/implementations", json={"operator_id": operator, "code": ""}
     )
     implementation_id = implementation.json()["id"]
-    matrix = await make(client, "A")
-    await client.post(
+    matrix_id = await make(client, "A")
+    resp = await client.post(
         "/relations/assert",
         json={
             "operator_id": operator,
-            "input_object_ids": [matrix],
+            "input_object_ids": [matrix_id],
             "outputs": [{"latex": "3", "data": {"int": 3}}],
             "implementation_id": implementation_id,
         },
     )
+    assert resp.status_code == 200, resp.text
     feed = (await client.get("/events")).json()
     computed = [entry for entry in feed if entry["source"] == f"implementation:{implementation_id}"]
     assert sorted(entry["kind"] for entry in computed) == ["object_created", "relation_created"]
@@ -249,11 +256,11 @@ async def test_assert_records_its_implementation_as_the_source(client: AsyncClie
 
 async def test_deleting_an_object_clears_its_events(client: AsyncClient) -> None:
     operator = await make(client, "\\text{Inverse}")
-    matrix = await make(client, "A")
-    await relate(client, operator, [matrix], [matrix])
-    await client.post(f"/objects/{matrix}/comments", json={"body": "Self-inverse."})
+    matrix_id = await make(client, "A")
+    await relate(client, operator, [matrix_id], [matrix_id])
+    await client.post(f"/objects/{matrix_id}/comments", json={"body": "Self-inverse."})
 
-    assert (await client.delete(f"/objects/{matrix}")).status_code == 204
+    assert (await client.delete(f"/objects/{matrix_id}")).status_code == 204
     feed = (await client.get("/events")).json()
     assert [entry["object"]["id"] for entry in feed] == [operator]
 
@@ -279,8 +286,11 @@ async def test_comments(client: AsyncClient) -> None:
 
 async def test_queries_can_use_their_indexes() -> None:
     plans = {
-        "ix_objects_data_equality": "SELECT id FROM objects WHERE data = '{\"int\": 3}'",
-        "ix_objects_data_containment": "SELECT id FROM objects WHERE data @> '{\"int\": 3}'",
+        "ix_memberships_data_equality": "SELECT id FROM memberships WHERE data = '{\"int\": 3}'",
+        "ix_memberships_data_containment": (
+            "SELECT id FROM memberships WHERE data @> '{\"int\": 3}'"
+        ),
+        "ix_memberships_type_id": "SELECT object_id FROM memberships WHERE type_id = :nothing",
         "ix_relation_input_object_id": (
             "SELECT relation_id FROM relation_input WHERE object_id = :nothing"
         ),

@@ -7,7 +7,6 @@ from monet_api.implementations import repository
 from monet_api.implementations.models import Implementation
 from monet_api.implementations.schemas import ImplementationDetailOut, ImplementationWrite
 from monet_api.objects import service as objects_service
-from monet_api.objects.schemas import ObjectOut
 
 
 async def get_implementation_or_404(
@@ -25,7 +24,7 @@ async def _load_detail(
     operator = await objects_service.get_object_or_404(session, implementation.operator_id)
     return ImplementationDetailOut(
         id=implementation.id,
-        operator=ObjectOut.model_validate(operator),
+        operator=(await objects_service.objects_out(session, [operator]))[0],
         code=implementation.code,
     )
 

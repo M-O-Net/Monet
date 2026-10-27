@@ -54,7 +54,10 @@ function SearchPage() {
   );
 
   const kinds = useMemo(
-    () => dataKinds((instances.data ?? []).map((instance) => instance.data)),
+    () =>
+      dataKinds(
+        (instances.data ?? []).flatMap((instance) => instance.facets.map((facet) => facet.data)),
+      ),
     [instances.data],
   );
   const notationMatches = useMemo(
