@@ -1,4 +1,37 @@
-from seed_data.build import Instance, Reference, instance, lmfdb_field, number_field
+from seed_data.build import (
+    Cell,
+    Instance,
+    Reference,
+    RelationSpec,
+    Specimen,
+    graph,
+    instance,
+    lmfdb_field,
+    matrix_instance,
+    number_field,
+)
+
+
+def _cartan(rows: list[list[Cell]], unimodular: bool = False) -> Instance:
+    symmetric = all(rows[i][j] == rows[j][i] for i in range(len(rows)) for j in range(len(rows)))
+    types = ["InvertibleRationalMatrices"]
+    if symmetric:
+        types.append("PositiveDefiniteMatrices")
+    if unimodular:
+        types.append("SpecialLinearIntegerMatrices")
+    return matrix_instance(rows, types)
+
+
+def _bonds(rank: int, edges: list[tuple[int, int]]) -> list[list[Cell]]:
+    joined = {frozenset(e) for e in edges}
+    return [
+        [2 if i == j else -1 if frozenset((i, j)) in joined else 0 for j in range(rank)]
+        for i in range(rank)
+    ]
+
+
+E8_EDGES = [(0, 2), (1, 3), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7)]
+D4_EDGES = [(0, 1), (1, 2), (1, 3)]
 
 INSTANCES: dict[str, Instance] = {
     "f2": instance(r"\mathbb{F}_{2}", {"finitefield": [2, 1]}, ["FiniteFields"]),
@@ -52,17 +85,273 @@ INSTANCES: dict[str, Instance] = {
         ["SimpleLieAlgebras"],
         "The largest exceptional simple Lie algebra, of dimension 248.",
     ),
+    "f5": instance(r"\mathbb{F}_{5}", {"finitefield": [5, 1]}, ["FiniteFields"]),
+    "f8": instance(r"\mathbb{F}_{8}", {"finitefield": [2, 3]}, ["FiniteFields"]),
+    "q_sqrt3": instance(
+        r"\mathbb{Q}(\sqrt{3})",
+        number_field(-3, 0, 1),
+        ["QuadraticFields"],
+        r"Class number $1$ but narrow class number $2$: its fundamental unit $2 + \sqrt{3}$ "
+        "has norm 1.",
+    ),
+    "q_sqrt10": instance(
+        r"\mathbb{Q}(\sqrt{10})",
+        number_field(-10, 0, 1),
+        ["QuadraticFields"],
+        r"Class number $2$: $6 = 2 \cdot 3 = (4 + \sqrt{10})(4 - \sqrt{10})$.",
+    ),
+    "q_sqrt_minus23": instance(
+        r"\mathbb{Q}(\sqrt{-23})",
+        number_field(6, -1, 1),
+        ["QuadraticFields"],
+        "The first imaginary quadratic field of class number 3.",
+    ),
+    "dedekind_field": instance(
+        r"\mathbb{Q}[x]/\left(x^{3} - x^{2} + 2 x + 8\right)",
+        number_field(8, 2, -1, 1),
+        ["NumberFields"],
+        "Dedekind's cubic field, the first known whose ring of integers has no power basis: "
+        "the polynomial's discriminant is 4 times the field's.",
+    ),
+    "sl4": instance(r"\mathfrak{sl}_{4}", {"cartan": ["A", 3]}, ["SimpleLieAlgebras"]),
+    "sl5": instance(r"\mathfrak{sl}_{5}", {"cartan": ["A", 4]}, ["SimpleLieAlgebras"]),
+    "so7": instance(r"\mathfrak{so}_{7}", {"cartan": ["B", 3]}, ["SimpleLieAlgebras"]),
+    "sp6": instance(
+        r"\mathfrak{sp}_{6}",
+        {"cartan": ["C", 3]},
+        ["SimpleLieAlgebras"],
+        r"Of the same dimension as $\mathfrak{so}_{7}$, with an isomorphic Weyl group, but a "
+        "different root system.",
+    ),
+    "so8": instance(
+        r"\mathfrak{so}_{8}",
+        {"cartan": ["D", 4]},
+        ["SimpleLieAlgebras"],
+        "Its Dynkin diagram has a threefold symmetry, behind triality.",
+    ),
+    "cartan_a1": _cartan([[2]]),
+    "cartan_a3": _cartan(_bonds(3, [(0, 1), (1, 2)])),
+    "cartan_b3": _cartan([[2, -1, 0], [-1, 2, -2], [0, -1, 2]]),
+    "cartan_c3": _cartan([[2, -1, 0], [-1, 2, -1], [0, -2, 2]]),
+    "cartan_g2": _cartan([[2, -1], [-3, 2]], unimodular=True),
+    "cartan_d4": _cartan(_bonds(4, D4_EDGES)),
+    "cartan_e8": _cartan(_bonds(8, E8_EDGES), unimodular=True),
+    "path3": instance(
+        "P_{3}", graph(3, [(0, 1), (1, 2)]), ["Trees"], "The path on three vertices."
+    ),
+    "dynkin_d4": instance(
+        r"D_{4}", graph(4, D4_EDGES), ["Trees"], "A star: one vertex joined to three others."
+    ),
+    "dynkin_e8": instance(
+        r"E_{8}",
+        graph(8, E8_EDGES),
+        ["Trees"],
+        "A path of seven vertices with an eighth joined to the third from one end.",
+    ),
 }
+
+SECTIONS: dict[str, Specimen] = {
+    "FieldOperations": (
+        r"\text{Field and Lie Algebra Operations}",
+        "Operations taking a field or a simple Lie algebra as input, and the constructions "
+        "that produce a field.",
+    ),
+}
+
+OPERATORS: dict[str, Specimen] = {
+    "FiniteField": (r"\text{Finite Field}", r"$\mathbb{F}_{p^{k}}$, for a prime $p$ and $k$."),
+    "FieldDiscriminant": (
+        r"\text{Field Discriminant}",
+        "The discriminant of the ring of integers, found by the Round Two algorithm. It "
+        "differs from the defining polynomial's discriminant by the square of an index.",
+    ),
+    "ClassNumber": (
+        r"\text{Class Number}",
+        "The order of the ideal class group. For a quadratic field it counts reduced binary "
+        "quadratic forms of the field's discriminant; for a real one, cycles of them, halved "
+        r"when the fundamental unit has norm $1$. Other fields are asserted from LMFDB.",
+    ),
+    "DefiningPolynomial": (
+        r"\text{Defining Polynomial}",
+        "The reduced polynomial LMFDB uses to define the field.",
+    ),
+    "FieldGenerated": (
+        r"\text{Field Generated}",
+        r"$\mathbb{Q}(\alpha)$. Computed for quadratic $\alpha$ from the square-free part $d$ "
+        r"of its discriminant; asserted from LMFDB otherwise.",
+    ),
+    "CartanMatrix": (
+        r"\text{Cartan Matrix}",
+        r"$a_{ij} = 2 (\alpha_{i}, \alpha_{j}) / (\alpha_{j}, \alpha_{j})$ for the simple "
+        "roots, numbered as Bourbaki and Humphreys do.",
+    ),
+    "LieDimension": (
+        r"\text{Dimension}",
+        "The dimension as a complex vector space: the rank plus the number of roots.",
+    ),
+    "WeylGroup": (
+        r"\text{Weyl Group}",
+        "The group generated by the reflections in the simple roots, permuting the orbit of "
+        r"$e_{1}$ (types A to D) or of the first simple root (type G), listed in decreasing "
+        "order of coordinates.",
+    ),
+    "DynkinDiagram": (
+        r"\text{Dynkin Diagram}",
+        "The simple roots, joined when they are not orthogonal; bond multiplicities are dropped.",
+    ),
+}
+
+SIGNATURES: list[tuple[str, str, str]] = [
+    ("FiniteField", "PrimeNumbers", "FiniteFields"),
+    ("FieldDiscriminant", "NumberFields", "Integers"),
+    ("ClassNumber", "NumberFields", "PositiveIntegers"),
+    ("ClassNumber", "QuadraticFields", "PositiveIntegers"),
+    ("DefiningPolynomial", "NumberFields", "MonicIntegerPolynomials"),
+    ("FieldGenerated", "AlgebraicNumbers", "NumberFields"),
+    ("CartanMatrix", "SimpleLieAlgebras", "InvertibleRationalMatrices"),
+    ("LieDimension", "SimpleLieAlgebras", "PositiveIntegers"),
+    ("WeylGroup", "SimpleLieAlgebras", "PermutationGroups"),
+    ("DynkinDiagram", "SimpleLieAlgebras", "Trees"),
+]
+
+IMPLEMENTATIONS: dict[str, str] = {
+    "FiniteField": "finite_field",
+    "FieldDiscriminant": "field_discriminant",
+    "ClassNumber": "class_number",
+    "DefiningPolynomial": "defining_polynomial",
+    "FieldGenerated": "field_generated",
+    "CartanMatrix": "cartan_matrix",
+    "LieDimension": "lie_dimension",
+    "WeylGroup": "weyl_group",
+    "DynkinDiagram": "dynkin_diagram",
+}
+
+RELATIONS: list[RelationSpec] = [
+    ("FiniteField", [2, 1], ["f2"]),
+    ("FiniteField", [2, 2], ["f4"]),
+    ("FiniteField", [2, 3], ["f8"]),
+    ("FiniteField", [3, 2], ["f9"]),
+    ("FiniteField", [5, 1], ["f5"]),
+    ("FieldDiscriminant", ["q_sqrt2"], [8]),
+    ("FieldDiscriminant", ["q_sqrt3"], [12]),
+    ("FieldDiscriminant", ["q_sqrt5"], [5]),
+    ("FieldDiscriminant", ["q_sqrt10"], [40]),
+    ("FieldDiscriminant", ["q_i"], [-4]),
+    ("FieldDiscriminant", ["q_zeta3"], [-3]),
+    ("FieldDiscriminant", ["q_sqrt_minus5"], [-20]),
+    ("FieldDiscriminant", ["q_sqrt_minus23"], [-23]),
+    ("FieldDiscriminant", ["q_cbrt2"], [-108]),
+    ("FieldDiscriminant", ["q_cbrt3"], [-243]),
+    ("FieldDiscriminant", ["q_zeta7_plus"], [49]),
+    ("FieldDiscriminant", ["dedekind_field"], [-503]),
+    ("FieldDiscriminant", ["q_zeta5"], [125]),
+    ("FieldDiscriminant", ["q_zeta8"], [256]),
+    ("FieldDiscriminant", ["q_zeta7"], [-16807]),
+    ("ClassNumber", ["q_i"], [1]),
+    ("ClassNumber", ["q_zeta3"], [1]),
+    ("ClassNumber", ["q_sqrt_minus5"], [2]),
+    ("ClassNumber", ["q_sqrt_minus23"], [3]),
+    ("ClassNumber", ["q_sqrt2"], [1]),
+    ("ClassNumber", ["q_sqrt3"], [1]),
+    ("ClassNumber", ["q_sqrt5"], [1]),
+    ("ClassNumber", ["q_sqrt10"], [2]),
+    ("DefiningPolynomial", ["q_sqrt2"], ["square_minus_two"]),
+    ("DefiningPolynomial", ["q_sqrt5"], ["golden_polynomial"]),
+    ("DefiningPolynomial", ["q_i"], ["Phi4"]),
+    ("DefiningPolynomial", ["q_zeta3"], ["Phi6"]),
+    ("DefiningPolynomial", ["q_zeta5"], ["Phi10"]),
+    ("DefiningPolynomial", ["q_zeta7"], ["Phi14"]),
+    ("DefiningPolynomial", ["q_cbrt2"], ["cube_minus_two"]),
+    ("FieldGenerated", ["golden_ratio"], ["q_sqrt5"]),
+    ("FieldGenerated", ["sqrt2"], ["q_sqrt2"]),
+    ("FieldGenerated", ["half_sqrt2"], ["q_sqrt2"]),
+    ("FieldGenerated", ["i"], ["q_i"]),
+    ("FieldGenerated", ["half_i"], ["q_i"]),
+    ("FieldGenerated", ["three_plus_4i"], ["q_i"]),
+    ("FieldGenerated", ["two_plus_i"], ["q_i"]),
+    ("FieldGenerated", ["omega"], ["q_zeta3"]),
+    ("CartanMatrix", ["sl2"], ["cartan_a1"]),
+    ("CartanMatrix", ["sl3"], ["cartan_a2"]),
+    ("CartanMatrix", ["sl4"], ["cartan_a3"]),
+    ("CartanMatrix", ["so7"], ["cartan_b3"]),
+    ("CartanMatrix", ["sp6"], ["cartan_c3"]),
+    ("CartanMatrix", ["so8"], ["cartan_d4"]),
+    ("CartanMatrix", ["g2"], ["cartan_g2"]),
+    ("CartanMatrix", ["e8"], ["cartan_e8"]),
+    ("LieDimension", ["sl2"], [3]),
+    ("LieDimension", ["sl3"], [8]),
+    ("LieDimension", ["sl4"], [15]),
+    ("LieDimension", ["so7"], [21]),
+    ("LieDimension", ["sp6"], [21]),
+    ("LieDimension", ["so8"], [28]),
+    ("LieDimension", ["g2"], [14]),
+    ("LieDimension", ["e8"], [248]),
+    ("WeylGroup", ["sl2"], ["c2"]),
+    ("WeylGroup", ["sl3"], ["s3"]),
+    ("WeylGroup", ["sl4"], ["s4"]),
+    ("WeylGroup", ["so7"], ["signed_permutations3"]),
+    ("WeylGroup", ["sp6"], ["signed_permutations3"]),
+    ("WeylGroup", ["g2"], ["d6"]),
+    ("DynkinDiagram", ["sl2"], ["k1"]),
+    ("DynkinDiagram", ["sl3"], ["k2"]),
+    ("DynkinDiagram", ["g2"], ["k2"]),
+    ("DynkinDiagram", ["sl4"], ["path3"]),
+    ("DynkinDiagram", ["so7"], ["path3"]),
+    ("DynkinDiagram", ["sp6"], ["path3"]),
+    ("DynkinDiagram", ["sl5"], ["path4"]),
+    ("DynkinDiagram", ["so8"], ["dynkin_d4"]),
+    ("DynkinDiagram", ["e8"], ["dynkin_e8"]),
+]
+
+ASSERTED: list[RelationSpec] = [
+    ("ClassNumber", ["q_cbrt2"], [1]),
+    ("ClassNumber", ["q_cbrt3"], [1]),
+    ("ClassNumber", ["q_zeta7_plus"], [1]),
+    ("ClassNumber", ["dedekind_field"], [1]),
+    ("ClassNumber", ["q_zeta5"], [1]),
+    ("ClassNumber", ["q_zeta8"], [1]),
+    ("ClassNumber", ["q_zeta7"], [1]),
+    ("FieldGenerated", ["cbrt2"], ["q_cbrt2"]),
+    ("FieldGenerated", ["zeta5"], ["q_zeta5"]),
+]
+
+DISPLAYS: dict[str, tuple[str | None, bool]] = {
+    "FiniteField": (r"\op{\mathbb{F}}_{{in0}^{{in1}}} = {out0}", False),
+    "FieldDiscriminant": (r"\op{d(}{in0}\op{)} = {out0}", False),
+    "ClassNumber": (r"\op{h(}{in0}\op{)} = {out0}", False),
+    "FieldGenerated": (r"\op{\mathbb{Q}(}{in0}\op{)} = {out0}", False),
+    "LieDimension": (r"\op{\dim}\, {in0} = {out0}", False),
+    "WeylGroup": (r"\op{W(}{in0}\op{)} = {out0}", False),
+}
+
+_HUMPHREYS = (
+    "Humphreys, Introduction to Lie Algebras and Representation Theory, §11.4",
+    "https://doi.org/10.1007/978-1-4612-6398-2",
+)
 
 REFERENCES: dict[str, list[Reference]] = {
     "q_cbrt2": lmfdb_field("3.1.108.1"),
+    "q_cbrt3": lmfdb_field("3.1.243.1"),
     "q_zeta7_plus": lmfdb_field("3.3.49.1"),
     "q_sqrt2": lmfdb_field("2.2.8.1"),
+    "q_sqrt3": lmfdb_field("2.2.12.1"),
     "q_sqrt5": lmfdb_field("2.2.5.1"),
+    "q_sqrt10": lmfdb_field("2.2.40.1"),
     "q_sqrt_minus5": lmfdb_field("2.0.20.1"),
+    "q_sqrt_minus23": lmfdb_field("2.0.23.1"),
     "q_i": lmfdb_field("2.0.4.1"),
     "q_zeta3": lmfdb_field("2.0.3.1"),
     "q_zeta5": lmfdb_field("4.0.125.1"),
     "q_zeta7": lmfdb_field("6.0.16807.1"),
     "q_zeta8": lmfdb_field("4.0.256.1"),
+    "dedekind_field": lmfdb_field("3.1.503.1"),
+    "CartanMatrix": [_HUMPHREYS],
+    "DynkinDiagram": [_HUMPHREYS],
+    "WeylGroup": [("Wikipedia", "https://en.wikipedia.org/wiki/Weyl_group")],
+    "ClassNumber": [("Wikipedia", "https://en.wikipedia.org/wiki/Binary_quadratic_form")],
+}
+
+FILINGS: dict[str, list[str]] = {
+    "FieldsAndLieAlgebras": ["FieldOperations"],
+    "FieldOperations": list(OPERATORS),
 }

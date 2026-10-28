@@ -133,8 +133,12 @@ INSTANCES: dict[str, Instance] = {
     ),
     "d6": (
         "D_{6}",
-        "The symmetries of a hexagon, of order 12.",
-        [("DihedralGroups", small_group(12, 4))],
+        "The symmetries of a hexagon, of order 12, here permuting six points around the "
+        "cycle 0, 1, 3, 5, 4, 2.",
+        [
+            ("PermutationGroups", permgroup(6, [[0, 2, 1, 4, 3, 5], [1, 0, 3, 2, 5, 4]])),
+            ("DihedralGroups", small_group(12, 4)),
+        ],
     ),
     "klein_four": (
         "V_{4}",
@@ -257,6 +261,19 @@ INSTANCES: dict[str, Instance] = {
             ("FiniteGroups", small_group(4, 1)),
         ],
     ),
+    "signed_permutations3": (
+        r"C_{2} \times S_{4}",
+        "The signed permutations of three coordinates, here permuting the six points "
+        r"$\pm e_{i}$ listed as $e_{1}, e_{2}, e_{3}, -e_{3}, -e_{2}, -e_{1}$: the full "
+        "symmetry group of the octahedron and of the cube, of order 48.",
+        [
+            (
+                "PermutationGroups",
+                permgroup(6, [[0, 1, 3, 2, 4, 5], [0, 2, 1, 4, 3, 5], [1, 0, 2, 3, 5, 4]]),
+            ),
+            ("FiniteGroups", small_group(48, 48)),
+        ],
+    ),
     "trivial3": (
         r"\left\{ e \right\} \leq S_{3}",
         "The trivial group, acting on three points.",
@@ -291,7 +308,7 @@ OPERATORS: dict[str, Specimen] = {
     "CompositionFactors": (
         r"\text{Composition Factors}",
         "The simple quotients along a composition series, from the top down, one output "
-        "each. By Jordan–Hölder they do not depend on the series.",
+        "each. By Jordan-Hölder they do not depend on the series.",
     ),
     "Abelianisation": (
         r"\text{Abelianisation}",

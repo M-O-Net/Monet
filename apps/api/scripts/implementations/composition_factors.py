@@ -1,3 +1,5 @@
+from itertools import pairwise
+
 NONABELIAN_SIMPLE = {60: 5, 168: 42}
 MAX_DEGREE = 10
 
@@ -12,4 +14,4 @@ def compute(g):
     if not g.is_solvable:
         return [SmallGroup(g.order(), NONABELIAN_SIMPLE[g.order()])]
     orders = [h.order() for h in g.composition_series()]
-    return [SmallGroup(above // below, 1) for above, below in zip(orders, orders[1:])]
+    return [SmallGroup(above // below, 1) for above, below in pairwise(orders)]

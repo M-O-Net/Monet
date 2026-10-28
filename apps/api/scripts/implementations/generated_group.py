@@ -24,4 +24,6 @@ def accepts(p):
 
 def compute(*permutations):
     degree = max(p.size for p in permutations)
-    return _canonical(PermutationGroup([Permutation(p.array_form, size=degree) for p in permutations]))
+    return _canonical(
+        PermutationGroup([Permutation(p.array_form, size=degree) for p in permutations])
+    )

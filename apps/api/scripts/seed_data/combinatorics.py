@@ -52,7 +52,9 @@ INSTANCES: dict[str, Instance] = {
     "transposition_in_s4": _permutation(
         r"\left( 0\; 1\right)\left( 2\right)\left( 3\right)", [1, 0, 2, 3], False
     ),
-    "three_cycle_in_s4": _permutation(r"\left( 0\; 1\; 2\right)\left( 3\right)", [1, 2, 0, 3], True),
+    "three_cycle_in_s4": _permutation(
+        r"\left( 0\; 1\; 2\right)\left( 3\right)", [1, 2, 0, 3], True
+    ),
     "three_cycle_023": _permutation(r"\left( 0\; 2\; 3\right)\left( 1\right)", [2, 1, 3, 0], True),
     "double_transposition_0213": _permutation(
         r"\left( 0\; 2\right)\left( 1\; 3\right)", [2, 3, 0, 1], True
@@ -158,7 +160,7 @@ OPERATORS: dict[str, Specimen] = {
     ),
     "RSKCorrespondence": (
         r"\text{RSK Correspondence}",
-        r"Robinson–Schensted: a permutation of $n$ becomes a pair of standard Young tableaux "
+        r"Robinson-Schensted: a permutation of $n$ becomes a pair of standard Young tableaux "
         r"of the same shape, by row-inserting $p(0) + 1, \dots, p(n - 1) + 1$. The first row "
         "is as long as the longest increasing subsequence.",
     ),

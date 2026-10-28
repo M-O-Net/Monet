@@ -3,4 +3,6 @@ def accepts(p):
 
 
 def compute(p):
-    return IntegerPartition([length for length, count in p.cycle_structure.items() for _ in range(count)])
+    return IntegerPartition(
+        [length for length, count in p.cycle_structure.items() for _ in range(count)]
+    )

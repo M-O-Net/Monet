@@ -23,9 +23,7 @@ CUBE_EDGES = [(v, v ^ bit) for v in range(8) for bit in (1, 2, 4) if v < v ^ bit
 
 def _chromatic(*coeffs_from_constant: int) -> Instance:
     data = polynomial(*coeffs_from_constant)
-    terms = [
-        (power, c) for power, c in reversed(list(enumerate(coeffs_from_constant))) if c != 0
-    ]
+    terms = [(power, c) for power, c in reversed(list(enumerate(coeffs_from_constant))) if c != 0]
     pieces = []
     for power, c in terms:
         size = abs(c)
