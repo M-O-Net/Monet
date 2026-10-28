@@ -52,12 +52,18 @@ INSTANCES: dict[str, Instance] = {
     "d4": (
         "D_{4}",
         "The symmetries of a square, of order 8.",
-        [("DihedralGroups", small_group(8, 3))],
+        [
+            ("DihedralGroups", small_group(8, 3)),
+            ("PermutationGroups", permgroup(4, [[0, 3, 2, 1], [1, 0, 3, 2]])),
+        ],
     ),
     "d5": (
         "D_{5}",
         "The symmetries of a pentagon, of order 10.",
-        [("DihedralGroups", small_group(10, 1))],
+        [
+            ("DihedralGroups", small_group(10, 1)),
+            ("PermutationGroups", permgroup(5, [[0, 4, 3, 2, 1], [1, 0, 4, 3, 2]])),
+        ],
     ),
     "klein_four": (
         "V_{4}",
