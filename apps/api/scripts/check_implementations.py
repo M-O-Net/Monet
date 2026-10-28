@@ -63,9 +63,9 @@ for _operator, _domain, _ in SIGNATURES:
 
 def _probe(key: str) -> tuple[str, list[str], float]:
     implementations = [{"id": operator, "code": code} for operator, code in CODE.items()]
-    started = time.monotonic()
+    started = time.process_time()
     applicable = json.loads(_scope["probe"](json.dumps(_item(key)), json.dumps(implementations)))
-    return key, applicable["applicable"], time.monotonic() - started
+    return key, applicable["applicable"], time.process_time() - started
 
 
 def _check_relation(index: int) -> list[str]:
