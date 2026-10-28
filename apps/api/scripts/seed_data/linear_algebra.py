@@ -710,8 +710,8 @@ DISPLAYS: dict[str, tuple[str | None, bool]] = {
     "Trace": (r"\op{\operatorname{tr}(}{in0}\op{)} = {out0}", False),
     "Rank": (r"\op{\operatorname{rank}(}{in0}\op{)} = {out0}", False),
     "Transpose": (r"{in0}^{\op{T}} = {out0}", False),
-    "Multiply": (r"{in0} {in1} = {out0}", False),
-    "Apply": (r"{in0} {in1} = {out0}", False),
+    "Multiply": (r"{in0} \op{\cdot} {in1} = {out0}", False),
+    "Apply": (r"{in0} \op{\cdot} {in1} = {out0}", False),
     "GramMatrix": (r"\op{G(}{in0}\op{)} = {out0}", False),
 }
 
