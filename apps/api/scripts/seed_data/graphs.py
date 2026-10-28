@@ -138,6 +138,18 @@ INSTANCES: dict[str, Instance] = {
         ["CompleteGraphs"],
         "The smallest complete graph that is not planar.",
     ),
+    "octahedral_graph": instance(
+        r"K_{2,2,2}",
+        graph(6, [(u, v) for u in range(6) for v in range(u + 1, 6) if u + v != 5]),
+        ["PlanarGraphs", "RegularGraphs"],
+        "The edges of an octahedron: every pair of vertices but the three opposite ones.",
+    ),
+    "prism_graph": instance(
+        r"\Pi_{3}",
+        graph(6, [(0, 2), (0, 4), (2, 4), (1, 3), (1, 5), (3, 5), (0, 1), (2, 3), (4, 5)]),
+        ["PlanarGraphs", "RegularGraphs"],
+        "The edges of a triangular prism.",
+    ),
     "adjacency_k3": matrix_instance(
         [[0, 1, 1], [1, 0, 1], [1, 1, 0]], ["SymmetricMatrices", "InvertibleRationalMatrices"]
     ),

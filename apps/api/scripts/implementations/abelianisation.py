@@ -11,13 +11,21 @@ def _abelian_quotient(generators, relators):
     )
 
 
-MAX_DEGREE = 10
+def _from_prime_powers(prime_powers):
+    by_prime = {}
+    for power in prime_powers:
+        by_prime.setdefault(min(factorint(power)), []).append(power)
+    columns = [sorted(powers, reverse=True) for powers in by_prime.values()]
+    depth = max((len(column) for column in columns), default=0)
+    factors = [prod(column[k] for column in columns if k < len(column)) for k in range(depth)]
+    return AbelianGroup(0, sorted(int(f) for f in factors))
 
 
 def accepts(g):
-    return isinstance(g, FpGroup) or (isinstance(g, PermutationGroup) and g.degree <= MAX_DEGREE)
+    return isinstance(g, (FpGroup, PermutationGroup))
 
 
 def compute(g):
-    presentation = g if isinstance(g, FpGroup) else g.presentation()
-    return _abelian_quotient(presentation.free_group.symbols, presentation.relators)
+    if isinstance(g, PermutationGroup):
+        return _from_prime_powers(g.abelian_invariants())
+    return _abelian_quotient(g.free_group.symbols, g.relators)

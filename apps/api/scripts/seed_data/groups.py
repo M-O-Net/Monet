@@ -207,8 +207,9 @@ INSTANCES: dict[str, Instance] = {
         r"\mathbb{Z}/2\mathbb{Z} \oplus \mathbb{Z}/4\mathbb{Z}",
         None,
         [
-            ("FiniteGroups", small_group(8, 2)),
+            ("PermutationGroups", permgroup(6, [[0, 1, 3, 4, 5, 2], [1, 0, 2, 3, 4, 5]])),
             ("FinitelyGeneratedAbelianGroups", abelian(0, [2, 4])),
+            ("FiniteGroups", small_group(8, 2)),
         ],
     ),
     "integers_group": (
@@ -219,7 +220,11 @@ INSTANCES: dict[str, Instance] = {
     "c6": (
         r"\mathbb{Z}/6\mathbb{Z}",
         None,
-        [("FiniteGroups", small_group(6, 2)), ("CyclicGroups", abelian(0, [6]))],
+        [
+            ("PermutationGroups", permgroup(6, [[1, 2, 3, 4, 5, 0]])),
+            ("CyclicGroups", abelian(0, [6])),
+            ("FiniteGroups", small_group(6, 2)),
+        ],
     ),
     "trivial_group": (
         r"\left\{ e \right\}",
@@ -272,6 +277,35 @@ INSTANCES: dict[str, Instance] = {
                 permgroup(6, [[0, 1, 3, 2, 4, 5], [0, 2, 1, 4, 3, 5], [1, 0, 2, 3, 5, 4]]),
             ),
             ("FiniteGroups", small_group(48, 48)),
+        ],
+    ),
+    "c5": (
+        r"\mathbb{Z}/5\mathbb{Z}",
+        "Cyclic of prime order, hence simple.",
+        [("SimpleGroups", small_group(5, 1)), ("CyclicGroups", abelian(0, [5]))],
+    ),
+    "square_symmetry": (
+        r"\operatorname{Sym}\left([0, 1]^{2}\right)",
+        "The eight symmetries of the unit square, permuting its corners in the order "
+        r"$(0, 0), (0, 1), (1, 0), (1, 1)$.",
+        [("PermutationGroups", permgroup(4, [[0, 2, 1, 3], [1, 0, 3, 2]]))],
+    ),
+    "cube_symmetry": (
+        r"\operatorname{Sym}\left([0, 1]^{3}\right)",
+        "The 48 symmetries of the unit cube, permuting its corners, the corner "
+        r"$(x, y, z)$ numbered $4x + 2y + z$.",
+        [
+            (
+                "PermutationGroups",
+                permgroup(
+                    8,
+                    [
+                        [0, 1, 4, 5, 2, 3, 6, 7],
+                        [0, 2, 1, 3, 4, 6, 5, 7],
+                        [1, 0, 3, 2, 5, 4, 7, 6],
+                    ],
+                ),
+            )
         ],
     ),
     "trivial3": (
@@ -372,6 +406,7 @@ RELATIONS: list[RelationSpec] = [
     ("GroupOrder", ["quaternion"], [8]),
     ("GroupOrder", ["c7"], [7]),
     ("GroupOrder", ["c6"], [6]),
+    ("GroupOrder", ["c5"], [5]),
     ("GroupOrder", ["z2_plus_z4"], [8]),
     ("Centre", ["s4"], ["trivial4"]),
     ("Centre", ["a4"], ["trivial4"]),
@@ -391,6 +426,8 @@ RELATIONS: list[RelationSpec] = [
     ("Abelianisation", ["a4"], ["c3"]),
     ("Abelianisation", ["a5"], ["trivial_group"]),
     ("Abelianisation", ["d4"], ["klein_four"]),
+    ("Abelianisation", ["c6"], ["c6"]),
+    ("Abelianisation", ["z2_plus_z4"], ["z2_plus_z4"]),
     ("Abelianisation", ["trefoil_group"], ["integers_group"]),
     ("Abelianisation", ["z2"], ["z2"]),
     ("Abelianisation", ["quaternion"], ["klein_four"]),
@@ -409,6 +446,8 @@ RELATIONS: list[RelationSpec] = [
     ("SmallGroupID", ["claw_automorphisms"], ["s3"]),
     ("SmallGroupID", ["path_reversal_group"], ["c2"]),
     ("SmallGroupID", ["projective_plane_group"], ["c2"]),
+    ("SmallGroupID", ["square_symmetry"], ["d4"]),
+    ("SmallGroupID", ["cube_symmetry"], ["signed_permutations3"]),
     ("CyclicGroup", [1], ["trivial_group"]),
     ("CyclicGroup", [2], ["c2"]),
     ("CyclicGroup", [3], ["c3"]),

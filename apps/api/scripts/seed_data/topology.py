@@ -102,6 +102,12 @@ INSTANCES: dict[str, Instance] = {
     "genus2": instance(
         r"T^{2} \# T^{2}", surface(True, 2), ["ClosedSurfaces"], "The surface of genus two."
     ),
+    "genus3": instance(
+        r"T^{2} \# T^{2} \# T^{2}",
+        surface(True, 3),
+        ["ClosedSurfaces"],
+        "The surface of genus three: the Riemann surface of a smooth plane quartic.",
+    ),
     "projective_plane": instance(
         r"\mathbb{RP}^{2}", surface(False, 1), ["ClosedSurfaces"], "The real projective plane."
     ),
