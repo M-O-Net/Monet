@@ -130,6 +130,31 @@ INSTANCES: dict[str, Instance] = {
         ["MonicIntegerPolynomials", "IrreduciblePolynomials"],
         r"Its roots $1 \pm \sqrt{2}$ drive the Pell numbers.",
     ),
+    "Phi1": instance(
+        "x - 1",
+        polynomial(-1, 1),
+        ["CyclotomicPolynomials"],
+        r"The 1st cyclotomic polynomial, whose one root is $1$.",
+    ),
+    "x_polynomial": instance(
+        "x",
+        polynomial(0, 1),
+        ["ChebyshevPolynomials", "MonicIntegerPolynomials", "IrreduciblePolynomials"],
+        r"$T_{1}$.",
+    ),
+    "x_cubed": instance(r"x^{3}", polynomial(0, 0, 0, 1), ["MonicIntegerPolynomials"]),
+    "jordan3_charpoly": instance(
+        r"x^{3} - 7 x^{2} + 16 x - 12",
+        polynomial(-12, 16, -7, 1),
+        ["MonicIntegerPolynomials"],
+        r"$(x - 2)^{2} (x - 3)$.",
+    ),
+    "diag12_polynomial": instance(
+        r"x^{2} - 3 x + 2", polynomial(2, -3, 1), ["MonicIntegerPolynomials"]
+    ),
+    "jordan_mixed_minimal_polynomial": instance(
+        r"x^{2} - 5 x + 6", polynomial(6, -5, 1), ["MonicIntegerPolynomials"]
+    ),
     "x_minus_2": instance(
         "x - 2", polynomial(-2, 1), ["MonicIntegerPolynomials", "IrreduciblePolynomials"]
     ),

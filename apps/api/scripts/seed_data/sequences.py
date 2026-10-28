@@ -273,6 +273,27 @@ INSTANCES: dict[str, Instance] = {
         ["LinearRecurrences"],
         r"$L_{n}^{2}$.",
     ),
+    "constant_two": instance(
+        r"a_{n} = a_{n - 1}, \quad a_{0} = 2", recurrence([1], [2]), ["LinearRecurrences"]
+    ),
+    "one_plus_powers_of_three": instance(
+        r"a_{n} = 4 a_{n - 1} - 3 a_{n - 2}, \quad a_{0} = 2, a_{1} = 4",
+        recurrence([4, -3], [2, 4]),
+        ["LinearRecurrences"],
+        r"$1 + 3^{n}$.",
+    ),
+    "rotation90_traces": instance(
+        r"a_{n} = - a_{n - 2}, \quad a_{0} = 2, a_{1} = 0",
+        recurrence([0, -1], [2, 0]),
+        ["LinearRecurrences"],
+        r"$2, 0, -2, 0, 2, \dots$",
+    ),
+    "cycle3_traces": instance(
+        r"a_{n} = a_{n - 3}, \quad a_{0} = 3, a_{1} = 0, a_{2} = 0",
+        recurrence([0, 0, 1], [3, 0, 0]),
+        ["LinearRecurrences"],
+        r"$3, 0, 0, 3, 0, 0, \dots$",
+    ),
     "powers_of_four": instance(
         r"a_{n} = 4 a_{n - 1}, \quad a_{0} = 1",
         recurrence([4], [1]),
