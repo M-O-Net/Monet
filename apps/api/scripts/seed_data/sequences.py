@@ -5,6 +5,8 @@ from seed_data.build import (
     Reference,
     RelationSpec,
     Specimen,
+    coefficient,
+    expr,
     holonomic,
     instance,
     integer,
@@ -275,6 +277,70 @@ INSTANCES: dict[str, Instance] = {
         recurrence([2, 2, -1], [4, 1, 9]),
         ["LinearRecurrences"],
         r"$L_{n}^{2}$.",
+    ),
+    "reciprocal_factorials": instance(
+        r"\left(\frac{1}{n!}\right)_{n \geq 0}",
+        seq("Pow(factorial(Symbol('n')), Integer(-1))", 0),
+        ["SequencesByFormula"],
+        r"The Taylor coefficients of $e^{x}$.",
+    ),
+    "e_over_factorials": instance(
+        r"\left(\frac{e}{n!}\right)_{n \geq 0}",
+        seq("Mul(E, Pow(factorial(Symbol('n')), Integer(-1)))", 0),
+        ["SequencesByFormula"],
+        r"The Taylor coefficients of $e^{x}$ about $1$.",
+    ),
+    "constant_minus_one": instance(
+        r"\left(-1\right)_{n \geq 0}", seq("Integer(-1)", 0), ["SequencesByFormula"]
+    ),
+    "alternating_signs": instance(
+        r"\left(\left(-1\right)^{n}\right)_{n \geq 0}",
+        seq("Pow(Integer(-1), Symbol('n'))", 0),
+        ["SequencesByFormula"],
+    ),
+    "exp_coefficients": instance(
+        r"\left(n + 1\right) a_{n + 1} - a_{n} = 0, \quad a_{0} = 1",
+        holonomic([[-1], [1, 1]], [1]),
+        ["HolonomicSequences"],
+        r"$\frac{1}{n!}$ again, held as its recurrence.",
+    ),
+    "sine_coefficients": instance(
+        r"\left(n^{2} + 3 n + 2\right) a_{n + 2} + a_{n} = 0, \quad a_{0} = 0, a_{1} = 1",
+        holonomic([[1], [0], [2, 3, 1]], [0, 1]),
+        ["HolonomicSequences"],
+        r"The Taylor coefficients of $\sin x$: $0, 1, 0, -\frac{1}{6}, \dots$",
+    ),
+    "airy_coefficients": instance(
+        r"\left(n^{2} + 5 n + 6\right) a_{n + 3} - a_{n} = 0, \quad a_{0} = \operatorname{Ai}(0), "
+        r"a_{1} = \operatorname{Ai}'(0), a_{2} = 0",
+        {
+            "holonomic": {
+                "coeffs": [integer(-1), integer(0), integer(0), coefficient(6, 5, 1, var="n")],
+                "initial": [
+                    expr(
+                        "Mul(Rational(1, 3), Pow(Integer(3), Rational(1, 3)), "
+                        "Pow(gamma(Rational(2, 3)), Integer(-1)))"
+                    ),
+                    expr(
+                        "Mul(Integer(-1), Rational(1, 3), Pow(Integer(3), Rational(2, 3)), "
+                        "Pow(gamma(Rational(1, 3)), Integer(-1)))"
+                    ),
+                    integer(0),
+                ],
+            }
+        },
+        ["HolonomicSequences"],
+        r"The Taylor coefficients of the Airy function: $y'' = x y$ gives "
+        r"$(n + 2)(n + 3) a_{n+3} = a_{n}$.",
+    ),
+    "lorentzian_coefficients": instance(
+        r"a_{n} = - a_{n - 2}, \quad a_{0} = 1, a_{1} = 0",
+        recurrence([0, -1], [1, 0]),
+        ["LinearRecurrences"],
+        r"$1, 0, -1, 0, 1, \dots$",
+    ),
+    "constant_minus_one_recurrence": instance(
+        r"a_{n} = a_{n - 1}, \quad a_{0} = -1", recurrence([1], [-1]), ["LinearRecurrences"]
     ),
     "constant_two": instance(
         r"a_{n} = a_{n - 1}, \quad a_{0} = 2", recurrence([1], [2]), ["LinearRecurrences"]
