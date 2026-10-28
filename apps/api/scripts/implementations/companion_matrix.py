@@ -1,5 +1,5 @@
 def _is_polynomial_in_x(p):
-    return not isinstance(p, (bool, MatrixBase)) and Symbol("x") in getattr(p, "free_symbols", ())
+    return isinstance(p, Expr) and Symbol("x") in p.free_symbols
 
 
 def accepts(p):

@@ -4,7 +4,7 @@ def _rational_roots(p):
 
 
 def accepts(p):
-    if isinstance(p, (bool, MatrixBase)) or Symbol("x") not in getattr(p, "free_symbols", ()):
+    if not isinstance(p, Expr) or Symbol("x") not in p.free_symbols:
         return False
     return _rational_roots(p) is not None
 
