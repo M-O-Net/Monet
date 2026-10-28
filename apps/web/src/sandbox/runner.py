@@ -53,7 +53,8 @@ def _value(item):
 
 def _values(item):
     values = []
-    for data in item["facets"]:
+    distinct = {json.dumps(data, sort_keys=True): data for data in item["facets"]}
+    for data in distinct.values():
         with contextlib.suppress(LookupError):
             values.append(_from_data(data))
     return values or [_parse(item["latex"])]
