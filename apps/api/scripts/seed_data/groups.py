@@ -20,7 +20,7 @@ INSTANCES: dict[str, Instance] = {
         "The smallest nonabelian simple group: the rotations of an icosahedron.",
         [
             ("SimpleGroups", small_group(60, 5)),
-            ("PermutationGroups", permgroup(5, [[1, 2, 3, 4, 0], [1, 2, 0, 3, 4]])),
+            ("PermutationGroups", permgroup(5, [[1, 2, 0, 3, 4], [1, 2, 3, 4, 0]])),
         ],
     ),
     "psl27": (
@@ -39,6 +39,7 @@ INSTANCES: dict[str, Instance] = {
         "triangle.",
         [
             ("DihedralGroups", small_group(6, 1)),
+            ("PermutationGroups", permgroup(3, [[1, 2, 0], [1, 0, 2]])),
             (
                 "GroupPresentations",
                 presentation(
@@ -105,5 +106,41 @@ INSTANCES: dict[str, Instance] = {
         r"\mathbb{Z}/6\mathbb{Z}",
         None,
         [("FiniteGroups", small_group(6, 2)), ("CyclicGroups", abelian(0, [6]))],
+    ),
+    "trivial_group": (
+        r"\left\{ e \right\}",
+        "The trivial group.",
+        [
+            ("FiniteGroups", small_group(1, 1)),
+            ("CyclicGroups", abelian(0, [])),
+            ("PermutationGroups", permgroup(1, [[0]])),
+        ],
+    ),
+    "c2": (
+        r"\mathbb{Z}/2\mathbb{Z}",
+        "The cyclic group of order two, which is also the symmetric group on two letters.",
+        [
+            ("SimpleGroups", small_group(2, 1)),
+            ("CyclicGroups", abelian(0, [2])),
+            ("PermutationGroups", permgroup(2, [[1, 0]])),
+        ],
+    ),
+    "c3": (
+        r"\mathbb{Z}/3\mathbb{Z}",
+        "The cyclic group of order three, which is also the alternating group on three letters.",
+        [
+            ("SimpleGroups", small_group(3, 1)),
+            ("CyclicGroups", abelian(0, [3])),
+            ("PermutationGroups", permgroup(3, [[1, 2, 0]])),
+        ],
+    ),
+    "c4": (
+        r"\mathbb{Z}/4\mathbb{Z}",
+        None,
+        [
+            ("FiniteGroups", small_group(4, 1)),
+            ("CyclicGroups", abelian(0, [4])),
+            ("PermutationGroups", permgroup(4, [[1, 2, 3, 0]])),
+        ],
     ),
 }
