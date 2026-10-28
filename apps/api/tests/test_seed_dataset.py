@@ -46,10 +46,20 @@ def test_one_edge_from_two_modules_is_one_relation_crediting_both(
 
     assert relations == [("Degree", ["P"], ["two"]), ("StemField", ["Phi5"], ["q_zeta5"])]
     assert credits == [
-        [("KnotInfo", "https://knotinfo.example/P"), ("Atlas", "https://atlas.example/P")],
+        [("KnotInfo P", "https://knotinfo.example/P"), ("Atlas", "https://atlas.example/P")],
         [("KnotInfo", "https://knotinfo.example")],
     ]
     assert list(asserted) == [1]
+
+
+def test_a_deep_link_credit_names_its_entry(seed_data: SimpleNamespace) -> None:
+    findstat = seed_data.build.Source(
+        "FindStat", "https://www.findstat.org", "CC BY", "api", page="https://findstat.org/{}"
+    )
+
+    assert findstat.cite() == ("FindStat", "https://www.findstat.org")
+    assert findstat.cite("Mp00059") == ("FindStat Mp00059", "https://findstat.org/Mp00059")
+    assert findstat.cite("Mp00070", label="RSK") == ("FindStat RSK", "https://findstat.org/Mp00070")
 
 
 def test_an_object_credited_from_two_modules_keeps_every_source_once(

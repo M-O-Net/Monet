@@ -26,12 +26,12 @@ class Source:
     obtained: str
     page: str | None = None
 
-    def cite(self, entry: str | None = None) -> Reference:
+    def cite(self, entry: str | None = None, label: str | None = None) -> Reference:
         if entry is None:
             return self.name, self.homepage
         if self.page is None:
             raise ValueError(f"{self.name} has no page to link {entry} to")
-        return self.name, self.page.format(entry)
+        return f"{self.name} {label or entry}", self.page.format(entry)
 
 
 def held_by(data: Data, *areas: ModuleType) -> str | None:
