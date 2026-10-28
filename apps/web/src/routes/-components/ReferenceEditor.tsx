@@ -1,4 +1,4 @@
-import type { ObjectReferenceIn } from "../../lib/types";
+import type { ReferenceIn } from "../../lib/types";
 
 const FIELD_CLASS =
   "rounded-sm border border-mist bg-paper px-2 py-1 text-xs text-ink placeholder:text-ink-soft/60 focus:border-pond focus:outline-none";
@@ -7,10 +7,10 @@ export function ReferenceEditor({
   references,
   onChange,
 }: {
-  references: ObjectReferenceIn[];
-  onChange: (next: ObjectReferenceIn[]) => void;
+  references: ReferenceIn[];
+  onChange: (next: ReferenceIn[]) => void;
 }) {
-  const replace = (index: number, patch: Partial<ObjectReferenceIn>) => {
+  const replace = (index: number, patch: Partial<ReferenceIn>) => {
     onChange(references.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
 

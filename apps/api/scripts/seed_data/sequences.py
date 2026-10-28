@@ -14,6 +14,7 @@ from seed_data.build import (
     recurrence,
     seq,
 )
+from seed_data.sources import OEIS
 
 
 def finite(*values: int) -> Instance:
@@ -535,8 +536,8 @@ RELATIONS: list[RelationSpec] = [
     ("ReadAtN", ["reciprocals", 4], [Fraction(1, 4)]),
     ("AsSequence", ["EulerTotient"], ["totient"]),
     ("AsSequence", ["DivisorCount"], ["divisor_count_function"]),
-    ("PartialSums", ["squares"], ["sum_of_squares"]),
-    ("PartialSums", ["powers_of_two"], ["mersenne"]),
+    ("PartialSums", ["squares"], ["sum_of_squares"], [OEIS.cite("A000330")]),
+    ("PartialSums", ["powers_of_two"], ["mersenne"], [OEIS.cite("A000225")]),
     ("PartialSums", ["reciprocals"], ["harmonic_numbers"]),
     ("PartialSums", ["odd_numbers"], ["squares_from_one"]),
     ("PartialSums", ["first_fibonacci"], ["running_fibonacci"]),
@@ -596,8 +597,18 @@ RELATIONS: list[RelationSpec] = [
 
 ASSERTED: list[RelationSpec] = [
     ("TermwiseProduct", ["central_binomials", "central_binomials"], ["central_binomial_squares"]),
-    ("GeneratingFunction", ["catalan_numbers"], ["catalan_generating_function"]),
-    ("GeneratingFunction", ["central_binomials"], ["central_binomial_generating_function"]),
+    (
+        "GeneratingFunction",
+        ["catalan_numbers"],
+        ["catalan_generating_function"],
+        [OEIS.cite("A000108")],
+    ),
+    (
+        "GeneratingFunction",
+        ["central_binomials"],
+        ["central_binomial_generating_function"],
+        [OEIS.cite("A000984")],
+    ),
 ]
 
 DISPLAYS: dict[str, tuple[str | None, bool]] = {

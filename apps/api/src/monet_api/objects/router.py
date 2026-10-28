@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.db import get_session
@@ -15,6 +15,7 @@ from monet_api.objects.schemas import (
     ObjectUpdate,
     OperatorDisplayOut,
     OperatorDisplayUpdate,
+    ReferenceIn,
     RelationAssert,
     RelationAssertOut,
     RelationCreate,
@@ -213,8 +214,13 @@ async def list_relations(session: DbSession) -> list[RelationOut]:
 @router.post(
     "/relations", response_model=RelationOut, operation_id="create_relation", status_code=201
 )
-async def create_relation(body: RelationCreate, session: DbSession) -> RelationOut:
-    return await service.create_relation(session, body)
+async def create_relation(
+    body: RelationCreate, session: DbSession, response: Response
+) -> RelationOut:
+    relation, created = await service.create_relation(session, body)
+    if not created:
+        response.status_code = 200
+    return relation
 
 
 @router.get("/relations/{relation_id}", response_model=RelationOut, operation_id="get_relation")
@@ -227,6 +233,17 @@ async def replace_relation(
     relation_id: uuid.UUID, body: RelationCreate, session: DbSession
 ) -> RelationOut:
     return await service.replace_relation(session, relation_id, body)
+
+
+@router.post(
+    "/relations/{relation_id}/references",
+    response_model=RelationOut,
+    operation_id="add_relation_reference",
+)
+async def add_relation_reference(
+    relation_id: uuid.UUID, body: ReferenceIn, session: DbSession
+) -> RelationOut:
+    return await service.add_relation_reference(session, relation_id, body)
 
 
 @router.delete("/relations/{relation_id}", status_code=204, operation_id="delete_relation")

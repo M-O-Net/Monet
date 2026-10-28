@@ -1,5 +1,7 @@
 import itertools
+from dataclasses import dataclass
 from fractions import Fraction
+from types import ModuleType
 from typing import Any
 
 Data = dict[str, Any]
@@ -8,9 +10,36 @@ Facet = tuple[str, Data]
 Instance = tuple[str, str | None, list[Facet]]
 TypeSpec = tuple[str, str, str | None, list[str]]
 Cell = int | tuple[str, Data]
-Endpoint = str | int | Fraction
-RelationSpec = tuple[str, list[Endpoint], list[Endpoint]]
+Endpoint = str | int | Fraction | Data
 Reference = tuple[str, str]
+RelationSpec = (
+    tuple[str, list[Endpoint], list[Endpoint]]
+    | tuple[str, list[Endpoint], list[Endpoint], list[Reference]]
+)
+
+
+@dataclass(frozen=True)
+class Source:
+    name: str
+    homepage: str
+    license: str
+    obtained: str
+    page: str | None = None
+
+    def cite(self, entry: str | None = None) -> Reference:
+        if entry is None:
+            return self.name, self.homepage
+        if self.page is None:
+            raise ValueError(f"{self.name} has no page to link {entry} to")
+        return self.name, self.page.format(entry)
+
+
+def held_by(data: Data, *areas: ModuleType) -> str | None:
+    for area in areas:
+        for key, (_, _, facets) in getattr(area, "INSTANCES", {}).items():
+            if any(held == data for _, held in facets):
+                return str(key)
+    return None
 
 
 def integer(n: int) -> Data:

@@ -46,6 +46,19 @@ class Relation(SQLModel, table=True):
     )
 
 
+class RelationReference(SQLModel, table=True):
+    __tablename__ = "relation_references"
+    __table_args__ = (sa.UniqueConstraint("relation_id", "url"),)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    relation_id: uuid.UUID = Field(
+        sa_column=sa.Column(sa.ForeignKey("relations.id", ondelete="CASCADE"), nullable=False)
+    )
+    label: str
+    url: str
+    position: int
+
+
 class RelationInput(SQLModel, table=True):
     __tablename__ = "relation_input"
     __table_args__ = (

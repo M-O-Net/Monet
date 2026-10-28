@@ -302,6 +302,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/relations/{relation_id}/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Relation Reference */
+        post: operations["add_relation_reference"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/relations/assert": {
         parameters: {
             query?: never;
@@ -584,7 +601,7 @@ export interface components {
             /** Image Url */
             image_url?: string | null;
             /** References */
-            references?: components["schemas"]["ObjectReferenceIn"][];
+            references?: components["schemas"]["ReferenceIn"][];
             /** Facets */
             facets?: components["schemas"]["FacetIn"][];
             as_type?: components["schemas"]["TypeIn"] | null;
@@ -627,7 +644,7 @@ export interface components {
             /** Maps To */
             maps_to: components["schemas"]["ObjectOut"][];
             /** References */
-            references: components["schemas"]["ObjectReferenceOut"][];
+            references: components["schemas"]["ReferenceOut"][];
             /** Is Top Level */
             is_top_level: boolean;
             /** Sections */
@@ -655,20 +672,6 @@ export interface components {
             /** Facets */
             facets: components["schemas"]["FacetOut"][];
         };
-        /** ObjectReferenceIn */
-        ObjectReferenceIn: {
-            /** Label */
-            label: string;
-            /** Url */
-            url: string;
-        };
-        /** ObjectReferenceOut */
-        ObjectReferenceOut: {
-            /** Label */
-            label: string;
-            /** Url */
-            url: string;
-        };
         /** ObjectUpdate */
         ObjectUpdate: {
             /** Latex */
@@ -678,7 +681,7 @@ export interface components {
             /** Image Url */
             image_url?: string | null;
             /** References */
-            references?: components["schemas"]["ObjectReferenceIn"][];
+            references?: components["schemas"]["ReferenceIn"][];
         };
         /** OperatorDisplayOut */
         OperatorDisplayOut: {
@@ -711,6 +714,20 @@ export interface components {
             /** Source */
             source: string | null;
         };
+        /** ReferenceIn */
+        ReferenceIn: {
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+        };
+        /** ReferenceOut */
+        ReferenceOut: {
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+        };
         /**
          * RelationAssert
          * @description Record a computed result; outputs are values because they may not exist as objects yet.
@@ -727,6 +744,8 @@ export interface components {
             outputs: components["schemas"]["ComputedOutput"][];
             /** Implementation Id */
             implementation_id?: string | null;
+            /** References */
+            references?: components["schemas"]["ReferenceIn"][];
             /** Contributor */
             contributor?: string | null;
         };
@@ -749,6 +768,8 @@ export interface components {
             input_object_ids: string[];
             /** Output Object Ids */
             output_object_ids: string[];
+            /** References */
+            references?: components["schemas"]["ReferenceIn"][];
             /** Contributor */
             contributor?: string | null;
         };
@@ -773,6 +794,8 @@ export interface components {
             outputs: components["schemas"]["RelationSlotOut"][];
             display: components["schemas"]["RelationDisplayOut"] | null;
             provenance: components["schemas"]["ProvenanceOut"] | null;
+            /** References */
+            references: components["schemas"]["ReferenceOut"][];
         };
         /** RelationSlotOut */
         RelationSlotOut: {
@@ -1606,6 +1629,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_relation_reference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                relation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferenceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationOut"];
+                };
             };
             /** @description Validation Error */
             422: {

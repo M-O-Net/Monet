@@ -1,6 +1,8 @@
 import json
 import math
+from collections.abc import Iterable, Sequence
 from fractions import Fraction
+from types import ModuleType
 from typing import Any
 
 from seed_data import (
@@ -21,6 +23,7 @@ from seed_data.build import (
     Endpoint,
     Instance,
     Reference,
+    RelationSpec,
     Specimen,
     fraction,
     instance,
@@ -56,8 +59,24 @@ def _merged(name: str, base: dict[str, Any]) -> dict[str, Any]:
     return merged
 
 
-def _concatenated(name: str) -> list[Any]:
-    return [entry for area in AREAS for entry in getattr(area, name, [])]
+def _concatenated(name: str, areas: Sequence[ModuleType] = AREAS) -> list[Any]:
+    return [entry for area in areas for entry in getattr(area, name, [])]
+
+
+def union(*reference_lists: Iterable[Reference]) -> list[Reference]:
+    by_url: dict[str, Reference] = {}
+    for references in reference_lists:
+        for label, url in references:
+            by_url.setdefault(url, (label, url))
+    return list(by_url.values())
+
+
+def merged_references(areas: Sequence[ModuleType]) -> dict[str, list[Reference]]:
+    merged: dict[str, list[Reference]] = {}
+    for area in areas:
+        for key, references in getattr(area, "REFERENCES", {}).items():
+            merged[key] = union(merged.get(key, []), references)
+    return merged
 
 
 def fingerprint(data: Data) -> str:
@@ -87,7 +106,7 @@ SECTIONS: dict[str, Specimen] = _merged("SECTIONS", CATALOGUE_SECTIONS)
 OPERATORS: dict[str, Specimen] = _merged("OPERATORS", {})
 IMPLEMENTATIONS: dict[str, str] = _merged("IMPLEMENTATIONS", {})
 DISPLAYS: dict[str, tuple[str | None, bool]] = _merged("DISPLAYS", {})
-REFERENCES: dict[str, list[Reference]] = _merged("REFERENCES", {})
+REFERENCES: dict[str, list[Reference]] = merged_references(AREAS)
 IMAGES: dict[str, str] = _merged("IMAGES", {})
 SIGNATURES: list[tuple[str, str, str]] = _concatenated("SIGNATURES")
 INSTANCES: dict[str, Instance] = _merged("INSTANCES", {})
@@ -99,6 +118,7 @@ for _area in AREAS:
     for _section, _filed in getattr(_area, "FILINGS", {}).items():
         FILINGS.setdefault(_section, []).extend(_filed)
 
+_DEFINED_IN = {key: area.__name__ for area in AREAS for key in getattr(area, "INSTANCES", {})}
 OWNERS: dict[str, str] = {}
 for _key, (_, _, _facets) in INSTANCES.items():
     for _type, _data in _facets:
@@ -107,7 +127,10 @@ for _key, (_, _, _facets) in INSTANCES.items():
             raise ValueError(f"{_key} files {_data} under {_type}, which holds {_kind} data")
         _owner = OWNERS.setdefault(fingerprint(_data), _key)
         if _owner != _key:
-            raise ValueError(f"{_owner} and {_key} hold the same data {_data}")
+            raise ValueError(
+                f"{_owner} ({_DEFINED_IN[_owner]}) and {_key} ({_DEFINED_IN[_key]}) hold the "
+                f"same data {_data}: drop {_key} and credit {_owner} in REFERENCES instead"
+            )
 
 
 def _resolve(endpoint: Endpoint) -> str:
@@ -117,6 +140,11 @@ def _resolve(endpoint: Endpoint) -> str:
         return endpoint
     if isinstance(endpoint, bool):
         raise TypeError("name a truth value by its key, true or false")
+    if isinstance(endpoint, dict):
+        holder = OWNERS.get(fingerprint(endpoint))
+        if holder is None:
+            raise ValueError(f"no object holds {endpoint}")
+        return holder
     owner = OWNERS.get(fingerprint(_literal_data(endpoint)))
     if owner is not None:
         return owner
@@ -126,12 +154,29 @@ def _resolve(endpoint: Endpoint) -> str:
     return key
 
 
-_COMPUTABLE = _concatenated("RELATIONS")
-RELATIONS: list[tuple[str, list[str], list[str]]] = [
-    (operator, [_resolve(e) for e in inputs], [_resolve(e) for e in outputs])
-    for operator, inputs, outputs in [*_COMPUTABLE, *_concatenated("ASSERTED")]
-]
-ASSERTED = range(len(_COMPUTABLE), len(RELATIONS))
+Edge = tuple[str, tuple[str, ...], tuple[str, ...]]
+
+
+def _credited_edges(specs: Iterable[RelationSpec]) -> dict[Edge, list[Reference]]:
+    edges: dict[Edge, list[Reference]] = {}
+    for operator, inputs, outputs, *credits in specs:
+        edge = (operator, tuple(map(_resolve, inputs)), tuple(map(_resolve, outputs)))
+        edges[edge] = union(edges.get(edge, []), *credits)
+    return edges
+
+
+def merged_relations(
+    areas: Sequence[ModuleType],
+) -> tuple[list[tuple[str, list[str], list[str]]], list[list[Reference]], range]:
+    computable = _credited_edges(_concatenated("RELATIONS", areas))
+    edges = dict(computable)
+    for edge, credits in _credited_edges(_concatenated("ASSERTED", areas)).items():
+        edges[edge] = union(edges.get(edge, []), credits)
+    relations = [(operator, list(inputs), list(outputs)) for operator, inputs, outputs in edges]
+    return relations, list(edges.values()), range(len(computable), len(edges))
+
+
+RELATIONS, RELATION_REFERENCES, ASSERTED = merged_relations(AREAS)
 
 for _operator, _domain, _codomain in SIGNATURES:
     if _operator not in OPERATORS or _domain not in TYPES or _codomain not in TYPES:
