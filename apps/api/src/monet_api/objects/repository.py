@@ -178,6 +178,31 @@ async def list_relation_ids_by_output(
     return list((await session.exec(query)).all())
 
 
+async def list_operated_relations(
+    session: AsyncSession, object_id: uuid.UUID
+) -> list[tuple[uuid.UUID, uuid.UUID]]:
+    query = (
+        select(Relation.operator_id, Relation.id)
+        .where(Relation.operator_id == object_id)
+        .order_by(col(Relation.id))
+    )
+    return list((await session.exec(query)).all())
+
+
+async def list_operand_relations(
+    session: AsyncSession, object_id: uuid.UUID, side: Literal["input", "output"]
+) -> list[tuple[uuid.UUID, uuid.UUID]]:
+    slot = RelationInput if side == "input" else RelationOutput
+    query = (
+        select(Relation.operator_id, Relation.id)
+        .join(slot, col(slot.relation_id) == col(Relation.id))
+        .where(slot.object_id == object_id)
+        .distinct()
+        .order_by(col(Relation.operator_id), col(Relation.id))
+    )
+    return list((await session.exec(query)).all())
+
+
 async def get_operator_display(
     session: AsyncSession, operator_id: uuid.UUID
 ) -> OperatorDisplay | None:

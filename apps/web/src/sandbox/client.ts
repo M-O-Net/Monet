@@ -1,5 +1,7 @@
 import {
   isSandboxResponse,
+  type Analysis,
+  type AnalyzeRequest,
   type DescribeRequest,
   type ProbeRequest,
   type ProbeResult,
@@ -11,7 +13,10 @@ import {
 } from "./protocol";
 
 type SandboxRequestBody =
-  Omit<ProbeRequest, "id"> | Omit<RunRequest, "id"> | Omit<DescribeRequest, "id">;
+  | Omit<ProbeRequest, "id">
+  | Omit<RunRequest, "id">
+  | Omit<DescribeRequest, "id">
+  | Omit<AnalyzeRequest, "id">;
 
 export type SandboxStatus = "idle" | "starting" | "ready" | "failed";
 
@@ -165,4 +170,8 @@ export async function run(code: string, inputs: SandboxValue[]): Promise<Sandbox
 
 export async function describe(latex: string): Promise<SandboxValue> {
   return request<SandboxValue>({ kind: "describe", latex });
+}
+
+export async function analyze(input: SandboxValue): Promise<Analysis | null> {
+  return request<Analysis | null>({ kind: "analyze", input });
 }

@@ -23,6 +23,8 @@ import { RelationList } from "./-components/RelationList";
 import { ImplementationEditor } from "./-components/ImplementationEditor";
 import { Operations } from "./-components/Operations";
 import { Facets } from "./-components/Facets";
+import { FunctionAnalysis } from "./-components/FunctionAnalysis";
+import { NeighborhoodMap } from "./-components/NeighborhoodMap";
 import { RoleBadges } from "./-components/RoleBadge";
 import { SectionTags } from "./-components/SectionTags";
 import { Signatures } from "./-components/Signatures";
@@ -74,6 +76,8 @@ function ObjectDetail() {
     obj.facets.length === 0;
   const isMap = obj.roles.includes("map");
   const firstAsOperator = obj.as_operator.at(0);
+  const data = primaryData(obj);
+  const isFunction = data !== null && ("poly" in data || "expr" in data);
 
   return (
     <div>
@@ -84,7 +88,7 @@ function ObjectDetail() {
         ← contents
       </Link>
 
-      <div className="mb-7 flex items-start justify-between gap-4 border-b border-mist pb-5">
+      <div className="mb-7 flex flex-col gap-4 border-b border-mist pb-5 sm:flex-row sm:items-start sm:justify-between">
         {editing ? (
           <form
             className="flex flex-1 flex-col gap-2"
@@ -163,7 +167,7 @@ function ObjectDetail() {
               <SectionTags sections={obj.sections} />
               <Provenance provenance={obj.provenance} />
             </div>
-            <div className="flex shrink-0 gap-2">
+            <div className="flex shrink-0 flex-wrap gap-2 sm:w-72 sm:justify-end">
               {obj.is_top_level ? (
                 <ConfirmButton
                   label="On contents page"
@@ -232,6 +236,7 @@ function ObjectDetail() {
                   );
                 }}
               />
+              <NeighborhoodMap objectId={objectId} />
             </div>
           </>
         )}
@@ -253,16 +258,6 @@ function ObjectDetail() {
           Not yet connected to anything else in the valley.
         </p>
       )}
-      <p className="mt-5 mb-6 text-sm">
-        <Link
-          to="/map"
-          search={{ focus: objectId }}
-          className="text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
-        >
-          see it on the network map →
-        </Link>
-      </p>
-
       {allRelations.data && (
         <LoopCallout relations={allRelations.data} currentObjectId={objectId} />
       )}
@@ -276,6 +271,7 @@ function ObjectDetail() {
           onChanged={invalidateAll}
         />
       )}
+      {isFunction && <FunctionAnalysis latex={obj.latex} data={data} />}
       <MemberList title="A kind of" members={obj.supertypes} />
       <MemberList title="Subtypes" members={obj.subtypes} />
       <MemberList title="Instances" members={obj.instances} />
@@ -312,8 +308,8 @@ function ObjectDetail() {
 
       {obj.roles.includes("instance") && allObjects.data && implementations.data && (
         <Operations
-          key={`${obj.id}:${JSON.stringify(primaryData(obj))}`}
-          object={{ id: obj.id, latex: obj.latex, data: primaryData(obj) }}
+          key={`${obj.id}:${JSON.stringify(data)}`}
+          object={{ id: obj.id, latex: obj.latex, data }}
           objects={allObjects.data}
           implementations={implementations.data}
           relations={allRelations.data ?? []}

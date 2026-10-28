@@ -8,6 +8,7 @@ from monet_api.core.db import get_session
 from monet_api.objects import service
 from monet_api.objects.schemas import (
     FacetData,
+    NeighborhoodOut,
     ObjectCreate,
     ObjectDetailOut,
     ObjectOut,
@@ -95,6 +96,19 @@ async def create_object(body: ObjectCreate, session: DbSession) -> ObjectOut:
 @router.get("/objects/{object_id}", response_model=ObjectDetailOut, operation_id="get_object")
 async def get_object(object_id: uuid.UUID, session: DbSession) -> ObjectDetailOut:
     return await service.get_object_detail(session, object_id)
+
+
+@router.get(
+    "/objects/{object_id}/neighborhood",
+    response_model=NeighborhoodOut,
+    operation_id="get_neighborhood",
+)
+async def get_neighborhood(
+    object_id: uuid.UUID,
+    session: DbSession,
+    per_map: Annotated[int, Query(ge=1, le=50)] = 3,
+) -> NeighborhoodOut:
+    return await service.get_neighborhood(session, object_id, per_map)
 
 
 @router.patch("/objects/{object_id}", response_model=ObjectOut, operation_id="update_object")

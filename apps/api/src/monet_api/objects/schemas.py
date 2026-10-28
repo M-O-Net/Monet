@@ -141,6 +141,20 @@ class ObjectDetailOut(BaseModel):
     as_output: list[RelationOut]
 
 
+NeighborhoodSide = Literal["operator", "input", "output"]
+
+
+class HiddenRelationsOut(BaseModel):
+    operator: ObjectOut
+    side: NeighborhoodSide
+    count: int
+
+
+class NeighborhoodOut(BaseModel):
+    relations: list[RelationOut]
+    hidden: list[HiddenRelationsOut]
+
+
 class ComputedOutput(BaseModel):
     latex: str
     data: dict[str, Any] | None = None

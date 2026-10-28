@@ -4,6 +4,7 @@ export function invalidateObjectGraph(queryClient: QueryClient): void {
   for (const key of [
     ["get", "/objects"],
     ["get", "/objects/{object_id}"],
+    ["get", "/objects/{object_id}/neighborhood"],
     ["get", "/objects/query"],
     ["get", "/types"],
     ["get", "/sections"],

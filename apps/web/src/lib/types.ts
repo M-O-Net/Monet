@@ -16,3 +16,5 @@ export type FacetOut = components["schemas"]["FacetOut"];
 export type SignatureOut = components["schemas"]["SignatureOut"];
 export type EventOut = components["schemas"]["EventOut"];
 export type EventKind = EventOut["kind"];
+export type NeighborhoodOut = components["schemas"]["NeighborhoodOut"];
+export type HiddenRelationsOut = components["schemas"]["HiddenRelationsOut"];

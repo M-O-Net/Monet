@@ -58,6 +58,7 @@ function handle(request: SandboxRequest, pyodide: PyodideApi): unknown {
     );
   }
   if (request.kind === "describe") return call(pyodide, "describe", request.latex);
+  if (request.kind === "analyze") return call(pyodide, "analyze", JSON.stringify(request.input));
   return call(pyodide, "run", request.code, JSON.stringify(request.inputs));
 }
 
