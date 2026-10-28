@@ -1,11 +1,15 @@
+from fractions import Fraction
+
 from seed_data.build import (
     Instance,
+    Reference,
     RelationSpec,
     Specimen,
     algebraic,
     expr,
     instance,
     integer,
+    oeis,
     rational,
     residue,
 )
@@ -106,6 +110,32 @@ INSTANCES: dict[str, Instance] = {
     "three_plus_2i": instance(
         "3 + 2 i", algebraic([13, -6, 1], 1), ["GaussianPrimes"], r"Norm $13$."
     ),
+    "one_plus_2i": instance(
+        "1 + 2 i",
+        algebraic([5, -2, 1], 1),
+        ["GaussianPrimes"],
+        r"An associate of $2 - i$: $i (2 - i) = 1 + 2 i$.",
+    ),
+    "three_plus_3i": instance(
+        "3 + 3 i",
+        algebraic([18, -6, 1], 1),
+        ["GaussianIntegers"],
+        r"$3 (1 + i)$: the rational prime $3$ stays prime in $\mathbb{Z}[i]$.",
+    ),
+    "seven_plus_i": instance(
+        "7 + i",
+        algebraic([50, -14, 1], 1),
+        ["GaussianIntegers"],
+        r"$-i (1 + i) (2 + i)^{2}$.",
+    ),
+    "five_i": instance(
+        "5 i",
+        algebraic([25, 0, 1], 1),
+        ["GaussianIntegers"],
+        r"$(2 + i)(1 + 2 i)$: the rational prime $5$ splits.",
+    ),
+    "three_mod_5": instance(r"3 \bmod 5", residue(3, 5), ["PrimitiveRoots"]),
+    "two_mod_12": instance(r"2 \bmod 12", residue(2, 12), ["ResidueClasses"]),
     "true": instance(r"\text{True}", {"bool": True}, ["Booleans"]),
     "false": instance(r"\text{False}", {"bool": False}, ["Booleans"]),
     "pi": instance(r"\pi", expr("pi"), ["Expressions"]),
@@ -131,14 +161,51 @@ OPERATORS: dict[str, Specimen] = {
         r"How many of $1 \dots n$ share no factor with $n$. It is also the degree of "
         r"the $n$th cyclotomic polynomial.",
     ),
+    "DivisorCount": (
+        r"\text{Divisor Count}",
+        r"$\tau(n)$, how many positive integers divide $n$.",
+    ),
+    "PrimeFactors": (
+        r"\text{Prime Factors}",
+        r"The primes whose product is $n$, smallest first, each repeated as often as it "
+        "divides.",
+    ),
+    "ReduceModulo": (
+        r"\text{Reduce Modulo}",
+        r"For an integer $a$ and a positive integer $n$, the residue class $a \bmod n$.",
+    ),
+    "AlgebraicNorm": (
+        r"\text{Algebraic Norm}",
+        "The product of an algebraic number's conjugates: for a + bi, a² + b².",
+    ),
+    "GaussianFactorisation": (
+        r"\text{Gaussian Factorisation}",
+        r"The Gaussian primes whose product is a Gaussian integer up to a unit, each taken "
+        r"in the first quadrant and ordered by norm. A rational prime $p \equiv 3 \bmod 4$ "
+        "stays prime and appears as itself.",
+    ),
 }
 
 SIGNATURES: list[tuple[str, str, str]] = [
     ("EulerTotient", "Integers", "Integers"),
+    ("EulerTotient", "PositiveIntegers", "PositiveIntegers"),
+    ("DivisorCount", "PositiveIntegers", "PositiveIntegers"),
+    ("PrimeFactors", "PositiveIntegers", "PrimeNumbers"),
+    ("ReduceModulo", "Integers", "ResidueClasses"),
+    ("AlgebraicNorm", "AlgebraicNumbers", "RationalNumbers"),
+    ("AlgebraicNorm", "AlgebraicIntegers", "Integers"),
+    ("AlgebraicNorm", "GaussianIntegers", "Integers"),
+    ("GaussianFactorisation", "GaussianIntegers", "GaussianPrimes"),
+    ("GaussianFactorisation", "GaussianIntegers", "PrimeNumbers"),
 ]
 
 IMPLEMENTATIONS: dict[str, str] = {
     "EulerTotient": "euler_totient",
+    "DivisorCount": "divisor_count",
+    "PrimeFactors": "prime_factors",
+    "ReduceModulo": "reduce_modulo",
+    "AlgebraicNorm": "algebraic_norm",
+    "GaussianFactorisation": "gaussian_factorisation",
 }
 
 RELATIONS: list[RelationSpec] = [
@@ -148,13 +215,62 @@ RELATIONS: list[RelationSpec] = [
     ("EulerTotient", ["thirteen"], ["twelve"]),
     ("EulerTotient", ["seven"], ["six"]),
     ("EulerTotient", ["five"], ["four"]),
+    ("EulerTotient", [1], [1]),
+    ("EulerTotient", [36], [12]),
+    ("DivisorCount", [1], [1]),
+    ("DivisorCount", [12], [6]),
+    ("DivisorCount", [7], [2]),
+    ("DivisorCount", [36], [9]),
+    ("DivisorCount", [64], [7]),
+    ("PrimeFactors", [12], [2, 2, 3]),
+    ("PrimeFactors", [13], [13]),
+    ("PrimeFactors", [360], [2, 2, 2, 3, 3, 5]),
+    ("PrimeFactors", [1001], [7, 11, 13]),
+    ("PrimeFactors", [64], [2, 2, 2, 2, 2, 2]),
+    ("ReduceModulo", [-7, 5], ["three_mod_5"]),
+    ("ReduceModulo", [14, 12], ["two_mod_12"]),
+    ("ReduceModulo", [10, 5], ["zero_mod_5"]),
+    ("ReduceModulo", [16, 12], ["four_mod_12"]),
+    ("ReduceModulo", [27, 8], ["three_mod_8"]),
+    ("AlgebraicNorm", ["three_plus_2i"], [13]),
+    ("AlgebraicNorm", ["three_plus_4i"], [25]),
+    ("AlgebraicNorm", ["two_i"], [4]),
+    ("AlgebraicNorm", ["golden_ratio"], [-1]),
+    ("AlgebraicNorm", ["sqrt2"], [-2]),
+    ("AlgebraicNorm", ["cbrt2"], [2]),
+    ("AlgebraicNorm", ["half_sqrt2"], [Fraction(-1, 2)]),
+    ("AlgebraicNorm", ["cbrt_half"], [Fraction(1, 2)]),
+    ("AlgebraicNorm", ["half_i"], [Fraction(1, 4)]),
+    ("AlgebraicNorm", ["zeta5"], [1]),
+    ("AlgebraicNorm", ["omega"], [1]),
+    ("GaussianFactorisation", ["three_plus_4i"], ["two_plus_i", "two_plus_i"]),
+    ("GaussianFactorisation", ["two_i"], ["one_plus_i", "one_plus_i"]),
+    ("GaussianFactorisation", ["three_plus_2i"], ["three_plus_2i"]),
+    ("GaussianFactorisation", ["seven_plus_i"], ["one_plus_i", "two_plus_i", "two_plus_i"]),
+    ("GaussianFactorisation", ["five_i"], ["two_plus_i", "one_plus_2i"]),
+    ("GaussianFactorisation", ["three_plus_3i"], ["one_plus_i", 3]),
 ]
 
 DISPLAYS: dict[str, tuple[str | None, bool]] = {
     "EulerTotient": (r"\op{\varphi(}{in0}\op{)} = {out0}", False),
+    "DivisorCount": (r"\op{\tau(}{in0}\op{)} = {out0}", False),
+    "ReduceModulo": (r"{in0} \op{\bmod} {in1} = {out0}", False),
+    "AlgebraicNorm": (r"\op{N(}{in0}\op{)} = {out0}", False),
+}
+
+REFERENCES: dict[str, list[Reference]] = {
+    "DivisorCount": oeis("A000005"),
+    "GaussianFactorisation": [("Wikipedia", "https://en.wikipedia.org/wiki/Gaussian_integer")],
 }
 
 FILINGS: dict[str, list[str]] = {
     "NumberTheory": ["NumberOperations"],
-    "NumberOperations": ["EulerTotient"],
+    "NumberOperations": [
+        "EulerTotient",
+        "DivisorCount",
+        "PrimeFactors",
+        "ReduceModulo",
+        "AlgebraicNorm",
+        "GaussianFactorisation",
+    ],
 }
