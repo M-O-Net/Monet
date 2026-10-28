@@ -32,6 +32,7 @@ jobs:
     outputs:
       api: ${{ steps.filter.outputs.api == 'true' }}
       web: ${{ steps.filter.outputs.web == 'true' }}
+      implementations: ${{ steps.filter.outputs.implementations == 'true' }}
       code: ${{ steps.filter.outputs.code == 'true' }}
     steps:
       - uses: actions/checkout@v7
@@ -49,6 +50,11 @@ jobs:
               - 'package.json'
               - 'pnpm-workspace.yaml'
               - 'pnpm-lock.yaml'
+              - '.github/workflows/ci.yml'
+            implementations:
+              - 'apps/api/scripts/**'
+              - 'apps/web/src/sandbox/**'
+              - 'Justfile'
               - '.github/workflows/ci.yml'
             code:
               - '!**/*.md'
@@ -162,6 +168,24 @@ jobs:
 
       - name: Build full image (proves the Dockerfile actually builds)
         run: docker build --target final --build-arg DEPS_IMAGE=monet-api-deps:cache -f apps/api/Dockerfile -t monet-api:ci .
+
+  implementations:
+    name: "Implementations: run on the seeded relations"
+    needs: changes
+    if: needs.changes.outputs.implementations == 'true' && needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: extractions/setup-just@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Run every implementation on its seeded relations
+        run: just test-implementations
 
   web:
     name: "Web: lint/build"

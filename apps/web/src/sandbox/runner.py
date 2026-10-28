@@ -56,8 +56,8 @@ def _described(value):
     return {"latex": _render(value), "data": _to_data(value)}
 
 
-def _accepts(code, item):
-    return _load(code)["accepts"](_value(item))
+def _accepts(code, value):
+    return _load(code)["accepts"](value.copy() if isinstance(value, _BASE["MatrixBase"]) else value)
 
 
 def _compute(code, inputs_json):
@@ -71,12 +71,16 @@ def probe(item_json, implementations_json):
     item = json.loads(item_json)
     applicable = []
     deadline = time.monotonic() + _PYTHON_PROBE_DEADLINE_SECONDS
+    try:
+        value = _with_line_deadline(_PYTHON_LINE_DEADLINE_SECONDS, _value, item)
+    except Exception:
+        return json.dumps({"applicable": applicable})
     for implementation in json.loads(implementations_json):
         remaining = min(deadline - time.monotonic(), _PYTHON_LINE_DEADLINE_SECONDS)
         if remaining <= 0:
             break
         try:
-            if _with_line_deadline(remaining, _accepts, implementation["code"], item):
+            if _with_line_deadline(remaining, _accepts, implementation["code"], value):
                 applicable.append(implementation["id"])
         except Exception:  # noqa: BLE001, S110
             pass

@@ -59,6 +59,17 @@ for (const { file, needs, env } of SERVING_REQUIREMENTS) {
 const { version } = JSON.parse(await readFile(join(src, "package.json"), "utf8"));
 const lock = JSON.parse(await readFile(join(src, "pyodide-lock.json"), "utf8"));
 
+const harnessPin = /--python (\S+) --with sympy==(\S+)/.exec(
+  await readFile(join(repoRoot, "Justfile"), "utf8"),
+);
+const pyodidePython = lock.info.python.split(".").slice(0, 2).join(".");
+if (harnessPin?.[1] !== pyodidePython || harnessPin[2] !== lock.packages.sympy.version) {
+  throw new Error(
+    `pyodide: the Justfile's test-implementations must pin Python ${pyodidePython} and sympy ` +
+      `${lock.packages.sympy.version}, the versions this Pyodide release runs.`,
+  );
+}
+
 const runtimeUpToDate = (
   await Promise.all(RUNTIME.map((f) => sameFile(join(src, f), join(dest, f))))
 ).every(Boolean);

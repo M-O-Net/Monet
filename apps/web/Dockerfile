@@ -23,6 +23,7 @@ COPY packages/api-client packages/api-client
 COPY apps/web apps/web
 COPY docs docs
 COPY render.yaml render.yaml
+COPY Justfile Justfile
 WORKDIR /app/apps/web
 RUN pnpm run build
 

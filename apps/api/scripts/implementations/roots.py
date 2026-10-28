@@ -1,13 +1,19 @@
-def _rational_roots(p):
-    roots = Poly(p, Symbol("x")).all_roots()
-    return roots if roots and all(root.is_Rational for root in roots) else None
+def _position(z):
+    point = complex(N(z, 30))
+    return round(point.real, 12), round(point.imag, 12)
+
+
+def _polynomial(p):
+    x = Symbol("x")
+    if not (isinstance(p, Expr) and p.free_symbols == {x} and p.is_polynomial(x)):
+        return None
+    poly = Poly(p, x)
+    return poly if poly.degree() >= 1 and all(c.is_Rational for c in poly.all_coeffs()) else None
 
 
 def accepts(p):
-    if not isinstance(p, Expr) or Symbol("x") not in p.free_symbols:
-        return False
-    return _rational_roots(p) is not None
+    return _polynomial(p) is not None
 
 
 def compute(p):
-    return _rational_roots(p)
+    return sorted(_polynomial(p).all_roots(), key=_position)

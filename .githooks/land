@@ -72,6 +72,7 @@ want() {
     case "$1" in
         api) grep -qE '^apps/api/' <<<"$changed";;
         web) grep -qE '^(apps/web/|packages/)' <<<"$changed";;
+        implementations) grep -qE '^(apps/api/scripts/|apps/web/src/sandbox/|Justfile$)' <<<"$changed";;
     esac
 }
 
@@ -85,7 +86,7 @@ echo "╚═══════════════════════�
 if [ "$run_all" -eq 1 ]; then
     echo "  scope: FULL (no computable diff, or a change outside the mapped areas)"
 else
-    scope="$(for a in api web; do want "$a" && printf '%s ' "$a"; done)" || true
+    scope="$(for a in api web implementations; do want "$a" && printf '%s ' "$a"; done)" || true
     echo "  scope: ${scope:-none — nothing this PR changed maps to a checked area}"
 fi
 
@@ -102,12 +103,17 @@ echo "▶ Web: production build"
 (cd "$ROOT" && just build-web)
 }
 
+stage_implementations() {
+echo "▶ Implementations: run on the seeded relations"
+(cd "$ROOT" && just test-implementations)
+}
+
 if want "web"; then
     (cd "$ROOT" && pnpm install --frozen-lockfile) >/dev/null
 fi
 
 areas=()
-for a in api web; do
+for a in api web implementations; do
     want "$a" || continue
     areas+=("$a")
 done

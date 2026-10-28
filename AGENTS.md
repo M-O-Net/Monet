@@ -286,7 +286,7 @@ host port — nothing outside the compose network needs one.
 empty** (`scripts/seed.py --if-empty`) — so a brand-new worktree/dev env always has the demo
 dataset on its first run, without silently wiping anything added by hand through the GUI on
 every later restart. Run `just seed` directly to force a hard reset back to the canonical
-dataset; the dataset itself is documented where it's defined, in `scripts/seed.py`, not here.
+dataset; the dataset itself is documented where it's defined, in `scripts/seed_data/`, not here.
 
 ## Deployment
 
