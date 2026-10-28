@@ -25,6 +25,9 @@ from monet_api.objects.schemas import (
     FacetData,
     FacetDetailOut,
     FacetOut,
+    HiddenRelationsOut,
+    NeighborhoodOut,
+    NeighborhoodSide,
     ObjectCreate,
     ObjectDetailOut,
     ObjectOut,
@@ -390,6 +393,44 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         as_input=await load_relations(session, as_input),
         as_output=await load_relations(session, as_output),
     )
+
+
+async def get_neighborhood(
+    session: AsyncSession, object_id: uuid.UUID, per_map: int
+) -> NeighborhoodOut:
+    await get_object_or_404(session, object_id)
+    by_side: dict[NeighborhoodSide, list[tuple[uuid.UUID, uuid.UUID]]] = {
+        "operator": await repository.list_operated_relations(session, object_id),
+        "input": await repository.list_operand_relations(session, object_id, "input"),
+        "output": await repository.list_operand_relations(session, object_id, "output"),
+    }
+    groups: defaultdict[tuple[NeighborhoodSide, uuid.UUID], list[uuid.UUID]] = defaultdict(list)
+    for side, rows in by_side.items():
+        for operator_id, relation_id in rows:
+            groups[side, operator_id].append(relation_id)
+
+    shown = {relation_id for members in groups.values() for relation_id in members[:per_map]}
+    hidden = {
+        key: count
+        for key, members in groups.items()
+        if (count := sum(relation_id not in shown for relation_id in members)) > 0
+    }
+    operators = {
+        obj.id: obj
+        for obj in await _objects_out_by_ids(session, [operator_id for _, operator_id in hidden])
+    }
+    relations = await repository.list_relations_by_ids(session, sorted(shown))
+    return NeighborhoodOut(
+        relations=await load_relations(session, sorted(relations, key=_relation_id)),
+        hidden=[
+            HiddenRelationsOut(operator=operators[operator_id], side=side, count=count)
+            for (side, operator_id), count in hidden.items()
+        ],
+    )
+
+
+def _relation_id(relation: Relation) -> uuid.UUID:
+    return relation.id
 
 
 async def _instance_count(session: AsyncSession, type_id: uuid.UUID) -> int:

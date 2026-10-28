@@ -126,6 +126,23 @@ export interface paths {
         patch: operations["update_object"];
         trace?: never;
     };
+    "/objects/{object_id}/neighborhood": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Neighborhood */
+        get: operations["get_neighborhood"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/objects/{object_id}/facets/{type_id}": {
         parameters: {
             query?: never;
@@ -519,6 +536,17 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HiddenRelationsOut */
+        HiddenRelationsOut: {
+            operator: components["schemas"]["ObjectOut"];
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "operator" | "input" | "output";
+            /** Count */
+            count: number;
+        };
         /** ImplementationDetailOut */
         ImplementationDetailOut: {
             /**
@@ -539,6 +567,13 @@ export interface components {
             operator_id: string;
             /** Code */
             code: string;
+        };
+        /** NeighborhoodOut */
+        NeighborhoodOut: {
+            /** Relations */
+            relations: components["schemas"]["RelationOut"][];
+            /** Hidden */
+            hidden: components["schemas"]["HiddenRelationsOut"][];
         };
         /** ObjectCreate */
         ObjectCreate: {
@@ -1095,6 +1130,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_neighborhood: {
+        parameters: {
+            query?: {
+                per_map?: number;
+            };
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NeighborhoodOut"];
                 };
             };
             /** @description Validation Error */
