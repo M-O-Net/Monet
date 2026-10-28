@@ -151,18 +151,20 @@ INSTANCES: dict[str, Instance] = {
         "The edges of a triangular prism.",
     ),
     "adjacency_k3": matrix_instance(
-        [[0, 1, 1], [1, 0, 1], [1, 1, 0]], ["SymmetricMatrices", "InvertibleRationalMatrices"]
+        [[0, 1, 1], [1, 0, 1], [1, 1, 0]],
+        ["SymmetricMatrices", "DiagonalizableMatrices", "InvertibleRationalMatrices"],
     ),
     "adjacency_path4": matrix_instance(
-        [[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0]], ["SymmetricMatrices"]
+        [[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0]],
+        ["SymmetricMatrices", "DiagonalizableMatrices"],
     ),
     "adjacency_cycle4": matrix_instance(
         [[0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0]],
-        ["SymmetricMatrices", "SingularMatrices"],
+        ["SymmetricMatrices", "SingularMatrices", "DiagonalizableMatrices"],
     ),
     "adjacency_claw": matrix_instance(
         [[0, 1, 1, 1], [1, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]],
-        ["SymmetricMatrices", "SingularMatrices"],
+        ["SymmetricMatrices", "SingularMatrices", "DiagonalizableMatrices"],
     ),
     "chromatic_tree4": _chromatic(0, -1, 3, -3, 1),
     "chromatic_k3": _chromatic(0, 2, -3, 1),

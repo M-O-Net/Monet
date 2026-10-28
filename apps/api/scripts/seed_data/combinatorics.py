@@ -126,11 +126,6 @@ INSTANCES: dict[str, Instance] = {
     "images_10": _images([1, 0]),
     "images_012": _images([0, 1, 2]),
     "images_1032": _images([1, 0, 3, 2]),
-    "cycle3_transpose": matrix_instance(
-        [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
-        ["PermutationMatrices", "RotationMatrices", "SpecialLinearIntegerMatrices"],
-        r"Cycles the coordinate axes the other way: a third of a turn about $(1, 1, 1)$.",
-    ),
     "double_swap4": matrix_instance(
         [[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]],
         ["PermutationMatrices", "SymmetricMatrices", "SpecialLinearIntegerMatrices"],
@@ -298,7 +293,7 @@ RELATIONS: list[RelationSpec] = [
     ("GlaisherBijection", ["partition_321"], ["partition_321"]),
     ("PermutationMatrix", ["transposition"], ["D"]),
     ("PermutationMatrix", ["three_cycle"], ["cycle3"]),
-    ("PermutationMatrix", ["three_cycle_inverse"], ["cycle3_transpose"]),
+    ("PermutationMatrix", ["three_cycle_inverse"], ["cycle3_inverse"]),
     ("PermutationMatrix", ["transposition_in_s3"], ["swap3"]),
     ("PermutationMatrix", ["double_transposition"], ["double_swap4"]),
     ("GeneratedGroup", ["four_cycle", "transposition_in_s4"], ["s4"]),

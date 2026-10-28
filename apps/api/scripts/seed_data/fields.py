@@ -14,7 +14,7 @@ from seed_data.build import (
 
 def _cartan(rows: list[list[Cell]], unimodular: bool = False) -> Instance:
     symmetric = all(rows[i][j] == rows[j][i] for i in range(len(rows)) for j in range(len(rows)))
-    types = ["InvertibleRationalMatrices"]
+    types = ["InvertibleRationalMatrices", "DiagonalizableMatrices"]
     if symmetric:
         types.append("PositiveDefiniteMatrices")
     if unimodular:
@@ -129,7 +129,6 @@ INSTANCES: dict[str, Instance] = {
         ["SimpleLieAlgebras"],
         "Its Dynkin diagram has a threefold symmetry, behind triality.",
     ),
-    "cartan_a1": _cartan([[2]]),
     "cartan_a3": _cartan(_bonds(3, [(0, 1), (1, 2)])),
     "cartan_b3": _cartan([[2, -1, 0], [-1, 2, -2], [0, -1, 2]]),
     "cartan_c3": _cartan([[2, -1, 0], [-1, 2, -1], [0, -2, 2]]),
@@ -270,7 +269,7 @@ RELATIONS: list[RelationSpec] = [
     ("FieldGenerated", ["three_plus_4i"], ["q_i"]),
     ("FieldGenerated", ["two_plus_i"], ["q_i"]),
     ("FieldGenerated", ["omega"], ["q_zeta3"]),
-    ("CartanMatrix", ["sl2"], ["cartan_a1"]),
+    ("CartanMatrix", ["sl2"], ["matrix_2"]),
     ("CartanMatrix", ["sl3"], ["cartan_a2"]),
     ("CartanMatrix", ["sl4"], ["cartan_a3"]),
     ("CartanMatrix", ["so7"], ["cartan_b3"]),

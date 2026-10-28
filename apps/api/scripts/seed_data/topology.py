@@ -185,16 +185,28 @@ INSTANCES: dict[str, Instance] = {
         "Two disjoint circles.",
     ),
     "V4_1": matrix_instance(
-        _twist_seifert(1), ["InvertibleIntegerMatrices"], r"A Seifert matrix of $4_{1}$."
+        _twist_seifert(1),
+        ["InvertibleIntegerMatrices", "DiagonalizableMatrices"],
+        r"A Seifert matrix of $4_{1}$.",
     ),
     "V5_2": matrix_instance(
-        _twist_seifert(-2), ["InvertibleRationalMatrices"], r"A Seifert matrix of $5_{2}$."
+        _twist_seifert(-2),
+        ["InvertibleRationalMatrices", "DiagonalizableMatrices"],
+        r"A Seifert matrix of $5_{2}$.",
     ),
     "V6_1": matrix_instance(
-        _twist_seifert(2), ["InvertibleRationalMatrices"], r"A Seifert matrix of $6_{1}$."
+        _twist_seifert(2),
+        ["InvertibleRationalMatrices", "DiagonalizableMatrices"],
+        r"A Seifert matrix of $6_{1}$.",
     ),
-    "alexander_4_1": instance(r"- x^{2} + 3 x - 1", polynomial(-1, 3, -1), ["IntegerPolynomials"]),
-    "alexander_5_2": instance(r"2 x^{2} - 3 x + 2", polynomial(2, -3, 2), ["IntegerPolynomials"]),
+    "alexander_4_1": instance(
+        r"- x^{2} + 3 x - 1",
+        polynomial(-1, 3, -1),
+        ["IntegerPolynomials", "IrreduciblePolynomials"],
+    ),
+    "alexander_5_2": instance(
+        r"2 x^{2} - 3 x + 2", polynomial(2, -3, 2), ["IntegerPolynomials", "IrreduciblePolynomials"]
+    ),
     "alexander_6_1": instance(
         r"- 2 x^{2} + 5 x - 2", polynomial(-2, 5, -2), ["IntegerPolynomials"]
     ),
@@ -229,9 +241,9 @@ INSTANCES: dict[str, Instance] = {
         "The Jones polynomial of the Hopf link: half-integer powers, as for every link with "
         "an even number of components.",
     ),
-    "burau_3_1": matrix_instance([[_t_power(-1, 3)]], ["InvertibleMatrices"]),
-    "burau_5_1": matrix_instance([[_t_power(-1, 5)]], ["InvertibleMatrices"]),
-    "burau_hopf": matrix_instance([[_t_power(1, 2)]], ["InvertibleMatrices"]),
+    "burau_3_1": matrix_instance([[_t_power(-1, 3)]], ["InvertibleMatrices", "ColumnVectors"]),
+    "burau_5_1": matrix_instance([[_t_power(-1, 5)]], ["InvertibleMatrices", "ColumnVectors"]),
+    "burau_hopf": matrix_instance([[_t_power(1, 2)]], ["InvertibleMatrices", "ColumnVectors"]),
     "burau_8_19": matrix_instance(
         [[0, _t_power(-1, 4)], [_t_power(1, 4), _t_power(-1, 4)]], ["InvertibleMatrices"]
     ),
