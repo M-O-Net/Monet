@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Latex } from "../../components/Latex";
+import { describeCredits } from "../../lib/credits";
 import { layoutBounds, layoutGraph, nodeLabel } from "../../lib/graphLayout";
 import { buildGraph, neighbourhood } from "../../lib/graphModel";
 import type { RelationOut } from "../../lib/types";
@@ -163,6 +164,7 @@ export function NetworkMap({
               key={node.id}
               to="/objects/$objectId"
               params={{ objectId }}
+              title={isRelation ? describeCredits(node.relation.references) : undefined}
               onMouseEnter={() => {
                 setHovered(node.id);
               }}

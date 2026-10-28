@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { Latex } from "../../components/Latex";
+import { describeCredits } from "../../lib/credits";
 import { api } from "../../lib/api";
 import { layoutBounds, layoutGraph, nodeLabel } from "../../lib/graphLayout";
 import { buildGraph } from "../../lib/graphModel";
@@ -109,6 +110,7 @@ function MiniMap({ relations, focusId }: { relations: RelationOut[]; focusId: st
               key={node.id}
               to="/objects/$objectId"
               params={{ objectId }}
+              title={isRelation ? describeCredits(node.relation.references) : undefined}
               className={[
                 "absolute flex items-center justify-center rounded-sm border whitespace-nowrap",
                 isRelation
