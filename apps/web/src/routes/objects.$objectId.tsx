@@ -8,7 +8,7 @@ import { ConfirmButton } from "../components/ConfirmButton";
 import { Latex } from "../components/Latex";
 import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
-import { primaryData } from "../lib/data";
+import { facetData, primaryData } from "../lib/data";
 import { invalidateObjectGraph } from "../lib/queries";
 import type { ObjectReferenceIn } from "../lib/types";
 import { Comments } from "./-components/Comments";
@@ -308,8 +308,8 @@ function ObjectDetail() {
 
       {obj.roles.includes("instance") && allObjects.data && implementations.data && (
         <Operations
-          key={`${obj.id}:${JSON.stringify(data)}`}
-          object={{ id: obj.id, latex: obj.latex, data }}
+          key={`${obj.id}:${JSON.stringify(obj.facets)}`}
+          object={{ id: obj.id, latex: obj.latex, facets: facetData(obj) }}
           objects={allObjects.data}
           implementations={implementations.data}
           relations={allRelations.data ?? []}

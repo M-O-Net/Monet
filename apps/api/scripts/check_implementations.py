@@ -45,7 +45,7 @@ def _types_of(key: str) -> set[str]:
 
 def _item(key: str) -> dict[str, Any]:
     facets = INSTANCES[key][2] if key in INSTANCES else []
-    return {"latex": OBJECTS[key][0], "data": facets[0][1] if facets else None}
+    return {"latex": OBJECTS[key][0], "facets": [data for _, data in facets]}
 
 
 def _fingerprints(key: str) -> set[str]:

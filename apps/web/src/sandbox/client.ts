@@ -8,6 +8,7 @@ import {
   type RunRequest,
   type RunResult,
   type SandboxRequest,
+  type SandboxObject,
   type SandboxValue,
   type ImplementationCode,
 } from "./protocol";
@@ -155,7 +156,7 @@ async function request<T>(body: SandboxRequestBody): Promise<T> {
 }
 
 export async function probe(
-  input: SandboxValue,
+  input: SandboxObject,
   implementations: ImplementationCode[],
 ): Promise<string[]> {
   if (implementations.length === 0) return [];
@@ -163,7 +164,7 @@ export async function probe(
   return result.applicable;
 }
 
-export async function run(code: string, inputs: SandboxValue[]): Promise<SandboxValue[]> {
+export async function run(code: string, inputs: SandboxObject[]): Promise<SandboxValue[]> {
   const result = await request<RunResult>({ kind: "run", code, inputs });
   return result.outputs;
 }
