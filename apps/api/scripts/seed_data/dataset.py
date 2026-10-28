@@ -12,7 +12,9 @@ from seed_data import (
     geometry,
     graphs,
     groups,
+    knotinfo,
     linear_algebra,
+    mckay,
     numbers,
     polynomials,
     sequences,
@@ -46,6 +48,8 @@ AREAS = (
     fields,
     topology,
     geometry,
+    knotinfo,
+    mckay,
 )
 
 
