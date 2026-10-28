@@ -143,6 +143,86 @@ class NumberField:
         return f"NumberField({self.polynomial})"
 
 
+class _Record:
+    def __eq__(self, other):
+        return type(other) is type(self) and self._key() == other._key()
+
+    def __hash__(self):
+        return hash(self._key())
+
+    def __repr__(self):
+        return f"{type(self).__name__}{self._key()}"
+
+
+class Graph(_Record):
+    def __init__(self, order, edges):
+        self.order = int(order)
+        self.edges = tuple(sorted(tuple(sorted((int(u), int(v)))) for u, v in edges))
+
+    def _key(self):
+        return self.order, self.edges
+
+
+class SmallGroup(_Record):
+    def __init__(self, order, index):
+        self.order = int(order)
+        self.index = int(index)
+
+    def _key(self):
+        return self.order, self.index
+
+
+class FiniteField(_Record):
+    def __init__(self, characteristic, degree):
+        self.characteristic = int(characteristic)
+        self.degree = int(degree)
+
+    def _key(self):
+        return self.characteristic, self.degree
+
+
+class Knot(_Record):
+    def __init__(self, name):
+        self.name = str(name)
+
+    def _key(self):
+        return (self.name,)
+
+
+class Braid(_Record):
+    def __init__(self, strands, word):
+        self.strands = int(strands)
+        self.word = tuple(int(letter) for letter in word)
+
+    def _key(self):
+        return self.strands, self.word
+
+
+class Surface(_Record):
+    def __init__(self, orientable, genus):
+        self.orientable = bool(orientable)
+        self.genus = int(genus)
+
+    def _key(self):
+        return self.orientable, self.genus
+
+
+class SimplicialComplex(_Record):
+    def __init__(self, facets):
+        self.facets = tuple(sorted(tuple(sorted(int(v) for v in facet)) for facet in facets))
+
+    def _key(self):
+        return (self.facets,)
+
+
+class Polytope(_Record):
+    def __init__(self, points):
+        self.points = tuple(sorted(tuple(sympy.sympify(c) for c in point) for point in points))
+
+    def _key(self):
+        return (self.points,)
+
+
 def residue(a, n):
     return sympy.FF(n, symmetric=False)(a)
 
@@ -342,7 +422,7 @@ def _polytope_data(polygon):
 
 def _polytope_value(payload):
     if any(len(point) != 2 for point in payload):
-        raise LookupError("no sympy value for a polytope beyond the plane")
+        return Polytope([[from_data(c) for c in point] for point in payload])
     return sympy.convex_hull(*(sympy.Point(*(from_data(c) for c in point)) for point in payload))
 
 
@@ -383,6 +463,14 @@ _AS_DATA = (
     (Tableau, lambda t: {"tableau": [list(row) for row in t.rows]}),
     (AbelianGroup, lambda g: {"abelian": {"rank": g.rank, "torsion": [_json_int(t) for t in g.torsion]}}),
     (NumberField, lambda f: {"numberfield": to_data(f.polynomial)}),
+    (Graph, lambda g: {"graph": {"order": g.order, "edges": [list(e) for e in g.edges]}}),
+    (SmallGroup, lambda g: {"smallgroup": [_json_int(g.order), _json_int(g.index)]}),
+    (FiniteField, lambda f: {"finitefield": [_json_int(f.characteristic), f.degree]}),
+    (Knot, lambda k: {"knot": k.name}),
+    (Braid, lambda b: {"braid": {"strands": b.strands, "word": list(b.word)}}),
+    (Surface, lambda s: {"surface": {"orientable": s.orientable, "genus": s.genus}}),
+    (SimplicialComplex, lambda k: {"simplicial": [list(f) for f in k.facets]}),
+    (Polytope, lambda p: {"polytope": [[to_data(c) for c in point] for point in p.points]}),
     (Permutation, lambda p: {"perm": list(p.array_form)}),
     (IntegerPartition, lambda p: {"partition": [int(part) for part in p.partition]}),
     (PermutationGroup, _permgroup_data),
@@ -442,6 +530,13 @@ _FROM_DATA = {
     "perm": Permutation,
     "partition": IntegerPartition,
     "tableau": Tableau,
+    "graph": lambda payload: Graph(payload["order"], payload["edges"]),
+    "smallgroup": lambda payload: SmallGroup(*payload),
+    "finitefield": lambda payload: FiniteField(*payload),
+    "knot": Knot,
+    "braid": lambda payload: Braid(payload["strands"], payload["word"]),
+    "surface": lambda payload: Surface(payload["orientable"], payload["genus"]),
+    "simplicial": SimplicialComplex,
     "abelian": lambda payload: AbelianGroup(payload["rank"], payload["torsion"]),
     "numberfield": lambda payload: NumberField(from_data(payload)),
     "permgroup": _permgroup_value,
@@ -554,6 +649,16 @@ def _abelian_latex(payload):
     return r" \oplus ".join(free + cyclic) or "0"
 
 
+def _graph_latex(payload):
+    edges = ", ".join(rf"\{{{u}, {v}\}}" for u, v in payload["edges"])
+    return rf"\left(\left\{{0, \dots, {payload['order'] - 1}\right\}}, \left\{{{edges}\right\}}\right)"
+
+
+def _surface_latex(payload):
+    piece = "T^{2}" if payload["orientable"] else r"\mathbb{RP}^{2}"
+    return r" \# ".join([piece] * payload["genus"]) or "S^{2}"
+
+
 def _tableau_latex(payload):
     rows = r" \\ ".join(" & ".join(str(cell) for cell in row) for row in payload)
     return rf"\begin{{array}}{{{'l' * len(payload[0])}}}{rows}\end{{array}}"
@@ -568,6 +673,10 @@ _LATEX_OF = {
     "residue": lambda payload: rf"{payload[0]} \bmod {payload[1]}",
     "partition": lambda payload: rf"\left({', '.join(map(str, payload))}\right) \vdash {sum(payload)}",
     "tableau": _tableau_latex,
+    "graph": _graph_latex,
+    "smallgroup": lambda payload: rf"\operatorname{{SmallGroup}}\left({payload[0]}, {payload[1]}\right)",
+    "finitefield": lambda payload: rf"\mathbb{{F}}_{{{int(payload[0]) ** int(payload[1])}}}",
+    "surface": _surface_latex,
     "abelian": _abelian_latex,
     "numberfield": lambda payload: rf"\mathbb{{Q}}[x]/\left({_latex_of(payload)}\right)",
     "recurrence": _recurrence_latex,
@@ -585,6 +694,10 @@ _RENDERED_FROM_DATA = (
     Tableau,
     AbelianGroup,
     NumberField,
+    Graph,
+    SmallGroup,
+    FiniteField,
+    Surface,
     IntegerPartition,
     PermutationGroup,
     FpGroup,
@@ -622,6 +735,14 @@ def namespace():
     ns["Tableau"] = Tableau
     ns["AbelianGroup"] = AbelianGroup
     ns["NumberField"] = NumberField
+    ns["Graph"] = Graph
+    ns["SmallGroup"] = SmallGroup
+    ns["FiniteField"] = FiniteField
+    ns["Knot"] = Knot
+    ns["Braid"] = Braid
+    ns["Surface"] = Surface
+    ns["SimplicialComplex"] = SimplicialComplex
+    ns["Polytope"] = Polytope
     ns["residue"] = residue
     ns["ModularInteger"] = ModularInteger
     ns["RecursiveSeq"] = RecursiveSeq
