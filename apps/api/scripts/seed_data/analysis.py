@@ -132,4 +132,57 @@ INSTANCES: dict[str, Instance] = {
         ["LinearConstantCoefficientODEs"],
         r"Exponential growth, solved by $e^{x}$.",
     ),
+    "fibonacci_generating_function": instance(
+        r"\frac{x}{1 - x - x^{2}}",
+        expr(
+            "Mul(Symbol('x'), Pow(Add(Mul(Integer(-1), Pow(Symbol('x'), Integer(2))), "
+            "Mul(Integer(-1), Symbol('x')), Integer(1)), Integer(-1)))"
+        ),
+        ["RationalFunctions"],
+    ),
+    "lucas_generating_function": instance(
+        r"\frac{2 - x}{1 - x - x^{2}}",
+        expr(
+            "Mul(Add(Integer(2), Mul(Integer(-1), Symbol('x'))), Pow(Add(Mul(Integer(-1), "
+            "Pow(Symbol('x'), Integer(2))), Mul(Integer(-1), Symbol('x')), Integer(1)), "
+            "Integer(-1)))"
+        ),
+        ["RationalFunctions"],
+    ),
+    "pell_generating_function": instance(
+        r"\frac{x}{1 - 2 x - x^{2}}",
+        expr(
+            "Mul(Symbol('x'), Pow(Add(Mul(Integer(-1), Pow(Symbol('x'), Integer(2))), "
+            "Mul(Integer(-1), Integer(2), Symbol('x')), Integer(1)), Integer(-1)))"
+        ),
+        ["RationalFunctions"],
+    ),
+    "doubling_generating_function": instance(
+        r"\frac{1}{1 - 2 x}",
+        expr("Pow(Add(Integer(1), Mul(Integer(-1), Integer(2), Symbol('x'))), Integer(-1))"),
+        ["RationalFunctions"],
+    ),
+    "naturals_generating_function": instance(
+        r"\frac{x}{1 - 2 x + x^{2}}",
+        expr(
+            "Mul(Symbol('x'), Pow(Add(Pow(Symbol('x'), Integer(2)), Mul(Integer(-1), "
+            "Integer(2), Symbol('x')), Integer(1)), Integer(-1)))"
+        ),
+        ["RationalFunctions"],
+        r"$\frac{x}{(1 - x)^{2}} = x + 2 x^{2} + 3 x^{3} + \dots$",
+    ),
+    "central_binomial_generating_function": (
+        r"\frac{1}{\sqrt{1 - 4 x}}",
+        r"The generating function of the central binomial coefficients $\binom{2n}{n}$.",
+        [
+            (
+                "ElementaryFunctions",
+                expr(
+                    "Pow(Add(Integer(1), Mul(Integer(-1), Integer(4), Symbol('x'))), "
+                    "Rational(-1, 2))"
+                ),
+            ),
+            ("DFiniteFunctions", dfinite([[2], [-1, 4]], [1])),
+        ],
+    ),
 }

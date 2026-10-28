@@ -179,6 +179,28 @@ INSTANCES: dict[str, Instance] = {
     "swap3": matrix_instance(
         [[0, 1, 0], [1, 0, 0], [0, 0, 1]], ["SymmetricMatrices", "PermutationMatrices"]
     ),
+    "hankel_catalan": matrix_instance(
+        [[1, 1, 2, 5], [1, 2, 5, 14], [2, 5, 14, 42], [5, 14, 42, 132]],
+        ["PositiveDefiniteMatrices", "InvertibleRationalMatrices"],
+        "The Hankel matrix of the Catalan numbers: every leading minor is 1.",
+    ),
+    "hankel_central_binomials": matrix_instance(
+        [[1, 2, 6], [2, 6, 20], [6, 20, 70]],
+        ["PositiveDefiniteMatrices", "InvertibleRationalMatrices"],
+    ),
+    "hankel_fibonacci": matrix_instance(
+        [[1, 1, 2], [1, 2, 3], [2, 3, 5]],
+        ["SymmetricMatrices", "SingularMatrices", "DiagonalizableMatrices"],
+        "Singular: each row past the second is the sum of the two above it.",
+    ),
+    "hankel_factorials": matrix_instance(
+        [[1, 2, 6], [2, 6, 24], [6, 24, 120]],
+        ["PositiveDefiniteMatrices", "InvertibleRationalMatrices"],
+    ),
+    "hankel_primes": matrix_instance(
+        [[2, 3, 5], [3, 5, 7], [5, 7, 11]],
+        ["SymmetricMatrices", "DiagonalizableMatrices", "InvertibleRationalMatrices"],
+    ),
 }
 
 SECTIONS: dict[str, Specimen] = {

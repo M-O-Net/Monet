@@ -124,6 +124,21 @@ INSTANCES: dict[str, Instance] = {
         ["ChebyshevPolynomials", "IrreduciblePolynomials"],
         r"$T_{4}$.",
     ),
+    "pell_polynomial": instance(
+        r"x^{2} - 2 x - 1",
+        polynomial(-1, -2, 1),
+        ["MonicIntegerPolynomials", "IrreduciblePolynomials"],
+        r"Its roots $1 \pm \sqrt{2}$ drive the Pell numbers.",
+    ),
+    "x_minus_2": instance(
+        "x - 2", polynomial(-2, 1), ["MonicIntegerPolynomials", "IrreduciblePolynomials"]
+    ),
+    "fibonacci_squares_polynomial": instance(
+        r"x^{3} - 2 x^{2} - 2 x + 1",
+        polynomial(1, -2, -2, 1),
+        ["MonicIntegerPolynomials"],
+        r"$(x + 1)(x^{2} - 3 x + 1)$, whose roots are $-1$, $\varphi^{2}$ and $\psi^{2}$.",
+    ),
 }
 
 SECTIONS: dict[str, Specimen] = {
