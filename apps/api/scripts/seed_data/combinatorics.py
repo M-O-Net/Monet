@@ -46,6 +46,7 @@ INSTANCES: dict[str, Instance] = {
         {"perm": [1, 0, 3, 2]},
         ["EvenPermutations"],
     ),
+    "identity2": _permutation(r"\left( 0\right)\left( 1\right)", [0, 1], True),
     "identity3": _permutation(r"\left( 0\right)\left( 1\right)\left( 2\right)", [0, 1, 2], True),
     "transposition_in_s3": _permutation(r"\left( 0\; 1\right)\left( 2\right)", [1, 0, 2], False),
     "reversal3": _permutation(r"\left( 0\; 2\right)\left( 1\right)", [2, 1, 0], False),
