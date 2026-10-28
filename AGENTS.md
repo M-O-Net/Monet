@@ -201,7 +201,11 @@ and multi-app split.
 ## Merge gate (from Muse, near-verbatim, simplified to a 2-area `want()`: `api`, `web`)
 
 The mechanism that matters most once several agents work in parallel worktrees — no path, human
-or agent, reaches `main` unverified:
+or agent, reaches `main` unverified. On GitHub a ruleset protects `main`: a PR and the Changes,
+API, Web and Implementations checks are required, and it cannot be force-pushed or deleted.
+
+**Agents never merge, mark ready, or enable auto-merge — through `gh`, GitHub tools or the API —
+unless a human explicitly says to land that PR. Opening a PR is never merging.**
 
 - `.githooks/pre-commit` — fast, area-aware lint/lockfile check per commit, parallelized, defaults
   to running everything when it can't tell what's affected. Also runnable via `just check`.

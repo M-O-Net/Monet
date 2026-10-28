@@ -140,3 +140,5 @@ here are features which are needed, but may not be visible to users
 ## Goals, and success metrics
 
 Here we list goals for the project, as well as
+
+The POC goes web interface first, then the database and the operations on it, then layers. While it runs, live data is disposable and the schema will keep changing.
