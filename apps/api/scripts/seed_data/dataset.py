@@ -126,10 +126,12 @@ def _resolve(endpoint: Endpoint) -> str:
     return key
 
 
+_COMPUTABLE = _concatenated("RELATIONS")
 RELATIONS: list[tuple[str, list[str], list[str]]] = [
     (operator, [_resolve(e) for e in inputs], [_resolve(e) for e in outputs])
-    for operator, inputs, outputs in _concatenated("RELATIONS")
+    for operator, inputs, outputs in [*_COMPUTABLE, *_concatenated("ASSERTED")]
 ]
+ASSERTED = range(len(_COMPUTABLE), len(RELATIONS))
 
 for _operator, _domain, _codomain in SIGNATURES:
     if _operator not in OPERATORS or _domain not in TYPES or _codomain not in TYPES:

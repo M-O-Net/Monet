@@ -7,6 +7,7 @@ from typing import Any
 
 from seed_data.catalogue import TYPES
 from seed_data.dataset import (
+    ASSERTED,
     IMPLEMENTATIONS,
     INSTANCES,
     OBJECTS,
@@ -75,7 +76,7 @@ def _check_relation(index: int) -> list[str]:
         _scope["probe"](json.dumps(_item(inputs[0])), json.dumps([{"id": operator, "code": code}]))
     )["applicable"]
     if operator not in accepted:
-        return [f"{label}: accepts() rejects {inputs[0]}"]
+        return [] if index in ASSERTED else [f"{label}: accepts() rejects {inputs[0]}"]
     try:
         computed = json.loads(_scope["run"](code, json.dumps([_item(key) for key in inputs])))
     except Exception as error:
@@ -94,8 +95,11 @@ def _typing_failures() -> list[str]:
     failures = []
     for operator, inputs, outputs in RELATIONS:
         held = _types_of(inputs[0])
-        codomains = {c for o, d, c in SIGNATURES if o == operator and d in held}
+        typed = inputs[0] in INSTANCES
+        codomains = {c for o, d, c in SIGNATURES if o == operator and (d in held or not typed)}
         label = f"{operator}({', '.join(inputs)})"
+        if not typed and not codomains:
+            continue
         if not codomains:
             failures.append(f"{label}: no signature of {operator} has {inputs[0]} in its domain")
             continue
@@ -115,7 +119,7 @@ def main() -> int:
         if operator not in DOMAINS
     )
     tested = [i for i, (operator, _, _) in enumerate(RELATIONS) if operator in CODE]
-    untested = sorted(set(CODE) - {RELATIONS[i][0] for i in tested})
+    untested = sorted(set(CODE) - {RELATIONS[i][0] for i in tested if i not in ASSERTED})
     failures.extend(f"{name} has an implementation but no seeded relation" for name in untested)
 
     with multiprocessing.Pool(initializer=_load_sandbox) as pool:

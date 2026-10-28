@@ -114,6 +114,35 @@ class Tableau:
         return IntegerPartition([len(row) for row in self.rows])
 
 
+class AbelianGroup:
+    def __init__(self, rank, torsion):
+        self.rank = int(rank)
+        self.torsion = tuple(int(t) for t in torsion)
+
+    def __eq__(self, other):
+        return isinstance(other, AbelianGroup) and (self.rank, self.torsion) == (other.rank, other.torsion)
+
+    def __hash__(self):
+        return hash((self.rank, self.torsion))
+
+    def __repr__(self):
+        return f"AbelianGroup({self.rank}, {list(self.torsion)})"
+
+
+class NumberField:
+    def __init__(self, polynomial):
+        self.polynomial = sympy.sympify(polynomial)
+
+    def __eq__(self, other):
+        return isinstance(other, NumberField) and self.polynomial == other.polynomial
+
+    def __hash__(self):
+        return hash(self.polynomial)
+
+    def __repr__(self):
+        return f"NumberField({self.polynomial})"
+
+
 def residue(a, n):
     return sympy.FF(n, symmetric=False)(a)
 
@@ -352,6 +381,8 @@ def _fpgroup_value(payload):
 _AS_DATA = (
     (ModularInteger, lambda r: {"residue": [_json_int(int(r.val) % r.mod), _json_int(r.mod)]}),
     (Tableau, lambda t: {"tableau": [list(row) for row in t.rows]}),
+    (AbelianGroup, lambda g: {"abelian": {"rank": g.rank, "torsion": [_json_int(t) for t in g.torsion]}}),
+    (NumberField, lambda f: {"numberfield": to_data(f.polynomial)}),
     (Permutation, lambda p: {"perm": list(p.array_form)}),
     (IntegerPartition, lambda p: {"partition": [int(part) for part in p.partition]}),
     (PermutationGroup, _permgroup_data),
@@ -411,6 +442,8 @@ _FROM_DATA = {
     "perm": Permutation,
     "partition": IntegerPartition,
     "tableau": Tableau,
+    "abelian": lambda payload: AbelianGroup(payload["rank"], payload["torsion"]),
+    "numberfield": lambda payload: NumberField(from_data(payload)),
     "permgroup": _permgroup_value,
     "fpgroup": _fpgroup_value,
     "cartan": lambda payload: CartanType([payload[0], int(payload[1])]),
@@ -515,6 +548,12 @@ def _cartan_latex(payload):
     return f"{name}_{{{index}}}"
 
 
+def _abelian_latex(payload):
+    free = [] if payload["rank"] == 0 else [r"\mathbb{Z}" + ("" if payload["rank"] == 1 else f"^{{{payload['rank']}}}")]
+    cyclic = [rf"\mathbb{{Z}}/{t}\mathbb{{Z}}" for t in payload["torsion"]]
+    return r" \oplus ".join(free + cyclic) or "0"
+
+
 def _tableau_latex(payload):
     rows = r" \\ ".join(" & ".join(str(cell) for cell in row) for row in payload)
     return rf"\begin{{array}}{{{'l' * len(payload[0])}}}{rows}\end{{array}}"
@@ -529,6 +568,8 @@ _LATEX_OF = {
     "residue": lambda payload: rf"{payload[0]} \bmod {payload[1]}",
     "partition": lambda payload: rf"\left({', '.join(map(str, payload))}\right) \vdash {sum(payload)}",
     "tableau": _tableau_latex,
+    "abelian": _abelian_latex,
+    "numberfield": lambda payload: rf"\mathbb{{Q}}[x]/\left({_latex_of(payload)}\right)",
     "recurrence": _recurrence_latex,
     "holonomic": _holonomic_latex,
     "dfinite": _dfinite_latex,
@@ -542,6 +583,8 @@ _LATEX_OF = {
 _RENDERED_FROM_DATA = (
     ModularInteger,
     Tableau,
+    AbelianGroup,
+    NumberField,
     IntegerPartition,
     PermutationGroup,
     FpGroup,
@@ -577,6 +620,8 @@ def namespace():
     ns["PermutationGroup"] = PermutationGroup
     ns["IntegerPartition"] = IntegerPartition
     ns["Tableau"] = Tableau
+    ns["AbelianGroup"] = AbelianGroup
+    ns["NumberField"] = NumberField
     ns["residue"] = residue
     ns["ModularInteger"] = ModularInteger
     ns["RecursiveSeq"] = RecursiveSeq
