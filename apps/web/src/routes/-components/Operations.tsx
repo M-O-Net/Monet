@@ -7,9 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { Latex } from "../../components/Latex";
 import { ObjectPicker } from "../../components/ObjectPicker";
 import { api } from "../../lib/api";
-import { findCyclesThrough } from "../../lib/cycles";
-import type { Cycle } from "../../lib/cycles";
-import { facetData, sameData, type ObjectData } from "../../lib/data";
+import { facetData, type ObjectData } from "../../lib/data";
 import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { ObjectOut, RelationOut } from "../../lib/types";
 import { probe, run } from "../../sandbox/client";
@@ -42,20 +40,67 @@ interface Receipt {
   relation: RelationOut;
   createdRelation: boolean;
   createdObjects: ObjectSummary[];
-  closedLoops: Cycle[];
+}
+
+function AlreadyKnown({ output }: { output: SandboxValue }) {
+  const found = api.useQuery(
+    "get",
+    "/objects",
+    { params: { query: { data_equals: JSON.stringify(output.data), limit: 1 } } },
+    { enabled: output.data !== null },
+  );
+  if (output.data !== null && found.isPending) return null;
+  return (
+    <span className="text-[11px] text-ink-soft">
+      {found.data !== undefined && found.data.total > 0 ? "already in the network" : "new object"}
+    </span>
+  );
+}
+
+function ClosedLoops({
+  objectId,
+  relationId,
+  createdRelation,
+}: {
+  objectId: string;
+  relationId: string;
+  createdRelation: boolean;
+}) {
+  const loops = api.useQuery("get", "/objects/{object_id}/loops", {
+    params: { path: { object_id: objectId }, query: { via: relationId } },
+  });
+  const cycles = loops.data ?? [];
+  if (cycles.length === 0) return null;
+
+  const one = cycles.length === 1;
+  const heading = createdRelation
+    ? one
+      ? "It closed a loop"
+      : "It closed loops"
+    : one
+      ? "It sits on a loop"
+      : "It sits on loops";
+  return (
+    <div className="mt-4 border-t border-mist pt-3">
+      <p className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">{heading}</p>
+      <ul className="space-y-2">
+        {cycles.map((cycle) => (
+          <li key={cycle.map((step) => step.relation.id).join(">")}>
+            <CycleChain cycle={cycle} currentObjectId={objectId} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export function Operations({
   object,
-  objects,
   implementations,
-  relations,
   onCommitted,
 }: {
   object: { id: string; latex: string; facets: ObjectData[] };
-  objects: ObjectOut[];
   implementations: Implementation[];
-  relations: RelationOut[];
   onCommitted: () => void;
 }) {
   const assertRelation = api.useMutation("post", "/relations/assert");
@@ -63,7 +108,7 @@ export function Operations({
 
   const [applicable, setApplicable] = useState<string[] | null>(null);
   const [probeError, setProbeError] = useState<string | null>(null);
-  const [extraInputs, setExtraInputs] = useState<Record<string, string[]>>({});
+  const [extraInputs, setExtraInputs] = useState<Record<string, ObjectOut[]>>({});
   const [running, setRunning] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -99,15 +144,16 @@ export function Operations({
   }, [input, payload]);
 
   const start = (implementation: Implementation) => {
-    const inputIds = [object.id, ...(extraInputs[implementation.id] ?? [])];
+    const extra = extraInputs[implementation.id] ?? [];
+    const inputIds = [object.id, ...extra.map((input) => input.id)];
     setRunError(null);
     setResult(null);
     setReceipt(null);
     setRunning(implementation.id);
-    const inputs = inputIds.map((id) => {
-      const found = objects.find((o) => o.id === id);
-      return { latex: found?.latex ?? "", facets: found ? facetData(found) : [] };
-    });
+    const inputs = [
+      { latex: object.latex, facets: object.facets },
+      ...extra.map((input) => ({ latex: input.latex, facets: facetData(input) })),
+    ];
     run(implementation.code, inputs).then(
       (outputs) => {
         setRunning(null);
@@ -133,10 +179,12 @@ export function Operations({
       },
       {
         onSuccess: (assertion) => {
-          const known = new Map(objects.map((o) => [o.id, o]));
-          for (const slot of [...assertion.relation.inputs, ...assertion.relation.outputs]) {
-            known.set(slot.object.id, slot.object);
-          }
+          const known = new Map(
+            [...assertion.relation.inputs, ...assertion.relation.outputs].map((slot) => [
+              slot.object.id,
+              slot.object,
+            ]),
+          );
           setReceipt({
             relation: assertion.relation,
             createdRelation: assertion.created_relation,
@@ -144,10 +192,6 @@ export function Operations({
               const found = known.get(id);
               return found === undefined ? [] : [found];
             }),
-            closedLoops: findCyclesThrough(
-              [...relations.filter((r) => r.id !== assertion.relation.id), assertion.relation],
-              object.id,
-            ).filter((cycle) => cycle.some((step) => step.relation.id === assertion.relation.id)),
           });
           setResult(null);
           onCommitted();
@@ -155,9 +199,6 @@ export function Operations({
       },
     );
   };
-
-  const existingFor = (output: SandboxValue) =>
-    objects.find((o) => o.facets.some((facet) => sameData(facet.data, output.data)));
 
   if (implementations.length === 0) return null;
 
@@ -187,8 +228,8 @@ export function Operations({
       <div className="space-y-2">
         {shown.map((implementation) => {
           const extra = extraInputs[implementation.id] ?? [];
-          const setExtra = (ids: string[]) => {
-            setExtraInputs((prev) => ({ ...prev, [implementation.id]: ids }));
+          const setExtra = (inputs: ObjectOut[]) => {
+            setExtraInputs((prev) => ({ ...prev, [implementation.id]: inputs }));
           };
           return (
             <div key={implementation.id} className="flex flex-wrap items-center gap-2">
@@ -206,12 +247,12 @@ export function Operations({
                 )}
               </button>
 
-              {extra.map((id, i) => (
+              {extra.map((input, i) => (
                 <span
-                  key={`${id}-${String(i)}`}
+                  key={`${input.id}-${String(i)}`}
                   className="inline-flex items-center gap-1 rounded-sm border border-mist bg-paper-deep px-2 py-1 text-xs"
                 >
-                  <Latex>{objects.find((o) => o.id === id)?.latex ?? ""}</Latex>
+                  <Latex>{input.latex}</Latex>
                   <button
                     onClick={() => {
                       setExtra(extra.filter((_, j) => j !== i));
@@ -226,10 +267,9 @@ export function Operations({
 
               <span className="w-52">
                 <ObjectPicker
-                  objects={objects}
-                  value=""
-                  onChange={(id) => {
-                    if (id) setExtra([...extra, id]);
+                  value={null}
+                  onChange={(input) => {
+                    if (input !== null) setExtra([...extra, input]);
                   }}
                   placeholder="+ another input…"
                 />
@@ -247,19 +287,14 @@ export function Operations({
             <Latex>{result.implementation.operator.latex}</Latex> produced:
           </p>
           <ul className="mb-4 space-y-2">
-            {result.outputs.map((output, i) => {
-              const existing = existingFor(output);
-              return (
-                <li key={i} className="flex items-baseline gap-3">
-                  <span className="font-display text-base text-ink">
-                    <Latex>{output.latex}</Latex>
-                  </span>
-                  <span className="text-[11px] text-ink-soft">
-                    {existing ? "already in the network" : "new object"}
-                  </span>
-                </li>
-              );
-            })}
+            {result.outputs.map((output, i) => (
+              <li key={i} className="flex items-baseline gap-3">
+                <span className="font-display text-base text-ink">
+                  <Latex>{output.latex}</Latex>
+                </span>
+                <AlreadyKnown output={output} />
+              </li>
+            ))}
           </ul>
           <div className="flex items-center gap-2">
             <button
@@ -330,26 +365,11 @@ export function Operations({
             </ul>
           )}
 
-          {receipt.closedLoops.length > 0 && (
-            <div className="mt-4 border-t border-mist pt-3">
-              <p className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">
-                {receipt.createdRelation
-                  ? receipt.closedLoops.length === 1
-                    ? "It closed a loop"
-                    : "It closed loops"
-                  : receipt.closedLoops.length === 1
-                    ? "It sits on a loop"
-                    : "It sits on loops"}
-              </p>
-              <ul className="space-y-2">
-                {receipt.closedLoops.map((cycle) => (
-                  <li key={cycle.map((step) => step.relation.id).join(">")}>
-                    <CycleChain cycle={cycle} currentObjectId={object.id} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <ClosedLoops
+            objectId={object.id}
+            relationId={receipt.relation.id}
+            createdRelation={receipt.createdRelation}
+          />
         </Callout>
       )}
     </section>

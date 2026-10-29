@@ -7,8 +7,8 @@ import datetime
 import json
 import re
 import uuid
-from collections import defaultdict
-from collections.abc import Sequence
+from collections import Counter, defaultdict
+from collections.abc import Collection, Sequence
 from typing import Any, Literal
 
 from fastapi import HTTPException
@@ -20,17 +20,20 @@ from monet_api.events.models import Event
 from monet_api.implementations import repository as implementations
 from monet_api.objects import repository
 from monet_api.objects.models import Object, Relation, RelationInput, RelationOutput, Type
+from monet_api.objects.repository import ObjectFilter, Step
 from monet_api.objects.schemas import (
     ComputedOutput,
     FacetData,
     FacetDetailOut,
     FacetOut,
     HiddenRelationsOut,
+    LoopStepOut,
     NeighborhoodOut,
     NeighborhoodSide,
     ObjectCreate,
     ObjectDetailOut,
     ObjectOut,
+    ObjectPageOut,
     ObjectRole,
     ObjectUpdate,
     OperatorDisplayOut,
@@ -42,7 +45,10 @@ from monet_api.objects.schemas import (
     RelationAssertOut,
     RelationCreate,
     RelationDisplayOut,
+    RelationGroupOut,
+    RelationMapOut,
     RelationOut,
+    RelationPageOut,
     RelationSlotOut,
     SectionNode,
     SignatureIn,
@@ -52,7 +58,19 @@ from monet_api.objects.schemas import (
 
 MAX_SECTION_DEPTH = 6
 MAX_SECTION_NODES = 500
-MAX_QUERY_RESULTS = 500
+SIDES: tuple[NeighborhoodSide, ...] = ("operator", "input", "output")
+DETAIL_PER_OPERATOR = 3
+DETAIL_OPERATED = 10
+DETAIL_MAX_GROUPS = 30
+LOOP_MAX_LENGTH = 6
+LOOP_MAX_FOUND = 3
+LOOP_MAX_STEPS = 5000
+LOOP_MAX_VISITS = 20000
+MAP_MAX_NODES = 150
+MAP_PER_OPERATOR = 2
+MAP_HUBS = 3
+
+StepsOut = defaultdict[uuid.UUID, list[Step]]
 
 
 async def get_object_or_404(session: AsyncSession, object_id: uuid.UUID) -> Object:
@@ -86,7 +104,7 @@ async def objects_out(session: AsyncSession, objs: Sequence[Object]) -> list[Obj
     ]
 
 
-async def _objects_out_by_ids(
+async def objects_out_by_ids(
     session: AsyncSession, object_ids: Sequence[uuid.UUID]
 ) -> list[ObjectOut]:
     return await objects_out(session, await repository.list_objects_by_ids(session, object_ids))
@@ -103,7 +121,7 @@ async def load_relations(session: AsyncSession, relations: Sequence[Relation]) -
     needed_ids = {relation.operator_id for relation in relations}
     needed_ids.update(input_row.object_id for input_row in input_rows)
     needed_ids.update(output_row.object_id for output_row in output_rows)
-    objects = {obj.id: obj for obj in await _objects_out_by_ids(session, [*needed_ids])}
+    objects = {obj.id: obj for obj in await objects_out_by_ids(session, [*needed_ids])}
     displays = {
         row.operator_id: RelationDisplayOut.model_validate(row)
         for row in await repository.list_operator_displays(
@@ -163,8 +181,20 @@ async def _load_relation_out(session: AsyncSession, relation: Relation) -> Relat
     return (await load_relations(session, [relation]))[0]
 
 
-async def list_objects(session: AsyncSession) -> list[ObjectOut]:
-    return await objects_out(session, await repository.list_objects(session))
+async def _load_relations_by_ids(
+    session: AsyncSession, relation_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, RelationOut]:
+    relations = await repository.list_relations_by_ids(session, relation_ids)
+    return {relation.id: relation for relation in await load_relations(session, relations)}
+
+
+_MACRO = re.compile(r"\\[a-zA-Z]+")
+_GROUPING = re.compile(r"[{}$]")
+_NOISE = re.compile(r"[\s,&\\]+")
+
+
+def _search_key(text: str) -> str:
+    return _NOISE.sub(" ", _GROUPING.sub("", _MACRO.sub(" ", text))).strip().lower()
 
 
 _LINKABLE_URL = re.compile(r"^(?:https?://|/(?!/))")
@@ -311,7 +341,7 @@ async def _signatures_out(
     ]
     types = {
         obj.id: obj
-        for obj in await _objects_out_by_ids(
+        for obj in await objects_out_by_ids(
             session, [t for s in signatures for t in (s.domain_id, s.codomain_id)]
         )
     }
@@ -321,36 +351,80 @@ async def _signatures_out(
     ]
 
 
+async def _relation_groups(
+    session: AsyncSession, object_id: uuid.UUID
+) -> dict[NeighborhoodSide, list[RelationGroupOut]]:
+    samples: dict[NeighborhoodSide, defaultdict[uuid.UUID, list[uuid.UUID]]] = {}
+    totals: dict[tuple[NeighborhoodSide, uuid.UUID], int] = {}
+    for side in SIDES:
+        cap = DETAIL_OPERATED if side == "operator" else DETAIL_PER_OPERATOR
+        samples[side] = defaultdict(list)
+        for _, operator_id, relation_id, total in await repository.sample_relations(
+            session, [object_id], side, cap
+        ):
+            samples[side][operator_id].append(relation_id)
+            totals[side, operator_id] = total
+
+    operators = await objects_out_by_ids(session, list({key[1] for key in totals}))
+    shown = {
+        side: [operator for operator in operators if operator.id in samples[side]][
+            :DETAIL_MAX_GROUPS
+        ]
+        for side in SIDES
+    }
+    relations = await _load_relations_by_ids(
+        session,
+        [
+            relation_id
+            for side in SIDES
+            for operator in shown[side]
+            for relation_id in samples[side][operator.id]
+        ],
+    )
+    shown_ids = {side: {operator.id for operator in shown[side]} for side in SIDES}
+    return {
+        side: [
+            RelationGroupOut(
+                operator=operator,
+                relations=[relations[relation_id] for relation_id in samples[side][operator.id]]
+                if operator.id in shown_ids[side]
+                else [],
+                total=totals[side, operator.id],
+            )
+            for operator in operators
+            if operator.id in samples[side]
+        ]
+        for side in SIDES
+    }
+
+
 async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> ObjectDetailOut:
     obj = await get_object_or_404(session, object_id)
     as_type = await repository.get_type(session, object_id)
     memberships = await repository.list_memberships_for(session, [object_id])
     signatures = await _signatures_out(session, object_id)
-
-    as_operator = await repository.list_relations_by_operator(session, object_id)
-    as_input = await repository.list_relations_by_ids(
-        session, await repository.list_relation_ids_by_input(session, object_id)
-    )
-    as_output = await repository.list_relations_by_ids(
-        session, await repository.list_relation_ids_by_output(session, object_id)
-    )
+    groups = await _relation_groups(session, object_id)
 
     is_top_level = await repository.get_top_level_object(session, object_id) is not None
-    filed = [row.object_id for row in await repository.list_filed_under(session, [object_id])]
+    filed_count = await repository.count_objects(session, ObjectFilter(filed_under=object_id))
     sections = [row.section_id for row in await repository.list_filings_of(session, [object_id])]
 
     roles: list[ObjectRole] = []
     if as_type is not None:
         roles.append("type")
-    if signatures or as_operator or await implementations.has_implementation(session, object_id):
+    if (
+        signatures
+        or groups["operator"]
+        or await implementations.has_implementation(session, object_id)
+    ):
         roles.append("map")
     if memberships:
         roles.append("instance")
-    if filed or is_top_level:
+    if filed_count or is_top_level:
         roles.append("section")
 
     types_of = {
-        o.id: o for o in await _objects_out_by_ids(session, [m.type_id for m in memberships])
+        o.id: o for o in await objects_out_by_ids(session, [m.type_id for m in memberships])
     }
     provenance = await _provenance(session, "object_created", [object_id])
     references = await repository.list_object_references(session, object_id)
@@ -359,7 +433,12 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
         found = await repository.list_related_types(
             session, [object_id], direction, transitive=False
         )
-        return await _objects_out_by_ids(session, found)
+        return await objects_out_by_ids(session, found)
+
+    async def type_out(found: Type) -> TypeOut:
+        below = await repository.list_related_types(session, [object_id], "down", transitive=True)
+        kinds = await repository.list_data_kinds(session, [object_id, *below])
+        return TypeOut(data_kind=found.data_kind, data_kinds=kinds)
 
     return ObjectDetailOut(
         id=obj.id,
@@ -373,29 +452,46 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
             for m in memberships
             if m.type_id in types_of
         ],
-        as_type=None if as_type is None else TypeOut(data_kind=as_type.data_kind),
+        as_type=None if as_type is None else await type_out(as_type),
         subtypes=await related("down") if as_type else [],
         supertypes=await related("up") if as_type else [],
-        instances=await _objects_out_by_ids(
-            session, await repository.list_instance_ids(session, object_id)
-        )
+        instance_count=await repository.count_objects(session, ObjectFilter(member_of=[object_id]))
         if as_type
-        else [],
+        else 0,
         signatures=signatures,
-        maps_from=await _objects_out_by_ids(
+        maps_from=await objects_out_by_ids(
             session, await repository.list_map_ids_by_signature(session, object_id, as_domain=True)
         ),
-        maps_to=await _objects_out_by_ids(
+        maps_to=await objects_out_by_ids(
             session,
             await repository.list_map_ids_by_signature(session, object_id, as_domain=False),
         ),
         references=[ReferenceOut.model_validate(row) for row in references],
         is_top_level=is_top_level,
-        sections=await _objects_out_by_ids(session, sections),
-        filed=await _objects_out_by_ids(session, filed),
-        as_operator=await load_relations(session, as_operator),
-        as_input=await load_relations(session, as_input),
-        as_output=await load_relations(session, as_output),
+        sections=await objects_out_by_ids(session, sections),
+        filed_count=filed_count,
+        relation_count=await repository.count_relations_touching(session, [object_id]),
+        as_operator=groups["operator"],
+        as_input=groups["input"],
+        as_output=groups["output"],
+    )
+
+
+async def list_object_relations(
+    session: AsyncSession,
+    object_id: uuid.UUID,
+    side: NeighborhoodSide,
+    operator_id: uuid.UUID | None,
+    offset: int,
+    limit: int,
+) -> RelationPageOut:
+    await get_object_or_404(session, object_id)
+    found = await repository.list_relations_on_side(
+        session, object_id, side, operator_id, offset=offset, limit=limit
+    )
+    return RelationPageOut(
+        items=await load_relations(session, found),
+        total=await repository.count_relations_on_side(session, object_id, side, operator_id),
     )
 
 
@@ -403,29 +499,28 @@ async def get_neighborhood(
     session: AsyncSession, object_id: uuid.UUID, per_map: int
 ) -> NeighborhoodOut:
     await get_object_or_404(session, object_id)
-    by_side: dict[NeighborhoodSide, list[tuple[uuid.UUID, uuid.UUID]]] = {
-        "operator": await repository.list_operated_relations(session, object_id),
-        "input": await repository.list_operand_relations(session, object_id, "input"),
-        "output": await repository.list_operand_relations(session, object_id, "output"),
-    }
-    groups: defaultdict[tuple[NeighborhoodSide, uuid.UUID], list[uuid.UUID]] = defaultdict(list)
-    for side, rows in by_side.items():
-        for operator_id, relation_id in rows:
-            groups[side, operator_id].append(relation_id)
+    shown: set[uuid.UUID] = set()
+    hidden: dict[tuple[NeighborhoodSide, uuid.UUID], int] = {}
+    for side in SIDES:
+        sampled: defaultdict[uuid.UUID, int] = defaultdict(int)
+        totals: dict[uuid.UUID, int] = {}
+        for _, operator_id, relation_id, total in await repository.sample_relations(
+            session, [object_id], side, per_map
+        ):
+            shown.add(relation_id)
+            sampled[operator_id] += 1
+            totals[operator_id] = total
+        for operator_id, total in totals.items():
+            if total > sampled[operator_id]:
+                hidden[side, operator_id] = total - sampled[operator_id]
 
-    shown = {relation_id for members in groups.values() for relation_id in members[:per_map]}
-    hidden = {
-        key: count
-        for key, members in groups.items()
-        if (count := sum(relation_id not in shown for relation_id in members)) > 0
-    }
     operators = {
         obj.id: obj
-        for obj in await _objects_out_by_ids(session, [operator_id for _, operator_id in hidden])
+        for obj in await objects_out_by_ids(session, [operator_id for _, operator_id in hidden])
     }
-    relations = await repository.list_relations_by_ids(session, sorted(shown))
+    relations = await _load_relations_by_ids(session, sorted(shown))
     return NeighborhoodOut(
-        relations=await load_relations(session, sorted(relations, key=_relation_id)),
+        relations=[relations[relation_id] for relation_id in sorted(shown)],
         hidden=[
             HiddenRelationsOut(operator=operators[operator_id], side=side, count=count)
             for (side, operator_id), count in hidden.items()
@@ -433,16 +528,155 @@ async def get_neighborhood(
     )
 
 
-def _relation_id(relation: Relation) -> uuid.UUID:
-    return relation.id
+async def _steps_near(session: AsyncSession, object_id: uuid.UUID) -> StepsOut:
+    steps_out: StepsOut = defaultdict(list)
+    reached = {object_id}
+    frontier = [object_id]
+    collected = 0
+    for _ in range(LOOP_MAX_LENGTH):
+        if not frontier or collected > LOOP_MAX_STEPS:
+            break
+        steps = await repository.list_steps_from(session, frontier)
+        collected += len(steps)
+        frontier = []
+        for step in steps:
+            steps_out[step.source].append(step)
+            if step.target not in reached:
+                reached.add(step.target)
+                frontier.append(step.target)
+    return steps_out
 
 
-async def _instance_count(session: AsyncSession, type_id: uuid.UUID) -> int:
-    below = await repository.list_related_types(session, [type_id], "down", transitive=True)
-    instances: set[uuid.UUID] = set()
-    for held_by in [type_id, *below]:
-        instances.update(await repository.list_instance_ids(session, held_by))
-    return len(instances)
+def _distances_back(steps_out: StepsOut, object_id: uuid.UUID) -> dict[uuid.UUID, int]:
+    into: defaultdict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
+    for steps in steps_out.values():
+        for step in steps:
+            into[step.target].add(step.source)
+    distance = {object_id: 0}
+    frontier = [object_id]
+    while frontier:
+        following: list[uuid.UUID] = []
+        for node in frontier:
+            for source in into[node] - distance.keys():
+                distance[source] = distance[node] + 1
+                following.append(source)
+        frontier = following
+    return distance
+
+
+def _cycles_through(
+    steps_out: StepsOut, object_id: uuid.UUID, via: uuid.UUID | None
+) -> list[list[Step]]:
+    back = _distances_back(steps_out, object_id)
+    found: list[list[Step]] = []
+    seen: set[tuple[uuid.UUID, ...]] = set()
+    visits = 0
+
+    def walk(node: uuid.UUID, path: list[Step]) -> None:
+        nonlocal visits
+        visits += 1
+        for step in steps_out[node]:
+            if len(found) >= LOOP_MAX_FOUND or visits > LOOP_MAX_VISITS:
+                return
+            if not path and via is not None and step.relation_id != via:
+                continue
+            if step.target == object_id:
+                key = tuple(taken.relation_id for taken in [*path, step])
+                if key not in seen:
+                    seen.add(key)
+                    found.append([*path, step])
+                continue
+            home = back.get(step.target)
+            if home is None or len(path) + 1 + home > LOOP_MAX_LENGTH:
+                continue
+            if all(taken.target != step.target for taken in path):
+                walk(step.target, [*path, step])
+
+    walk(object_id, [])
+    return found
+
+
+async def find_loops(
+    session: AsyncSession, object_id: uuid.UUID, via: uuid.UUID | None
+) -> list[list[LoopStepOut]]:
+    await get_object_or_404(session, object_id)
+    cycles = _cycles_through(await _steps_near(session, object_id), object_id, via)
+    relations = await _load_relations_by_ids(
+        session, list({step.relation_id for cycle in cycles for step in cycle})
+    )
+    objects = {
+        slot.object.id: slot.object
+        for relation in relations.values()
+        for slot in [*relation.inputs, *relation.outputs]
+    }
+    return [
+        [
+            LoopStepOut(
+                relation=relations[step.relation_id],
+                source=objects[step.source],
+                target=objects[step.target],
+            )
+            for step in cycle
+        ]
+        for cycle in cycles
+    ]
+
+
+async def _map_candidates(
+    session: AsyncSession, frontier: Sequence[uuid.UUID], drawn: Collection[uuid.UUID]
+) -> list[uuid.UUID]:
+    ranked: list[tuple[int, uuid.UUID]] = []
+    for side in SIDES:
+        seen_in_group: Counter[tuple[uuid.UUID, uuid.UUID]] = Counter()
+        for sample in await repository.sample_relations(session, frontier, side, MAP_PER_OPERATOR):
+            seen_in_group[sample.object_id, sample.operator_id] += 1
+            ranked.append((seen_in_group[sample.object_id, sample.operator_id], sample.relation_id))
+    ranked.sort(key=_first)
+    return [
+        relation_id
+        for relation_id in dict.fromkeys(relation_id for _, relation_id in ranked)
+        if relation_id not in drawn
+    ]
+
+
+def _first(pair: tuple[int, uuid.UUID]) -> int:
+    return pair[0]
+
+
+async def map_relations(
+    session: AsyncSession, focus: Sequence[uuid.UUID], depth: int
+) -> RelationMapOut:
+    for object_id in focus:
+        await get_object_or_404(session, object_id)
+    centres = list(focus) or await repository.list_busiest_objects(session, MAP_HUBS)
+
+    drawn: dict[uuid.UUID, int] = {}
+    reached = set(centres)
+    frontier = list(centres)
+    for layer in range(depth):
+        candidates = await _map_candidates(session, frontier, drawn)
+        slots: list[RelationInput | RelationOutput] = [
+            *await repository.list_relation_inputs_for(session, candidates),
+            *await repository.list_relation_outputs_for(session, candidates),
+        ]
+        operands: defaultdict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
+        for slot in slots:
+            operands[slot.relation_id].add(slot.object_id)
+        frontier = []
+        for relation_id in candidates:
+            arriving = operands[relation_id] - reached
+            if len(drawn) + 1 + len(reached) + len(arriving) > MAP_MAX_NODES:
+                continue
+            drawn[relation_id] = layer
+            reached |= arriving
+            frontier.extend(arriving)
+
+    relations = await _load_relations_by_ids(session, list(drawn))
+    around_centres = sum(layer == 0 for layer in drawn.values())
+    return RelationMapOut(
+        relations=[relations[relation_id] for relation_id in drawn],
+        omitted=await repository.count_relations_touching(session, centres) - around_centres,
+    )
 
 
 async def get_contents(session: AsyncSession) -> list[SectionNode]:
@@ -457,7 +691,7 @@ async def get_contents(session: AsyncSession) -> list[SectionNode]:
         if not frontier or len(visited) > MAX_SECTION_NODES:
             break
         found: defaultdict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
-        for row in await repository.list_filed_under(session, frontier):
+        for row in await repository.list_filed_sections_and_types(session, frontier):
             found[row.section_id].append(row.object_id)
         next_frontier: list[uuid.UUID] = []
         for section_id in frontier:
@@ -472,10 +706,9 @@ async def get_contents(session: AsyncSession) -> list[SectionNode]:
 
     known = {obj.id: obj for obj in await repository.list_objects_by_ids(session, [*visited])}
     rank = {object_id: index for index, object_id in enumerate(known)}
-    types = {t.id for t in await repository.list_types(session)}
-    instance_counts = {
-        type_id: await _instance_count(session, type_id) for type_id in known if type_id in types
-    }
+    types = set(await repository.list_type_ids(session, list(known)))
+    instance_counts = await repository.count_instances_below(session, list(types))
+    filed_counts = await repository.count_filed_under(session, list(known))
 
     def build(object_id: uuid.UUID) -> SectionNode:
         obj = known[object_id]
@@ -491,7 +724,7 @@ async def get_contents(session: AsyncSession) -> list[SectionNode]:
             id=obj.id,
             latex=obj.latex,
             description=obj.description,
-            member_count=len(children) + instance_counts.get(object_id, 0),
+            member_count=filed_counts.get(object_id, 0) + instance_counts.get(object_id, 0),
             children=[build(child_id) for child_id in nested],
         )
 
@@ -549,10 +782,6 @@ async def unmark_top_level_object(session: AsyncSession, object_id: uuid.UUID) -
     row = await repository.get_top_level_object(session, object_id)
     if row is not None:
         await repository.delete_top_level_object(session, row)
-
-
-async def list_relations(session: AsyncSession) -> list[RelationOut]:
-    return await load_relations(session, await repository.list_relations(session))
 
 
 async def _validate_relation_operands(session: AsyncSession, body: RelationCreate) -> None:
@@ -705,7 +934,9 @@ async def _find_matching_relation(
     input_ids: list[uuid.UUID],
     output_ids: list[uuid.UUID],
 ) -> Relation | None:
-    candidates = await repository.list_relations_by_operator(session, operator_id)
+    candidates = await repository.list_relations_matching(
+        session, operator_id, input_ids[0] if input_ids else None
+    )
     if not candidates:
         return None
     candidate_ids = [candidate.id for candidate in candidates]
@@ -784,16 +1015,21 @@ def _property_filter(raw: str) -> tuple[uuid.UUID, uuid.UUID]:
         ) from error
 
 
-async def query_objects(
+async def list_objects(
     session: AsyncSession,
     *,
+    q: str | None,
+    role: ObjectRole | None,
     member_of: uuid.UUID | None,
     transitive: bool,
+    filed_under: uuid.UUID | None,
     data_equals: str | None,
     data_contains: str | None,
     description_contains: str | None,
     where: Sequence[str],
-) -> list[ObjectOut]:
+    offset: int,
+    limit: int,
+) -> ObjectPageOut:
     types: list[uuid.UUID] | None = None
     if member_of is not None:
         await get_type_or_404(session, member_of)
@@ -802,16 +1038,21 @@ async def query_objects(
             types += await repository.list_related_types(
                 session, [member_of], "down", transitive=True
             )
-    found = await repository.query_objects(
-        session,
+    found = ObjectFilter(
         member_of=types,
+        filed_under=filed_under,
+        role=role,
+        implemented=await implementations.list_implemented_operator_ids(session)
+        if role == "map"
+        else (),
         data_equals=_json_object("data_equals", data_equals),
         data_contains=_json_object("data_contains", data_contains),
         description_contains=(description_contains or "").strip() or None,
         where=[_property_filter(raw) for raw in where],
-        limit=MAX_QUERY_RESULTS,
+        search=_search_key(q or "") or None,
     )
-    return await objects_out(session, found)
+    page, total = await repository.page_objects(session, found, offset=offset, limit=limit)
+    return ObjectPageOut(items=await objects_out(session, page), total=total)
 
 
 async def list_related_types(
@@ -825,12 +1066,4 @@ async def list_related_types(
     found = await repository.list_related_types(
         session, [type_id], direction, transitive=transitive
     )
-    return await _objects_out_by_ids(session, found)
-
-
-async def list_types(session: AsyncSession) -> list[ObjectOut]:
-    return await objects_out(session, await repository.list_types(session))
-
-
-async def list_sections(session: AsyncSession) -> list[ObjectOut]:
-    return await _objects_out_by_ids(session, await repository.list_section_ids(session))
+    return await objects_out_by_ids(session, found)

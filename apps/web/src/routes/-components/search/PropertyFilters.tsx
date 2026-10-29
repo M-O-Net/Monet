@@ -1,14 +1,11 @@
 import { ObjectPicker } from "../../../components/ObjectPicker";
 import type { PropertyFilter } from "../../../lib/searchQuery";
-import type { ObjectOut } from "../../../lib/types";
 
 export function PropertyFilters({
   filters,
-  objects,
   onChange,
 }: {
   filters: PropertyFilter[];
-  objects: ObjectOut[];
   onChange: (filters: PropertyFilter[]) => void;
 }) {
   const update = (index: number, change: Partial<PropertyFilter>) => {
@@ -21,21 +18,20 @@ export function PropertyFilters({
         <div key={index} className="flex items-center gap-2">
           <div className="flex-1">
             <ObjectPicker
-              objects={objects}
-              value={filter.operatorId}
-              onChange={(operatorId) => {
-                update(index, { operatorId });
+              value={filter.operator}
+              onChange={(operator) => {
+                update(index, { operator });
               }}
+              filter={{ role: "map" }}
               placeholder="an operation, e.g. Determinant…"
             />
           </div>
           <span className="text-sm text-ink-soft">=</span>
           <div className="flex-1">
             <ObjectPicker
-              objects={objects}
-              value={filter.valueId}
-              onChange={(valueId) => {
-                update(index, { valueId });
+              value={filter.value}
+              onChange={(value) => {
+                update(index, { value });
               }}
               placeholder="its value, e.g. 3…"
             />
@@ -55,7 +51,7 @@ export function PropertyFilters({
       <button
         type="button"
         onClick={() => {
-          onChange([...filters, { operatorId: "", valueId: "" }]);
+          onChange([...filters, { operator: null, value: null }]);
         }}
         className="text-xs text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
       >
