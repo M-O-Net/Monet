@@ -19,12 +19,12 @@ class ObjectOut(BaseModel):
     facets: list[FacetOut]
 
 
-class ObjectReferenceIn(BaseModel):
+class ReferenceIn(BaseModel):
     label: str
     url: str
 
 
-class ObjectReferenceOut(ORMModel):
+class ReferenceOut(ORMModel):
     label: str
     url: str
 
@@ -48,7 +48,7 @@ class ObjectCreate(BaseModel):
     latex: str
     description: str | None = None
     image_url: str | None = None
-    references: list[ObjectReferenceIn] = Field(default_factory=list)
+    references: list[ReferenceIn] = Field(default_factory=list)
     facets: list[FacetIn] = Field(default_factory=list)
     as_type: TypeIn | None = None
     signatures: list[SignatureIn] = Field(default_factory=list)
@@ -60,7 +60,7 @@ class ObjectUpdate(BaseModel):
     latex: str
     description: str | None = None
     image_url: str | None = None
-    references: list[ObjectReferenceIn] = Field(default_factory=list)
+    references: list[ReferenceIn] = Field(default_factory=list)
 
 
 class FacetData(BaseModel):
@@ -90,12 +90,14 @@ class RelationOut(BaseModel):
     outputs: list[RelationSlotOut]
     display: RelationDisplayOut | None
     provenance: ProvenanceOut | None
+    references: list[ReferenceOut]
 
 
 class RelationCreate(BaseModel):
     operator_id: uuid.UUID
     input_object_ids: list[uuid.UUID]
     output_object_ids: list[uuid.UUID]
+    references: list[ReferenceIn] = Field(default_factory=list)
     contributor: Contributor = None
 
 
@@ -132,7 +134,7 @@ class ObjectDetailOut(BaseModel):
     signatures: list[SignatureOut]
     maps_from: list[ObjectOut]
     maps_to: list[ObjectOut]
-    references: list[ObjectReferenceOut]
+    references: list[ReferenceOut]
     is_top_level: bool
     sections: list[ObjectOut]
     filed: list[ObjectOut]
@@ -167,6 +169,7 @@ class RelationAssert(BaseModel):
     input_object_ids: list[uuid.UUID]
     outputs: list[ComputedOutput]
     implementation_id: uuid.UUID | None = None
+    references: list[ReferenceIn] = Field(default_factory=list)
     contributor: Contributor = None
 
 

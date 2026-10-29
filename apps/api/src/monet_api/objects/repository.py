@@ -17,6 +17,7 @@ from monet_api.objects.models import (
     Relation,
     RelationInput,
     RelationOutput,
+    RelationReference,
     SectionFiling,
     Signature,
     Subtype,
@@ -270,6 +271,34 @@ async def list_relation_outputs_for(
             )
         ).all()
     )
+
+
+async def list_relation_references_for(
+    session: AsyncSession, relation_ids: Sequence[uuid.UUID]
+) -> list[RelationReference]:
+    if not relation_ids:
+        return []
+    return list(
+        (
+            await session.exec(
+                select(RelationReference)
+                .where(col(RelationReference.relation_id).in_(relation_ids))
+                .order_by(col(RelationReference.relation_id), col(RelationReference.position))
+            )
+        ).all()
+    )
+
+
+async def clear_relation_references(session: AsyncSession, relation_id: uuid.UUID) -> None:
+    await session.exec(
+        delete(RelationReference).where(col(RelationReference.relation_id) == relation_id)
+    )
+
+
+def add_relation_reference(
+    session: AsyncSession, relation_id: uuid.UUID, label: str, url: str, position: int
+) -> None:
+    session.add(RelationReference(relation_id=relation_id, label=label, url=url, position=position))
 
 
 async def create_relation(session: AsyncSession, operator_id: uuid.UUID) -> Relation:

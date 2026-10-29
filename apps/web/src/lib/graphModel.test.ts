@@ -27,6 +27,7 @@ const relation = (operator: ObjectOut, inputs: ObjectOut[], outputs: ObjectOut[]
     hidden_by_default: false,
   },
   provenance: null,
+  references: [],
 });
 
 describe("buildGraph", () => {

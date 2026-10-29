@@ -8,4 +8,5 @@ def accepts(m):
 
 
 def compute(m):
-    return expand((m - Symbol("x") * m.T).det())
+    values = [(k, (m - k * m.T).det()) for k in range(m.rows + 1)]
+    return expand(interpolate(values, Symbol("x")))

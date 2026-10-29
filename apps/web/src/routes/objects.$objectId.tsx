@@ -10,7 +10,7 @@ import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
 import { facetData, primaryData } from "../lib/data";
 import { invalidateObjectGraph } from "../lib/queries";
-import type { ObjectReferenceIn } from "../lib/types";
+import type { ReferenceIn } from "../lib/types";
 import { Comments } from "./-components/Comments";
 import { ConvergenceCallout } from "./-components/ConvergenceCallout";
 import { LoopCallout } from "./-components/LoopCallout";
@@ -55,7 +55,7 @@ function ObjectDetail() {
   const [draftLatex, setDraftLatex] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [draftImageUrl, setDraftImageUrl] = useState("");
-  const [draftReferences, setDraftReferences] = useState<ObjectReferenceIn[]>([]);
+  const [draftReferences, setDraftReferences] = useState<ReferenceIn[]>([]);
 
   const invalidateAll = () => {
     invalidateObjectGraph(queryClient);

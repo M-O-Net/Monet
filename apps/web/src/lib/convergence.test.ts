@@ -27,6 +27,7 @@ const relation = (operator: ObjectOut, inputs: ObjectOut[], output: ObjectOut): 
   outputs: [{ position: 0, object: output }],
   display: null,
   provenance: null,
+  references: [],
 });
 
 describe("findConvergence", () => {

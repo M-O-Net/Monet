@@ -72,8 +72,8 @@ section_filings(object_id fk -> objects, section_id fk -> objects)
   more than one (e.g. quotient vs. remainder).
 - **Explicitly out of v0**, deferred to later passes — do not re-add without deciding to: any
   `kind`/type tag, label, canonical hash, timestamps, or soft-delete/versioning on `objects` or
-  `relations`; verification badges; agent/method/corroboration columns; an evidence table;
-  TTL/budget economy; multi-language operator implementations.
+  `relations`; verification badges; agent/method/corroboration columns; TTL/budget economy;
+  multi-language operator implementations. Relations carry references, as objects do.
 
 ### implementations (added after v0)
 

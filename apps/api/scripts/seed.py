@@ -21,6 +21,7 @@ from seed_data.dataset import (
     INSTANCES,
     OBJECTS,
     REFERENCES,
+    RELATION_REFERENCES,
     RELATIONS,
     SIGNATURES,
 )
@@ -38,6 +39,7 @@ from monet_api.objects.models import (
     Relation,
     RelationInput,
     RelationOutput,
+    RelationReference,
     SectionFiling,
     Signature,
     Subtype,
@@ -79,10 +81,16 @@ async def seed() -> None:
                     ObjectReference(object_id=ids[key], label=label, url=url, position=position)
                 )
 
-        for operator, inputs, outputs in RELATIONS:
+        for (operator, inputs, outputs), credits in zip(
+            RELATIONS, RELATION_REFERENCES, strict=True
+        ):
             rel = Relation(operator_id=ids[operator])
             session.add(rel)
             await session.flush()
+            for position, (label, url) in enumerate(credits):
+                session.add(
+                    RelationReference(relation_id=rel.id, label=label, url=url, position=position)
+                )
             for position, key in enumerate(inputs):
                 session.add(
                     RelationInput(relation_id=rel.id, object_id=ids[key], position=position)
@@ -133,7 +141,9 @@ async def seed() -> None:
             )
 
         await session.commit()
-        reference_count = sum(len(entries) for entries in REFERENCES.values())
+        reference_count = sum(
+            len(entries) for entries in [*REFERENCES.values(), *RELATION_REFERENCES]
+        )
         print(
             f"seeded {len(OBJECTS)} objects ({len(TYPES)} types), {len(RELATIONS)} relations, "
             f"{len(IMPLEMENTATIONS)} implementations, {len(IMAGES)} images "

@@ -31,13 +31,13 @@ from monet_api.objects.schemas import (
     ObjectCreate,
     ObjectDetailOut,
     ObjectOut,
-    ObjectReferenceIn,
-    ObjectReferenceOut,
     ObjectRole,
     ObjectUpdate,
     OperatorDisplayOut,
     OperatorDisplayUpdate,
     ProvenanceOut,
+    ReferenceIn,
+    ReferenceOut,
     RelationAssert,
     RelationAssertOut,
     RelationCreate,
@@ -111,6 +111,9 @@ async def load_relations(session: AsyncSession, relations: Sequence[Relation]) -
         )
     }
     provenance = await _provenance(session, "relation_created", relation_ids)
+    references: defaultdict[uuid.UUID, list[ReferenceOut]] = defaultdict(list)
+    for row in await repository.list_relation_references_for(session, relation_ids):
+        references[row.relation_id].append(ReferenceOut.model_validate(row))
 
     def resolve(object_id: uuid.UUID) -> ObjectOut:
         obj = objects.get(object_id)
@@ -137,6 +140,7 @@ async def load_relations(session: AsyncSession, relations: Sequence[Relation]) -
             outputs=outputs_by_relation[relation.id],
             display=displays.get(relation.operator_id),
             provenance=provenance.get(relation.id),
+            references=references[relation.id],
         )
         for relation in relations
     ]
@@ -185,7 +189,7 @@ def _linkable(url: str | None) -> str | None:
 
 
 async def _replace_references(
-    session: AsyncSession, object_id: uuid.UUID, references: Sequence[ObjectReferenceIn]
+    session: AsyncSession, object_id: uuid.UUID, references: Sequence[ReferenceIn]
 ) -> None:
     await repository.clear_object_references(session, object_id)
     for position, reference in enumerate(references):
@@ -385,7 +389,7 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
             session,
             await repository.list_map_ids_by_signature(session, object_id, as_domain=False),
         ),
-        references=[ObjectReferenceOut.model_validate(row) for row in references],
+        references=[ReferenceOut.model_validate(row) for row in references],
         is_top_level=is_top_level,
         sections=await _objects_out_by_ids(session, sections),
         filed=await _objects_out_by_ids(session, filed),
@@ -557,18 +561,62 @@ async def _validate_relation_operands(session: AsyncSession, body: RelationCreat
         await get_object_or_404(session, oid)
 
 
-async def create_relation(session: AsyncSession, body: RelationCreate) -> RelationOut:
+async def _add_relation_references(
+    session: AsyncSession, relation_id: uuid.UUID, references: Sequence[ReferenceIn]
+) -> None:
+    held = await repository.list_relation_references_for(session, [relation_id])
+    urls = {row.url for row in held}
+    for reference in references:
+        url = _linkable(reference.url)
+        if url is None or url in urls:
+            continue
+        urls.add(url)
+        repository.add_relation_reference(
+            session, relation_id, reference.label.strip(), url, len(urls) - 1
+        )
+
+
+async def _insert_relation(
+    session: AsyncSession,
+    operator_id: uuid.UUID,
+    input_ids: Sequence[uuid.UUID],
+    output_ids: Sequence[uuid.UUID],
+) -> Relation:
+    relation = await repository.create_relation(session, operator_id)
+    for position, oid in enumerate(input_ids):
+        repository.add_relation_input(session, relation.id, oid, position)
+    for position, oid in enumerate(output_ids):
+        repository.add_relation_output(session, relation.id, oid, position)
+    return relation
+
+
+async def create_relation(session: AsyncSession, body: RelationCreate) -> tuple[RelationOut, bool]:
     await _validate_relation_operands(session, body)
 
-    relation = await repository.create_relation(session, body.operator_id)
-    for position, oid in enumerate(body.input_object_ids):
-        repository.add_relation_input(session, relation.id, oid, position)
-    for position, oid in enumerate(body.output_object_ids):
-        repository.add_relation_output(session, relation.id, oid, position)
-    events.add_event(session, "relation_created", relation.id, body.contributor, "manual")
+    relation = await _find_matching_relation(
+        session, body.operator_id, body.input_object_ids, body.output_object_ids
+    )
+    created = relation is None
+    if relation is None:
+        relation = await _insert_relation(
+            session, body.operator_id, body.input_object_ids, body.output_object_ids
+        )
+        events.add_event(session, "relation_created", relation.id, body.contributor, "manual")
+    await _add_relation_references(session, relation.id, body.references)
 
     await session.commit()
     await session.refresh(relation)
+    return await _load_relation_out(session, relation), created
+
+
+async def add_relation_reference(
+    session: AsyncSession, relation_id: uuid.UUID, body: ReferenceIn
+) -> RelationOut:
+    relation = await get_relation_or_404(session, relation_id)
+    if _linkable(body.url) is None:
+        raise HTTPException(status_code=400, detail="a reference needs a url")
+    await _add_relation_references(session, relation_id, [body])
+    await session.commit()
     return await _load_relation_out(session, relation)
 
 
@@ -582,15 +630,22 @@ async def replace_relation(
 ) -> RelationOut:
     relation = await get_relation_or_404(session, relation_id)
     await _validate_relation_operands(session, body)
+    twin = await _find_matching_relation(
+        session, body.operator_id, body.input_object_ids, body.output_object_ids
+    )
+    if twin is not None and twin.id != relation_id:
+        raise HTTPException(status_code=409, detail=f"relation {twin.id} already states this")
 
     relation.operator_id = body.operator_id
     session.add(relation)
     await repository.clear_relation_slots(session, relation_id)
+    await repository.clear_relation_references(session, relation_id)
 
     for position, oid in enumerate(body.input_object_ids):
         repository.add_relation_input(session, relation.id, oid, position)
     for position, oid in enumerate(body.output_object_ids):
         repository.add_relation_output(session, relation.id, oid, position)
+    await _add_relation_references(session, relation_id, body.references)
 
     await session.commit()
     await session.refresh(relation)
@@ -692,12 +747,11 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
     )
     created_relation = relation is None
     if relation is None:
-        relation = await repository.create_relation(session, body.operator_id)
-        for position, oid in enumerate(body.input_object_ids):
-            repository.add_relation_input(session, relation.id, oid, position)
-        for position, oid in enumerate(output_ids):
-            repository.add_relation_output(session, relation.id, oid, position)
+        relation = await _insert_relation(
+            session, body.operator_id, body.input_object_ids, output_ids
+        )
         events.add_event(session, "relation_created", relation.id, body.contributor, source)
+    await _add_relation_references(session, relation.id, body.references)
 
     await session.commit()
     await session.refresh(relation)

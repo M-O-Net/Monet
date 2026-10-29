@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Latex } from "../../components/Latex";
 import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { ObjectOut, RelationOut } from "../../lib/types";
+import { Credits } from "./Credits";
 import { Provenance } from "./Provenance";
 import { RelationExpression } from "./RelationExpression";
 
@@ -62,6 +63,7 @@ function RelationRow({
         <RelationExpression html={html} />
       </div>
       <Provenance provenance={relation.provenance} />
+      <Credits references={relation.references} />
     </li>
   );
 }
