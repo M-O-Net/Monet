@@ -17,9 +17,14 @@ const LOOK: Record<StorageCategory, { label: string; swatch: string; about: stri
   types: { label: "Types", swatch: "bg-series-4", about: "types and subtypes" },
   activity: { label: "Comments & activity", swatch: "bg-series-5", about: "comments, the feed" },
   other: {
-    label: "Other",
+    label: "Other tables",
+    swatch: "bg-series-6",
+    about: "tables outside the categories above, such as migration history",
+  },
+  overhead: {
+    label: "Postgres overhead",
     swatch: "bg-series-rest",
-    about: "Postgres's own catalogs and bookkeeping",
+    about: "the database engine's own bookkeeping; roughly constant",
   },
 };
 
@@ -139,7 +144,9 @@ export function StorageBreakdown({ stats }: { stats: StorageStatsOut }) {
               </td>
               <td className="py-2 text-right text-ink">{formatBytes(category.size_bytes)}</td>
               <td className="py-2 text-right text-ink-soft">{formatShare(share(category))}</td>
-              <td className="py-2 text-right text-ink-soft">≈{category.rows.toLocaleString()}</td>
+              <td className="py-2 text-right text-ink-soft">
+                {category.category === "overhead" ? "—" : `≈${category.rows.toLocaleString()}`}
+              </td>
             </tr>
           ))}
         </tbody>

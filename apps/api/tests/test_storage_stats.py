@@ -24,12 +24,16 @@ async def test_categories_add_up_to_the_whole_database(client: AsyncClient) -> N
 async def test_every_table_lands_in_exactly_one_category(client: AsyncClient) -> None:
     stats = (await client.get("/stats/storage")).json()
     named = [
-        table for c in stats["categories"] if c["category"] != "other" for table in c["tables"]
+        table
+        for c in stats["categories"]
+        if c["category"] not in {"other", "overhead"}
+        for table in c["tables"]
     ]
-    other = next(c for c in stats["categories"] if c["category"] == "other")
+    rest = {c["category"]: c["tables"] for c in stats["categories"]}
 
     assert sorted(named) == sorted(SQLModel.metadata.tables)
-    assert other["tables"] == ["alembic_version"]
+    assert rest["other"] == ["alembic_version"]
+    assert rest["overhead"] == []
 
 
 async def test_storage_is_measured_at_most_once_a_minute(

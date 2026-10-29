@@ -36,29 +36,33 @@ async def _measure(session: AsyncSession, now: datetime.datetime) -> StorageStat
     tables = await repository.list_table_sizes(session)
     images = await repository.estimate_column_fill(session, "objects", "image_url")
 
-    categories = [
-        StorageCategoryOut(
-            category=category,
-            size_bytes=sum(table.size_bytes for table in tables if table.name in names),
-            rows=sum(table.rows for table in tables if table.name in names),
-            tables=sorted(table.name for table in tables if table.name in names),
-        )
-        for category, names in CATEGORY_TABLES.items()
-    ]
     classified = frozenset().union(*CATEGORY_TABLES.values())
-    unclassified = [table for table in tables if table.name not in classified]
-    categories.append(
+    categories = [
+        *(
+            _category(category, [table for table in tables if table.name in names])
+            for category, names in CATEGORY_TABLES.items()
+        ),
+        _category("other", [table for table in tables if table.name not in classified]),
         StorageCategoryOut(
-            category="other",
-            size_bytes=max(0, database_bytes - sum(c.size_bytes for c in categories)),
-            rows=sum(table.rows for table in unclassified),
-            tables=sorted(table.name for table in unclassified),
-        )
-    )
+            category="overhead",
+            size_bytes=max(0, database_bytes - sum(table.size_bytes for table in tables)),
+            rows=0,
+            tables=[],
+        ),
+    ]
     return StorageStatsOut(
         database_bytes=database_bytes,
         categories=categories,
         image_links=images.rows,
         image_link_bytes=images.size_bytes,
         measured_at=now,
+    )
+
+
+def _category(category: StorageCategory, tables: list[repository.TableSize]) -> StorageCategoryOut:
+    return StorageCategoryOut(
+        category=category,
+        size_bytes=sum(table.size_bytes for table in tables),
+        rows=sum(table.rows for table in tables),
+        tables=sorted(table.name for table in tables),
     )

@@ -865,7 +865,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "instances" | "edges" | "maps" | "types" | "activity" | "other";
+            category: "instances" | "edges" | "maps" | "types" | "activity" | "other" | "overhead";
             /** Size Bytes */
             size_bytes: number;
             /** Rows */

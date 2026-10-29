@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-StorageCategory = Literal["instances", "edges", "maps", "types", "activity", "other"]
+StorageCategory = Literal["instances", "edges", "maps", "types", "activity", "other", "overhead"]
 
 
 class StorageCategoryOut(BaseModel):
