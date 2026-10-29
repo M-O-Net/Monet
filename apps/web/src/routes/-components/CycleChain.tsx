@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { Latex } from "../../components/Latex";
-import type { Cycle } from "../../lib/cycles";
+import type { LoopStepOut } from "../../lib/types";
 
 const NODE_CLASS = "rounded-sm px-1.5 py-0.5";
 
@@ -24,8 +24,14 @@ function Node({ id, latex, isCurrent }: { id: string; latex: string; isCurrent: 
   );
 }
 
-export function CycleChain({ cycle, currentObjectId }: { cycle: Cycle; currentObjectId: string }) {
-  const start = cycle.at(0)?.from;
+export function CycleChain({
+  cycle,
+  currentObjectId,
+}: {
+  cycle: LoopStepOut[];
+  currentObjectId: string;
+}) {
+  const start = cycle.at(0)?.source;
   if (start === undefined) return null;
 
   return (
@@ -43,7 +49,11 @@ export function CycleChain({ cycle, currentObjectId }: { cycle: Cycle; currentOb
           <span aria-hidden className="text-ink-soft">
             →
           </span>
-          <Node id={step.to.id} latex={step.to.latex} isCurrent={step.to.id === currentObjectId} />
+          <Node
+            id={step.target.id}
+            latex={step.target.latex}
+            isCurrent={step.target.id === currentObjectId}
+          />
         </span>
       ))}
     </p>

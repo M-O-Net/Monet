@@ -31,7 +31,16 @@ async def _load_detail(
 
 async def list_implementations(session: AsyncSession) -> list[ImplementationDetailOut]:
     implementations = await repository.list_implementations(session)
-    return [await _load_detail(session, i) for i in implementations]
+    operators = {
+        operator.id: operator
+        for operator in await objects_service.objects_out_by_ids(
+            session, [i.operator_id for i in implementations]
+        )
+    }
+    return [
+        ImplementationDetailOut(id=i.id, operator=operators[i.operator_id], code=i.code)
+        for i in implementations
+    ]
 
 
 async def get_implementation(

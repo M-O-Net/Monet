@@ -1,9 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+
+import { formatApiError } from "@monet/api-client";
 
 import { Latex } from "../../components/Latex";
+import { api } from "../../lib/api";
 import { buildRelationHtml } from "../../lib/relationTemplate";
-import type { ObjectOut, RelationOut } from "../../lib/types";
+import type { ObjectOut, RelationGroupOut, RelationOut } from "../../lib/types";
 import { Credits } from "./Credits";
 import { Provenance } from "./Provenance";
 import { RelationExpression } from "./RelationExpression";
@@ -68,83 +71,162 @@ function RelationRow({
   );
 }
 
+const PAGE = 20;
+
+type Side = "operator" | "input" | "output";
+
+function LaterPage({
+  objectId,
+  side,
+  operatorId,
+  offset,
+}: {
+  objectId: string;
+  side: Side;
+  operatorId: string;
+  offset: number;
+}) {
+  const page = api.useQuery("get", "/objects/{object_id}/relations", {
+    params: {
+      path: { object_id: objectId },
+      query: { side, operator_id: operatorId, offset, limit: PAGE },
+    },
+  });
+  if (page.isPending) return <li className="text-xs text-ink-soft italic">Loading…</li>;
+  if (page.isError) return <li className="text-xs text-rust">{formatApiError(page.error)}</li>;
+  return page.data.items.map((relation) => (
+    <RelationRow key={relation.id} relation={relation} currentObjectId={objectId} />
+  ));
+}
+
+function GroupRows({
+  group,
+  side,
+  currentObjectId,
+}: {
+  group: RelationGroupOut;
+  side: Side;
+  currentObjectId: string;
+}) {
+  const [pages, setPages] = useState(group.relations.length === 0 ? 1 : 0);
+  const loaded = group.relations.length + pages * PAGE;
+  const left = group.total - loaded;
+
+  return (
+    <>
+      {group.relations.map((relation) => (
+        <RelationRow key={relation.id} relation={relation} currentObjectId={currentObjectId} />
+      ))}
+      {Array.from({ length: pages }, (_, index) => (
+        <LaterPage
+          key={index}
+          objectId={currentObjectId}
+          side={side}
+          operatorId={group.operator.id}
+          offset={group.relations.length + index * PAGE}
+        />
+      ))}
+      {left > 0 && (
+        <li>
+          <button
+            type="button"
+            onClick={() => {
+              setPages(pages + 1);
+            }}
+            className="flex items-center gap-1.5 text-xs text-ink-soft hover:text-pond"
+          >
+            <span aria-hidden>+</span>
+            {`show ${String(Math.min(left, PAGE))} more of ${String(group.total)}`}
+            <span className="rounded-sm border border-gold/30 bg-gold-soft/60 px-1.5 py-0.5 text-[11px]">
+              <Latex>{group.operator.latex}</Latex>
+            </span>
+          </button>
+        </li>
+      )}
+    </>
+  );
+}
+
+function CollapsedGroup({
+  group,
+  side,
+  currentObjectId,
+}: {
+  group: RelationGroupOut;
+  side: Side;
+  currentObjectId: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mt-2">
+      {open && (
+        <ul className="mb-1.5 space-y-2">
+          <GroupRows group={group} side={side} currentObjectId={currentObjectId} />
+        </ul>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(!open);
+        }}
+        className="flex items-center gap-1.5 text-xs text-ink-soft hover:text-pond"
+      >
+        <span aria-hidden>{open ? "−" : "+"}</span>
+        {open ? "hide" : `show ${String(group.total)}`}
+        <span className="rounded-sm border border-gold/30 bg-gold-soft/60 px-1.5 py-0.5 text-[11px]">
+          <Latex>{group.operator.latex}</Latex>
+        </span>
+      </button>
+    </div>
+  );
+}
+
 export function RelationList({
   title,
-  relations,
+  groups,
+  side,
   currentObjectId,
   collapseHidden = true,
 }: {
   title: string;
-  relations: RelationOut[];
+  groups: RelationGroupOut[];
+  side: Side;
   currentObjectId: string;
   collapseHidden?: boolean;
 }) {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-
-  const { shown, hiddenGroups } = useMemo(() => {
-    const visible: RelationOut[] = [];
-    const groups = new Map<string, { operator: ObjectOut; relations: RelationOut[] }>();
-    for (const relation of relations) {
-      if (collapseHidden && relation.display?.hidden_by_default === true) {
-        const group = groups.get(relation.operator.id) ?? {
-          operator: relation.operator,
-          relations: [],
-        };
-        group.relations.push(relation);
-        groups.set(relation.operator.id, group);
-      } else {
-        visible.push(relation);
-      }
-    }
-    return { shown: visible, hiddenGroups: [...groups.values()] };
-  }, [relations, collapseHidden]);
-
-  if (relations.length === 0) return null;
+  if (groups.length === 0) return null;
+  const isCollapsed = (group: RelationGroupOut) =>
+    group.relations.length === 0 ||
+    (collapseHidden && group.relations.some((relation) => relation.display?.hidden_by_default));
+  const open = groups.filter((group) => !isCollapsed(group));
+  const collapsed = groups.filter(isCollapsed);
+  const total = groups.reduce((sum, group) => sum + group.total, 0);
 
   return (
     <div className="mb-7">
-      <h2 className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">{title}</h2>
+      <h2 className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">
+        {title}
+        {total > 1 && <span className="ml-1.5 font-normal normal-case">({total})</span>}
+      </h2>
       <ul className="space-y-2">
-        {shown.map((relation) => (
-          <RelationRow key={relation.id} relation={relation} currentObjectId={currentObjectId} />
+        {open.map((group) => (
+          <GroupRows
+            key={group.operator.id}
+            group={group}
+            side={side}
+            currentObjectId={currentObjectId}
+          />
         ))}
       </ul>
-      {hiddenGroups.map((group) => {
-        const open = expanded.has(group.operator.id);
-        return (
-          <div key={group.operator.id} className={shown.length > 0 ? "mt-2" : ""}>
-            {open && (
-              <ul className="mb-1.5 space-y-2">
-                {group.relations.map((relation) => (
-                  <RelationRow
-                    key={relation.id}
-                    relation={relation}
-                    currentObjectId={currentObjectId}
-                  />
-                ))}
-              </ul>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setExpanded((previous) => {
-                  const next = new Set(previous);
-                  if (next.has(group.operator.id)) next.delete(group.operator.id);
-                  else next.add(group.operator.id);
-                  return next;
-                });
-              }}
-              className="flex items-center gap-1.5 text-xs text-ink-soft hover:text-pond"
-            >
-              <span aria-hidden>{open ? "−" : "+"}</span>
-              {open ? "hide" : `show ${String(group.relations.length)} more`}
-              <span className="rounded-sm border border-gold/30 bg-gold-soft/60 px-1.5 py-0.5 text-[11px]">
-                <Latex>{group.operator.latex}</Latex>
-              </span>
-            </button>
-          </div>
-        );
-      })}
+      {collapsed.map((group) => (
+        <CollapsedGroup
+          key={group.operator.id}
+          group={group}
+          side={side}
+          currentObjectId={currentObjectId}
+        />
+      ))}
     </div>
   );
 }

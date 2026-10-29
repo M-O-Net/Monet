@@ -1,3 +1,6 @@
+import uuid
+
+from fastapi import HTTPException
 from pydantic import TypeAdapter
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,9 +15,16 @@ _KIND: TypeAdapter[EventKind] = TypeAdapter(EventKind)
 
 
 async def list_events(
-    session: AsyncSession, contributor: str | None, kind: EventKind | None, limit: int
+    session: AsyncSession,
+    contributor: str | None,
+    kind: EventKind | None,
+    before: uuid.UUID | None,
+    limit: int,
 ) -> list[EventOut]:
-    events = await repository.list_events(session, contributor, kind, limit)
+    anchor = None if before is None else await repository.get_event(session, before)
+    if before is not None and anchor is None:
+        raise HTTPException(status_code=404, detail="event not found")
+    events = await repository.list_events(session, contributor, kind, anchor, limit)
     subjects = [event.subject_id for event in events]
 
     found_comments = {

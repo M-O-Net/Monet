@@ -1,16 +1,12 @@
-import { findCyclesThrough } from "../../lib/cycles";
-import type { RelationOut } from "../../lib/types";
+import { api } from "../../lib/api";
 import { Callout } from "./Callout";
 import { CycleChain } from "./CycleChain";
 
-export function LoopCallout({
-  relations,
-  currentObjectId,
-}: {
-  relations: RelationOut[];
-  currentObjectId: string;
-}) {
-  const cycles = findCyclesThrough(relations, currentObjectId);
+export function LoopCallout({ objectId }: { objectId: string }) {
+  const loops = api.useQuery("get", "/objects/{object_id}/loops", {
+    params: { path: { object_id: objectId } },
+  });
+  const cycles = loops.data ?? [];
   if (cycles.length === 0) return null;
 
   const onlySelfLoops = cycles.every((cycle) => cycle.length === 1);
@@ -25,7 +21,7 @@ export function LoopCallout({
       <ul className="space-y-2">
         {cycles.map((cycle) => (
           <li key={cycle.map((step) => step.relation.id).join(">")}>
-            <CycleChain cycle={cycle} currentObjectId={currentObjectId} />
+            <CycleChain cycle={cycle} currentObjectId={objectId} />
           </li>
         ))}
       </ul>

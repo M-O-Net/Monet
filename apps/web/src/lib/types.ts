@@ -1,4 +1,4 @@
-import type { components } from "../client/schema";
+import type { components, operations } from "../client/schema";
 
 export type ObjectOut = components["schemas"]["ObjectOut"];
 export type ObjectDetailOut = components["schemas"]["ObjectDetailOut"];
@@ -18,3 +18,6 @@ export type EventOut = components["schemas"]["EventOut"];
 export type EventKind = EventOut["kind"];
 export type NeighborhoodOut = components["schemas"]["NeighborhoodOut"];
 export type HiddenRelationsOut = components["schemas"]["HiddenRelationsOut"];
+export type RelationGroupOut = components["schemas"]["RelationGroupOut"];
+export type LoopStepOut = components["schemas"]["LoopStepOut"];
+export type ObjectQuery = NonNullable<operations["list_objects"]["parameters"]["query"]>;

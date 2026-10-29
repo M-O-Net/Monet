@@ -49,10 +49,12 @@ async def test_a_relation_carries_its_references_everywhere_it_is_shown(
     assert resp.status_code == 201
     assert _labels(resp.json()) == ["KnotInfo", "Knot Atlas"]
 
-    assert _labels((await client.get("/relations")).json()[0]) == ["KnotInfo", "Knot Atlas"]
+    mapped = (await client.get("/relations", params={"focus": polynomial})).json()
+    assert _labels(mapped["relations"][0]) == ["KnotInfo", "Knot Atlas"]
     detail = (await client.get(f"/objects/{knot}")).json()
-    assert _labels(detail["as_input"][0]) == ["KnotInfo", "Knot Atlas"]
-    assert _labels((await client.get(f"/objects/{polynomial}")).json()["as_output"][0]) == [
+    assert _labels(detail["as_input"][0]["relations"][0]) == ["KnotInfo", "Knot Atlas"]
+    output_side = (await client.get(f"/objects/{polynomial}")).json()["as_output"][0]
+    assert _labels(output_side["relations"][0]) == [
         "KnotInfo",
         "Knot Atlas",
     ]
@@ -99,7 +101,7 @@ async def test_posting_an_existing_relation_credits_it_instead_of_creating_a_twi
     assert second.status_code == 200
     assert second.json()["id"] == first.json()["id"]
     assert _labels(second.json()) == ["KnotInfo", "Knot Atlas"]
-    assert len((await client.get("/relations")).json()) == 1
+    assert (await client.get(f"/objects/{knot}")).json()["relation_count"] == 1
 
 
 async def test_a_relation_cannot_be_edited_into_a_twin_of_another(client: AsyncClient) -> None:

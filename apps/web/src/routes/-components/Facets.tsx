@@ -18,19 +18,16 @@ function kindOf(facet: Facet): string {
 export function Facets({
   objectId,
   facets,
-  types,
   onChanged,
 }: {
   objectId: string;
   facets: Facet[];
-  types: ObjectOut[];
   onChanged: () => void;
 }) {
   const setFacet = api.useMutation("put", "/objects/{object_id}/facets/{type_id}");
   const removeFacet = api.useMutation("delete", "/objects/{object_id}/facets/{type_id}");
-  const [typeId, setTypeId] = useState("");
+  const [type, setType] = useState<ObjectOut | null>(null);
   const data = primaryData({ facets });
-  const held = new Set(facets.map((facet) => facet.type.id));
 
   return (
     <section className="mb-7">
@@ -82,12 +79,12 @@ export function Facets({
         className="flex flex-wrap items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          if (typeId === "") return;
+          if (type === null) return;
           setFacet.mutate(
-            { params: { path: { object_id: objectId, type_id: typeId } }, body: { data } },
+            { params: { path: { object_id: objectId, type_id: type.id } }, body: { data } },
             {
               onSuccess: () => {
-                setTypeId("");
+                setType(null);
                 onChanged();
               },
             },
@@ -96,15 +93,16 @@ export function Facets({
       >
         <div className="w-64">
           <ObjectPicker
-            objects={types.filter((type) => !held.has(type.id))}
-            value={typeId}
-            onChange={setTypeId}
+            value={type}
+            onChange={setType}
+            filter={{ role: "type" }}
+            exclude={facets.map((facet) => facet.type.id)}
             placeholder="also an instance of…"
           />
         </div>
         <button
           type="submit"
-          disabled={typeId === "" || setFacet.isPending}
+          disabled={type === null || setFacet.isPending}
           className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep disabled:opacity-50"
         >
           Add

@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { asObjectId, dataKinds, type SearchCriteria, toQueryParams } from "./searchQuery";
+import { asObjectId, type SearchCriteria, toQueryParams } from "./searchQuery";
+import type { ObjectOut } from "./types";
+
+const object = (id: string, latex: string): ObjectOut => ({
+  id,
+  latex,
+  description: null,
+  facets: [],
+});
+const DET = object("det", "\\text{Determinant}");
+const THREE = object("three", "3");
 
 const nothing: SearchCriteria = {
   typeId: "",
@@ -47,8 +57,8 @@ describe("toQueryParams", () => {
       typeId: "t",
       includeSubtypes: false,
       properties: [
-        { operatorId: "det", valueId: "three" },
-        { operatorId: "det", valueId: "" },
+        { operator: DET, value: THREE },
+        { operator: DET, value: null },
       ],
       description: " singular ",
     });
@@ -58,15 +68,6 @@ describe("toQueryParams", () => {
       where: ["det:three"],
       description_contains: "singular",
     });
-  });
-});
-
-describe("dataKinds", () => {
-  it("collects the shapes of the data a type's instances carry", () => {
-    expect([...dataKinds([squarePlusOne("x"), { int: 3 }, null, { int: 4 }])].sort()).toEqual([
-      "int",
-      "poly",
-    ]);
   });
 });
 

@@ -23,18 +23,16 @@ function TypeLink({ type }: { type: ObjectOut }) {
 export function Signatures({
   mapId,
   signatures,
-  types,
   onChanged,
 }: {
   mapId: string;
   signatures: SignatureOut[];
-  types: ObjectOut[];
   onChanged: () => void;
 }) {
   const addSignature = api.useMutation("post", "/objects/{object_id}/signatures");
   const removeSignature = api.useMutation("delete", "/signatures/{signature_id}");
-  const [domainId, setDomainId] = useState("");
-  const [codomainId, setCodomainId] = useState("");
+  const [domain, setDomain] = useState<ObjectOut | null>(null);
+  const [codomain, setCodomain] = useState<ObjectOut | null>(null);
 
   return (
     <section className="mb-7">
@@ -71,16 +69,16 @@ export function Signatures({
         className="flex flex-wrap items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          if (domainId === "" || codomainId === "") return;
+          if (domain === null || codomain === null) return;
           addSignature.mutate(
             {
               params: { path: { object_id: mapId } },
-              body: { domain_id: domainId, codomain_id: codomainId },
+              body: { domain_id: domain.id, codomain_id: codomain.id },
             },
             {
               onSuccess: () => {
-                setDomainId("");
-                setCodomainId("");
+                setDomain(null);
+                setCodomain(null);
                 onChanged();
               },
             },
@@ -89,24 +87,24 @@ export function Signatures({
       >
         <div className="w-48">
           <ObjectPicker
-            objects={types}
-            value={domainId}
-            onChange={setDomainId}
+            value={domain}
+            onChange={setDomain}
+            filter={{ role: "type" }}
             placeholder="from…"
           />
         </div>
         <span className="text-ink-soft">→</span>
         <div className="w-48">
           <ObjectPicker
-            objects={types}
-            value={codomainId}
-            onChange={setCodomainId}
+            value={codomain}
+            onChange={setCodomain}
+            filter={{ role: "type" }}
             placeholder="to…"
           />
         </div>
         <button
           type="submit"
-          disabled={domainId === "" || codomainId === "" || addSignature.isPending}
+          disabled={domain === null || codomain === null || addSignature.isPending}
           className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep disabled:opacity-50"
         >
           Add a signature

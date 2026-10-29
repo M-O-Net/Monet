@@ -45,9 +45,9 @@ async def relate(client: AsyncClient, operator: str, inputs: list[str], outputs:
 
 
 async def query(client: AsyncClient, **params: str | bool) -> list[str]:
-    resp = await client.get("/objects/query", params=params)
+    resp = await client.get("/objects", params=params)
     assert resp.status_code == 200, resp.text
-    return sorted(o["id"] for o in resp.json())
+    return sorted(o["id"] for o in resp.json()["items"])
 
 
 async def taxonomy(client: AsyncClient) -> dict[str, str]:
@@ -105,7 +105,7 @@ async def test_a_facet_must_fit_its_type(client: AsyncClient) -> None:
         "/objects", json={"latex": "x", "facets": [{"type_id": plain, "data": {"int": 1}}]}
     )
     assert resp.status_code == 404
-    assert len((await client.get("/objects")).json()) == 2
+    assert (await client.get("/objects")).json()["total"] == 2
 
 
 async def test_subtypes_and_supertypes(client: AsyncClient) -> None:
@@ -178,9 +178,9 @@ async def test_query_rejects_malformed_filters(client: AsyncClient) -> None:
         {"data_contains": "[1, 2]"},
         {"where": "not-a-pair"},
     ):
-        assert (await client.get("/objects/query", params=params)).status_code == 400
+        assert (await client.get("/objects", params=params)).status_code == 400
     plain = await make(client, "A")
-    assert (await client.get("/objects/query", params={"member_of": plain})).status_code == 404
+    assert (await client.get("/objects", params={"member_of": plain})).status_code == 404
 
 
 async def test_roles_are_a_set(client: AsyncClient) -> None:
@@ -295,6 +295,9 @@ async def test_queries_can_use_their_indexes() -> None:
             "SELECT relation_id FROM relation_input WHERE object_id = :nothing"
         ),
         "ix_relations_operator_id": "SELECT id FROM relations WHERE operator_id = :nothing",
+        "ix_implementations_operator_id": (
+            "SELECT id FROM implementations WHERE operator_id = :nothing"
+        ),
     }
     async with engine.connect() as connection:
         await connection.execute(text("SET LOCAL enable_seqscan = off"))
