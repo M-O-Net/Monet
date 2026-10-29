@@ -9,6 +9,7 @@ from seed_data import (
     analysis,
     combinatorics,
     fields,
+    findstat,
     geometry,
     graphs,
     groups,
@@ -46,6 +47,7 @@ AREAS = (
     fields,
     topology,
     geometry,
+    findstat,
 )
 
 
