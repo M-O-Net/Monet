@@ -4,12 +4,14 @@ def _position(z):
 
 
 def _diagonalizable(m):
-    if all(entry.is_Rational for entry in m):
-        x = Symbol("x")
-        p = Poly(m.charpoly(x).as_expr(), x)
-        if gcd(p, p.diff(x)).degree() == 0:
-            return True
-    return m.is_diagonalizable()
+    if not all(entry.is_Rational for entry in m):
+        return m.is_diagonalizable()
+    x = Symbol("x")
+    squarefree = Poly(m.charpoly(x).as_expr(), x).sqf_part()
+    value = zeros(m.rows, m.rows)
+    for coefficient in squarefree.all_coeffs():
+        value = value * m + coefficient * eye(m.rows)
+    return value.is_zero_matrix
 
 
 def accepts(m):

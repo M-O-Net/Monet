@@ -15,6 +15,7 @@ from seed_data.build import (
     simplicial,
     surface,
 )
+from seed_data.sources import KNOTINFO
 
 TORUS_KNOT_TYPES = ["TorusKnots", "AlternatingKnots", "TwoBridgeKnots"]
 
@@ -507,15 +508,6 @@ DISPLAYS: dict[str, tuple[str | None, bool]] = {
 _WIKI = "https://en.wikipedia.org/wiki/"
 
 
-def _knotinfo(name: str) -> list[Reference]:
-    return [
-        (
-            "KnotInfo",
-            f"https://knotinfo.math.indiana.edu/results.php?searchmode=singleknot&desktopmode=0&singleknot={name}",
-        )
-    ]
-
-
 REFERENCES: dict[str, list[Reference]] = {
     "K3": [
         *knot_atlas("3_1"),
@@ -538,14 +530,11 @@ REFERENCES: dict[str, list[Reference]] = {
     "K6_3": knot_atlas("6_3"),
     "K8_3": knot_atlas("8_3"),
     "K8_19": knot_atlas("8_19"),
-    "jones_3_1": _knotinfo("3_1"),
-    "jones_5_1": _knotinfo("5_1"),
-    "jones_4_1": _knotinfo("4_1"),
-    "jones_8_19": _knotinfo("8_19"),
+    "jones_3_1": [KNOTINFO.cite("3_1")],
+    "jones_5_1": [KNOTINFO.cite("5_1")],
+    "jones_4_1": [KNOTINFO.cite("4_1")],
+    "jones_8_19": [KNOTINFO.cite("8_19")],
     "jones_hopf": [("Wikipedia", _WIKI + "Hopf_link")],
-    "V4_1": _knotinfo("4_1"),
-    "V5_2": _knotinfo("5_2"),
-    "V6_1": _knotinfo("6_1"),
     "rp2_6": [("Wikipedia", _WIKI + "Hemi-icosahedron")],
     "SeifertMatrix": [("Wikipedia", _WIKI + "Seifert_surface")],
     "AlexanderPolynomial": [("Wikipedia", _WIKI + "Alexander_polynomial")],

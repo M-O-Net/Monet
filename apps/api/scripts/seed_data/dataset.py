@@ -15,8 +15,10 @@ from seed_data import (
     geometry,
     graphs,
     groups,
+    knotinfo,
     linear_algebra,
     lmfdb,
+    mckay,
     numbers,
     polynomials,
     sequences,
@@ -54,6 +56,8 @@ AREAS = (
     lmfdb,
     cremona,
     atlas,
+    knotinfo,
+    mckay,
 )
 
 
