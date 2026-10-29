@@ -92,7 +92,7 @@ def _is_bipartite(order: int, edges: list[Edge]) -> bool:
     return True
 
 
-def _spanning_trees(order: int, edges: list[Edge]) -> int:
+def spanning_trees(order: int, edges: list[Edge]) -> int:
     return sum(
         1
         for chosen in itertools.combinations(edges, order - 1)
@@ -116,7 +116,7 @@ def _deletion_contraction(order: int, edges: frozenset[Edge]) -> tuple[int, ...]
     return tuple(d - c for d, c in zip(deleted, contracted, strict=True))
 
 
-def _chromatic(order: int, edges: list[Edge]) -> sympy.Expr:
+def chromatic_polynomial(order: int, edges: list[Edge]) -> sympy.Expr:
     coefficients = _deletion_contraction(order, frozenset(edges))
     return sympy.Add(*(c * X**power for power, c in enumerate(coefficients)))
 
@@ -147,7 +147,7 @@ def _planarity(cache: pathlib.Path, order: int, edges: list[Edge]) -> tuple[bool
     return _canonical(order, edges) in planar, listed
 
 
-def _types(order: int, edges: list[Edge], planar: bool) -> list[str]:
+def graph_types(order: int, edges: list[Edge], planar: bool) -> list[str]:
     degrees = {sum(v in e for e in edges) for v in range(order)}
     found = set()
     if len(_components(order, edges)) == 1 and len(edges) == order - 1:
@@ -166,8 +166,8 @@ def _types(order: int, edges: list[Edge], planar: bool) -> list[str]:
 def _row(cache: pathlib.Path, file: str, index: int, line: str) -> dict[str, str]:
     order, edges = decode(line)
     planar, planarity_file = _planarity(cache, order, edges)
-    types = _types(order, edges, planar)
-    chromatic = _chromatic(order, edges)
+    types = graph_types(order, edges, planar)
+    chromatic = chromatic_polynomial(order, edges)
     if "Trees" in types and chromatic != sympy.expand(X * (X - 1) ** (order - 1)):
         raise ValueError(f"{line}: deletion-contraction disagrees with x(x - 1)^(n - 1)")
     adjacency = [[int((min(i, j), max(i, j)) in edges) for j in range(order)] for i in range(order)]
@@ -178,7 +178,7 @@ def _row(cache: pathlib.Path, file: str, index: int, line: str) -> dict[str, str
         "order": str(order),
         "edges": json.dumps(edges),
         "types": ",".join(types),
-        "spanning_trees": str(_spanning_trees(order, edges)),
+        "spanning_trees": str(spanning_trees(order, edges)),
         "chromatic_data": json.dumps(PRELUDE["to_data"](chromatic)),
         "chromatic_latex": sympy.latex(chromatic),
         "chromatic_types": ",".join(polynomial_types(chromatic, X)),

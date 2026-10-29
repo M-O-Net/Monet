@@ -1,5 +1,6 @@
 import csv
 import json
+import multiprocessing
 import pathlib
 import re
 import sys
@@ -7,7 +8,7 @@ import sys
 import sympy
 from snapshot_typing import load_prelude, matrix_types, most_specific, polynomial_types
 
-MAX_CROSSINGS = 9
+MAX_CROSSINGS = 11
 KEPT = [
     "name",
     "crossing_number",
@@ -67,12 +68,8 @@ def _alexander(seifert: sympy.Matrix, knotinfo: str) -> sympy.Expr:
 
 
 def _signature(seifert: sympy.Matrix) -> int:
-    eigenvalues = (seifert + seifert.T).eigenvals()
-    return sum(
-        (1 if sympy.re(sympy.N(value)) > 0 else -1) * count
-        for value, count in eigenvalues.items()
-        if value != 0
-    )
+    roots = sympy.real_roots((seifert + seifert.T).charpoly(X).as_expr())
+    return sum(1 if root > 0 else -1 for root in roots if root != 0)
 
 
 def _derive(row: dict[str, str]) -> dict[str, str]:
@@ -104,13 +101,17 @@ def main(knotinfo_csv: str) -> None:
     csv.field_size_limit(10**9)
     with pathlib.Path(knotinfo_csv).open(encoding="utf-8") as source:
         header, _, *rows = csv.reader(source, delimiter="|")
-    knots = []
+    kept = []
     for values in rows:
         row = {column: values[header.index(column)].strip() for column in KEPT}
         crossings = row["crossing_number"]
         if crossings.isdigit() and 0 < int(crossings) <= MAX_CROSSINGS:
             row["seifert_matrix"] = re.sub(r"\s+", "", row["seifert_matrix"])
-            knots.append({**row, **_derive(row)})
+            kept.append(row)
+    with multiprocessing.Pool() as pool:
+        knots = [
+            {**row, **derived} for row, derived in zip(kept, pool.map(_derive, kept), strict=True)
+        ]
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", newline="", encoding="utf-8") as out:
         writer = csv.DictWriter(out, [*KEPT, *DERIVED], delimiter="\t", lineterminator="\n")
