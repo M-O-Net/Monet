@@ -42,11 +42,21 @@ def _is_companion(m: sympy.Matrix) -> bool:
     return m.rows > 0 and m == sympy.Matrix.companion(sympy.Poly(m.charpoly(x).as_expr(), x))
 
 
+def _is_diagonalizable(m: sympy.Matrix) -> bool:
+    x = sympy.Symbol("x")
+    characteristic = sympy.Poly(m.charpoly(x).as_expr(), x)
+    squarefree = sympy.quo(characteristic, sympy.gcd(characteristic, characteristic.diff(x)))
+    value = sympy.zeros(m.rows, m.rows)
+    for c in squarefree.all_coeffs():
+        value = value * m + c * sympy.eye(m.rows)
+    return value.is_zero_matrix
+
+
 def matrix_types(rows: list[list[int]]) -> list[str]:
     m = sympy.Matrix(rows)
     if m.rows != m.cols:
         return ["ColumnVectors"] if m.cols == 1 else ["Matrices"]
-    found = {"SquareMatrices"}
+    found = {"SquareMatrices", "ColumnVectors"} if m.cols == 1 else {"SquareMatrices"}
     determinant = m.det()
     if m == m.T:
         found.add("SymmetricMatrices")
@@ -58,7 +68,7 @@ def matrix_types(rows: list[list[int]]) -> list[str]:
         found.add("JordanNormalForms")
     if (m**m.rows).is_zero_matrix:
         found.add("NilpotentMatrices")
-    if m.is_diagonalizable():
+    if _is_diagonalizable(m):
         found.add("DiagonalizableMatrices")
     if _is_companion(m):
         found.add("CompanionMatrices")

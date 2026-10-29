@@ -72,8 +72,8 @@ async def seed() -> None:
         for key, (latex, description) in OBJECTS.items():
             obj = Object(latex=latex, description=description, image_url=IMAGES.get(key))
             session.add(obj)
-            await session.flush()
             ids[key] = obj.id
+        await session.flush()
 
         for key, entries in REFERENCES.items():
             for position, (label, url) in enumerate(entries):
@@ -81,12 +81,12 @@ async def seed() -> None:
                     ObjectReference(object_id=ids[key], label=label, url=url, position=position)
                 )
 
-        for (operator, inputs, outputs), credits in zip(
-            RELATIONS, RELATION_REFERENCES, strict=True
+        relations = [Relation(operator_id=ids[operator]) for operator, _, _ in RELATIONS]
+        session.add_all(relations)
+        await session.flush()
+        for rel, (_, inputs, outputs), credits in zip(
+            relations, RELATIONS, RELATION_REFERENCES, strict=True
         ):
-            rel = Relation(operator_id=ids[operator])
-            session.add(rel)
-            await session.flush()
             for position, (label, url) in enumerate(credits):
                 session.add(
                     RelationReference(relation_id=rel.id, label=label, url=url, position=position)

@@ -58,6 +58,25 @@ KNOTINFO = Source(
     page="https://knotinfo.org/results.php?searchmode=singleknot&desktopmode=0&singleknot={}",
 )
 
+NETWORKX = Source(
+    name="NetworkX",
+    homepage="https://networkx.org",
+    license="BSD-3-Clause",
+    obtained="the networkx 3.6.1 package from PyPI, run by scripts/snapshot_graph_atlas.py",
+    page="https://networkx.org/documentation/stable/reference/{}",
+)
+
+GRAPH_ATLAS = Source(
+    name="An Atlas of Graphs",
+    homepage="https://global.oup.com/academic/product/an-atlas-of-graphs-9780198526506",
+    license="R. C. Read and R. J. Wilson, An Atlas of Graphs, Oxford University Press, 1998; "
+    "Monet reads the copy networkx distributes under BSD-3-Clause",
+    obtained="graph_atlas_g() in the networkx 3.6.1 package from PyPI, read by "
+    "scripts/snapshot_graph_atlas.py",
+    page="https://networkx.org/documentation/stable/reference/generated/"
+    "networkx.generators.atlas.graph_atlas.html",
+)
+
 MCKAY = Source(
     name="McKay's Combinatorial Data",
     homepage="https://users.cecs.anu.edu.au/~bdm/data/",
