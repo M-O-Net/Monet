@@ -1,4 +1,4 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import Markdown, { type Components } from "react-markdown";
 
 import prd from "../../../../docs/PRD.md?raw";
@@ -31,6 +31,13 @@ const PROSE: Components = {
 function AboutPage() {
   return (
     <article className="max-w-3xl">
+      <p className="mb-6 text-xs text-ink-soft">
+        How big is the database?{" "}
+        <Link to="/storage" className="text-pond underline underline-offset-2">
+          See its storage
+        </Link>
+        .
+      </p>
       <Markdown components={PROSE}>{prd}</Markdown>
     </article>
   );
