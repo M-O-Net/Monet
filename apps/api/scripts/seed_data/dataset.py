@@ -7,13 +7,16 @@ from typing import Any
 
 from seed_data import (
     analysis,
+    atlas,
     combinatorics,
+    cremona,
     fields,
     findstat,
     geometry,
     graphs,
     groups,
     linear_algebra,
+    lmfdb,
     numbers,
     polynomials,
     sequences,
@@ -48,6 +51,9 @@ AREAS = (
     topology,
     geometry,
     findstat,
+    lmfdb,
+    cremona,
+    atlas,
 )
 
 
