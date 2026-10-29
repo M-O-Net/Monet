@@ -1,3 +1,4 @@
+import contextlib
 import json
 import math
 import sys
@@ -50,19 +51,46 @@ def _value(item):
     return _parse(item["latex"])
 
 
+def _values(item):
+    values = []
+    distinct = {json.dumps(data, sort_keys=True): data for data in item["facets"]}
+    for data in distinct.values():
+        with contextlib.suppress(LookupError):
+            values.append(_from_data(data))
+    return values or [_parse(item["latex"])]
+
+
 def _described(value):
     if isinstance(value, str):
         return {"latex": value, "data": None}
     return {"latex": _render(value), "data": _to_data(value)}
 
 
-def _accepts(code, value):
-    return _load(code)["accepts"](value.copy() if isinstance(value, _BASE["MatrixBase"]) else value)
+def _accepted(accepts, values):
+    for value in values:
+        try:
+            if accepts(value.copy() if isinstance(value, _BASE["MatrixBase"]) else value):
+                return value
+        except TimeoutError:
+            raise
+        except Exception:  # noqa: S112
+            continue
+    return None
+
+
+def _applies(code, values):
+    return _accepted(_load(code)["accepts"], values) is not None
+
+
+def _input(accepts, values):
+    accepted = None if accepts is None else _accepted(accepts, values)
+    return values[0] if accepted is None else accepted
 
 
 def _compute(code, inputs_json):
-    inputs = [_value(item) for item in json.loads(inputs_json)]
-    result = _load(code)["compute"](*inputs)
+    scope = _load(code)
+    inputs = [_input(scope.get("accepts"), _values(item)) for item in json.loads(inputs_json)]
+    result = scope["compute"](*inputs)
     values = list(result) if isinstance(result, (list, tuple)) else [result]
     return [_described(value) for value in values]
 
@@ -72,7 +100,7 @@ def probe(item_json, implementations_json):
     applicable = []
     deadline = time.monotonic() + _PYTHON_PROBE_DEADLINE_SECONDS
     try:
-        value = _with_line_deadline(_PYTHON_LINE_DEADLINE_SECONDS, _value, item)
+        values = _with_line_deadline(_PYTHON_LINE_DEADLINE_SECONDS, _values, item)
     except Exception:
         return json.dumps({"applicable": applicable})
     for implementation in json.loads(implementations_json):
@@ -80,7 +108,7 @@ def probe(item_json, implementations_json):
         if remaining <= 0:
             break
         try:
-            if _with_line_deadline(remaining, _accepts, implementation["code"], value):
+            if _with_line_deadline(remaining, _applies, implementation["code"], values):
                 applicable.append(implementation["id"])
         except Exception:  # noqa: BLE001, S110
             pass

@@ -9,7 +9,7 @@ import { ObjectPicker } from "../../components/ObjectPicker";
 import { api } from "../../lib/api";
 import { findCyclesThrough } from "../../lib/cycles";
 import type { Cycle } from "../../lib/cycles";
-import { primaryData, sameData, type ObjectData } from "../../lib/data";
+import { facetData, sameData, type ObjectData } from "../../lib/data";
 import { buildRelationHtml } from "../../lib/relationTemplate";
 import type { ObjectOut, RelationOut } from "../../lib/types";
 import { probe, run } from "../../sandbox/client";
@@ -52,7 +52,7 @@ export function Operations({
   relations,
   onCommitted,
 }: {
-  object: ObjectSummary;
+  object: { id: string; latex: string; facets: ObjectData[] };
   objects: ObjectOut[];
   implementations: Implementation[];
   relations: RelationOut[];
@@ -70,11 +70,11 @@ export function Operations({
   const [runError, setRunError] = useState<string | null>(null);
 
   const probeKey = implementations.map((i) => `${i.id}:${i.code}`).join("\u0000");
-  const dataKey = JSON.stringify(object.data ?? null);
+  const facetsKey = JSON.stringify(object.facets);
   const input = useMemo(
-    () => ({ latex: object.latex, data: object.data ?? null }),
+    () => ({ latex: object.latex, facets: object.facets }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [object.latex, dataKey],
+    [object.latex, facetsKey],
   );
   const payload = useMemo(
     () => implementations.map((i) => ({ id: i.id, code: i.code })),
@@ -106,7 +106,7 @@ export function Operations({
     setRunning(implementation.id);
     const inputs = inputIds.map((id) => {
       const found = objects.find((o) => o.id === id);
-      return { latex: found?.latex ?? "", data: found ? primaryData(found) : null };
+      return { latex: found?.latex ?? "", facets: found ? facetData(found) : [] };
     });
     run(implementation.code, inputs).then(
       (outputs) => {

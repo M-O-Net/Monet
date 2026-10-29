@@ -3,6 +3,11 @@ export interface SandboxValue {
   data: Record<string, unknown> | null;
 }
 
+export interface SandboxObject {
+  latex: string;
+  facets: Record<string, unknown>[];
+}
+
 export interface ImplementationCode {
   id: string;
   code: string;
@@ -11,7 +16,7 @@ export interface ImplementationCode {
 export interface ProbeRequest {
   id: string;
   kind: "probe";
-  input: SandboxValue;
+  input: SandboxObject;
   implementations: ImplementationCode[];
 }
 
@@ -19,7 +24,7 @@ export interface RunRequest {
   id: string;
   kind: "run";
   code: string;
-  inputs: SandboxValue[];
+  inputs: SandboxObject[];
 }
 
 export interface DescribeRequest {
