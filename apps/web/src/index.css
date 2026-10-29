@@ -20,6 +20,14 @@
   --color-rust: #a8452f;
   --color-curve: #00799a;
   --color-root: #a36a00;
+
+  --color-series-1: #2a78d6;
+  --color-series-2: #eb6834;
+  --color-series-3: #1baf7a;
+  --color-series-4: #eda100;
+  --color-series-5: #e87ba4;
+  --color-series-6: #008300;
+  --color-series-rest: #898781;
 }
 
 body {

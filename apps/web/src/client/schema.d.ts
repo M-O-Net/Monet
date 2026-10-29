@@ -408,6 +408,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stats/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Storage Stats */
+        get: operations["get_storage_stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -861,6 +878,36 @@ export interface components {
             id: string;
             domain: components["schemas"]["ObjectOut"];
             codomain: components["schemas"]["ObjectOut"];
+        };
+        /** StorageCategoryOut */
+        StorageCategoryOut: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "instances" | "edges" | "maps" | "types" | "activity" | "other" | "overhead";
+            /** Size Bytes */
+            size_bytes: number;
+            /** Rows */
+            rows: number;
+            /** Tables */
+            tables: string[];
+        };
+        /** StorageStatsOut */
+        StorageStatsOut: {
+            /** Database Bytes */
+            database_bytes: number;
+            /** Categories */
+            categories: components["schemas"]["StorageCategoryOut"][];
+            /** Image Links */
+            image_links: number;
+            /** Image Link Bytes */
+            image_link_bytes: number;
+            /**
+             * Measured At
+             * Format: date-time
+             */
+            measured_at: string;
         };
         /** TypeIn */
         TypeIn: {
@@ -2030,6 +2077,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_storage_stats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageStatsOut"];
                 };
             };
         };
