@@ -9,6 +9,8 @@ class Implementation(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     operator_id: uuid.UUID = Field(
-        sa_column=sa.Column(sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False)
+        sa_column=sa.Column(
+            sa.ForeignKey("objects.id", ondelete="CASCADE"), nullable=False, index=True
+        )
     )
     code: str

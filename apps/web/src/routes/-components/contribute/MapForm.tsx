@@ -7,34 +7,32 @@ import type { ObjectOut } from "../../../lib/types";
 import { ContributionError, Field, INPUT_CLASS, SUBMIT_CLASS } from "./fields";
 
 export function MapForm({
-  types,
   contributor,
   onCreated,
 }: {
-  types: ObjectOut[];
   contributor: string;
   onCreated: (id: string) => void;
 }) {
   const createObject = api.useMutation("post", "/objects");
   const [name, setName] = useState("");
-  const [domainId, setDomainId] = useState("");
-  const [codomainId, setCodomainId] = useState("");
+  const [domain, setDomain] = useState<ObjectOut | null>(null);
+  const [codomain, setCodomain] = useState<ObjectOut | null>(null);
   const [description, setDescription] = useState("");
 
-  const ready = name.trim() !== "" && domainId !== "" && codomainId !== "";
+  const ready = name.trim() !== "" && domain !== null && codomain !== null;
 
   return (
     <form
       className="space-y-5"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!ready) return;
+        if (domain === null || codomain === null || !ready) return;
         createObject.mutate(
           {
             body: {
               latex: textLatex(name),
               description: description.trim() || null,
-              signatures: [{ domain_id: domainId, codomain_id: codomainId }],
+              signatures: [{ domain_id: domain.id, codomain_id: codomain.id }],
               contributor,
             },
           },
@@ -62,18 +60,18 @@ export function MapForm({
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
         <Field label="From">
           <ObjectPicker
-            objects={types}
-            value={domainId}
-            onChange={setDomainId}
+            value={domain}
+            onChange={setDomain}
+            filter={{ role: "type" }}
             placeholder="domain…"
           />
         </Field>
         <span className="pb-1.5 text-ink-soft">→</span>
         <Field label="To">
           <ObjectPicker
-            objects={types}
-            value={codomainId}
-            onChange={setCodomainId}
+            value={codomain}
+            onChange={setCodomain}
+            filter={{ role: "type" }}
             placeholder="codomain…"
           />
         </Field>

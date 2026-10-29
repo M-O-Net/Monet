@@ -1,14 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import { formatApiError } from "@monet/api-client";
-
+import { QueriedMemberList } from "../components/MemberList";
 import { ObjectPicker } from "../components/ObjectPicker";
 import { api } from "../lib/api";
 import type { ObjectData } from "../lib/data";
-import { searchObjects } from "../lib/search";
-import { asObjectId, dataKinds, type PropertyFilter, toQueryParams } from "../lib/searchQuery";
-import { MemberList } from "./-components/MemberList";
+import { asObjectId, type PropertyFilter, toQueryParams } from "../lib/searchQuery";
+import type { ObjectOut } from "../lib/types";
+import { useSettled } from "../lib/useSettled";
 import { PropertyFilters } from "./-components/search/PropertyFilters";
 import { ValueFilter } from "./-components/search/ValueFilter";
 
@@ -17,56 +16,36 @@ export const Route = createFileRoute("/search")({
 });
 
 const LABEL_CLASS = "mb-1.5 text-xs font-semibold tracking-wide text-ink-soft uppercase";
-const NOTATION_MATCH_LIMIT = 8;
+const TYPING_PAUSE_MS = 250;
+const NOTE_CLASS = "text-sm text-ink-soft italic";
 
 function SearchPage() {
-  const types = api.useQuery("get", "/types");
-  const allObjects = api.useQuery("get", "/objects");
-
-  const [typeId, setTypeId] = useState("");
+  const [type, setType] = useState<ObjectOut | null>(null);
   const [includeSubtypes, setIncludeSubtypes] = useState(true);
   const [value, setValue] = useState<ObjectData | null>(null);
   const [ignoreVariable, setIgnoreVariable] = useState(false);
   const [properties, setProperties] = useState<PropertyFilter[]>([]);
   const [text, setText] = useState("");
+  const settledText = useSettled(text, TYPING_PAUSE_MS);
 
   const pastedId = asObjectId(text);
   const params = toQueryParams({
-    typeId,
+    typeId: type?.id ?? "",
     includeSubtypes,
     value,
     ignoreVariable,
     properties,
-    description: pastedId === null ? text : "",
+    description: asObjectId(settledText) === null ? settledText : "",
   });
+  const notation = asObjectId(settledText) === null ? settledText.trim() : "";
 
-  const instances = api.useQuery(
+  const typeDetail = api.useQuery(
     "get",
-    "/objects/query",
-    { params: { query: { member_of: typeId } } },
-    { enabled: typeId !== "" },
+    "/objects/{object_id}",
+    { params: { path: { object_id: type?.id ?? "" } } },
+    { enabled: type !== null },
   );
-  const results = api.useQuery(
-    "get",
-    "/objects/query",
-    { params: { query: params ?? {} } },
-    { enabled: params !== null },
-  );
-
-  const kinds = useMemo(
-    () =>
-      dataKinds(
-        (instances.data ?? []).flatMap((instance) => instance.facets.map((facet) => facet.data)),
-      ),
-    [instances.data],
-  );
-  const notationMatches = useMemo(
-    () =>
-      text.trim() === "" || pastedId !== null
-        ? []
-        : searchObjects(allObjects.data ?? [], text, NOTATION_MATCH_LIMIT),
-    [allObjects.data, text, pastedId],
-  );
+  const kinds = new Set(typeDetail.data?.as_type?.data_kinds ?? []);
 
   return (
     <div>
@@ -82,17 +61,17 @@ function SearchPage() {
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <ObjectPicker
-                objects={types.data ?? []}
-                value={typeId}
-                onChange={(id) => {
-                  setTypeId(id);
+                value={type}
+                onChange={(picked) => {
+                  setType(picked);
                   setValue(null);
                   setIgnoreVariable(false);
                 }}
+                filter={{ role: "type" }}
                 placeholder="any type…"
               />
             </div>
-            {typeId !== "" && (
+            {type !== null && (
               <>
                 <label className="flex items-center gap-1.5 text-xs text-ink-soft">
                   <input
@@ -107,7 +86,7 @@ function SearchPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setTypeId("");
+                    setType(null);
                     setValue(null);
                   }}
                   className="text-xs text-ink-soft hover:text-rust"
@@ -122,7 +101,7 @@ function SearchPage() {
         <div>
           <p className={LABEL_CLASS}>Equal to</p>
           <ValueFilter
-            key={typeId}
+            key={type?.id ?? ""}
             kinds={kinds}
             ignoreVariable={ignoreVariable}
             onIgnoreVariableChange={setIgnoreVariable}
@@ -132,11 +111,7 @@ function SearchPage() {
 
         <div>
           <p className={LABEL_CLASS}>Where</p>
-          <PropertyFilters
-            filters={properties}
-            objects={allObjects.data ?? []}
-            onChange={setProperties}
-          />
+          <PropertyFilters filters={properties} onChange={setProperties} />
         </div>
 
         <div>
@@ -164,26 +139,25 @@ function SearchPage() {
       </div>
 
       <div className="mt-8">
-        {params === null && (
-          <p className="text-sm text-ink-soft italic">Choose a filter above to search.</p>
-        )}
-        {results.isError && <p className="text-sm text-rust">{formatApiError(results.error)}</p>}
-        {params !== null && results.isPending && (
-          <p className="text-sm text-ink-soft italic">Searching…</p>
-        )}
-        {params !== null && results.data?.length === 0 && (
-          <p className="text-sm text-ink-soft italic">Nothing in the network matches.</p>
-        )}
-        {params !== null && results.data && (
-          <MemberList
-            title={`${String(results.data.length)} ${results.data.length === 1 ? "match" : "matches"}`}
-            members={results.data}
+        {params === null ? (
+          <p className={NOTE_CLASS}>Choose a filter above to search.</p>
+        ) : (
+          <QueriedMemberList
+            key={JSON.stringify(params)}
+            title={(total) => `${String(total)} ${total === 1 ? "match" : "matches"}`}
+            query={params}
+            pending={<p className={NOTE_CLASS}>Searching…</p>}
+            empty={<p className={NOTE_CLASS}>Nothing in the network matches.</p>}
           />
         )}
 
-        {notationMatches.length > 0 && (
+        {notation !== "" && (
           <div className="mt-6 opacity-80">
-            <MemberList title="Notation that looks similar" members={notationMatches} />
+            <QueriedMemberList
+              key={notation}
+              title={() => "Notation that looks similar"}
+              query={{ q: notation }}
+            />
             <p className="-mt-5 text-xs text-ink-soft">
               A last resort: this compares how objects are written, not what they are, so it can
               miss an object written another way and show one that only looks alike.

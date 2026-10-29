@@ -22,57 +22,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/objects/query": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Query Objects */
-        get: operations["query_objects"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Types */
-        get: operations["list_types"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/sections": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Sections */
-        get: operations["list_sections"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/objects/{object_id}/subtypes": {
         parameters: {
             query?: never;
@@ -135,6 +84,40 @@ export interface paths {
         };
         /** Get Neighborhood */
         get: operations["get_neighborhood"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objects/{object_id}/relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Object Relations */
+        get: operations["list_object_relations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/objects/{object_id}/loops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Find Loops */
+        get: operations["find_loops"];
         put?: never;
         post?: never;
         delete?: never;
@@ -272,8 +255,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Relations */
-        get: operations["list_relations"];
+        /** Map Relations */
+        get: operations["map_relations"];
         put?: never;
         /** Create Relation */
         post: operations["create_relation"];
@@ -602,6 +585,12 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** LoopStepOut */
+        LoopStepOut: {
+            relation: components["schemas"]["RelationOut"];
+            source: components["schemas"]["ObjectOut"];
+            target: components["schemas"]["ObjectOut"];
+        };
         /** NeighborhoodOut */
         NeighborhoodOut: {
             /** Relations */
@@ -652,8 +641,8 @@ export interface components {
             subtypes: components["schemas"]["ObjectOut"][];
             /** Supertypes */
             supertypes: components["schemas"]["ObjectOut"][];
-            /** Instances */
-            instances: components["schemas"]["ObjectOut"][];
+            /** Instance Count */
+            instance_count: number;
             /** Signatures */
             signatures: components["schemas"]["SignatureOut"][];
             /** Maps From */
@@ -666,14 +655,16 @@ export interface components {
             is_top_level: boolean;
             /** Sections */
             sections: components["schemas"]["ObjectOut"][];
-            /** Filed */
-            filed: components["schemas"]["ObjectOut"][];
+            /** Filed Count */
+            filed_count: number;
+            /** Relation Count */
+            relation_count: number;
             /** As Operator */
-            as_operator: components["schemas"]["RelationOut"][];
+            as_operator: components["schemas"]["RelationGroupOut"][];
             /** As Input */
-            as_input: components["schemas"]["RelationOut"][];
+            as_input: components["schemas"]["RelationGroupOut"][];
             /** As Output */
-            as_output: components["schemas"]["RelationOut"][];
+            as_output: components["schemas"]["RelationGroupOut"][];
         };
         /** ObjectOut */
         ObjectOut: {
@@ -688,6 +679,13 @@ export interface components {
             description: string | null;
             /** Facets */
             facets: components["schemas"]["FacetOut"][];
+        };
+        /** ObjectPageOut */
+        ObjectPageOut: {
+            /** Items */
+            items: components["schemas"]["ObjectOut"][];
+            /** Total */
+            total: number;
         };
         /** ObjectUpdate */
         ObjectUpdate: {
@@ -797,6 +795,21 @@ export interface components {
             /** Hidden By Default */
             hidden_by_default: boolean;
         };
+        /** RelationGroupOut */
+        RelationGroupOut: {
+            operator: components["schemas"]["ObjectOut"];
+            /** Relations */
+            relations: components["schemas"]["RelationOut"][];
+            /** Total */
+            total: number;
+        };
+        /** RelationMapOut */
+        RelationMapOut: {
+            /** Relations */
+            relations: components["schemas"]["RelationOut"][];
+            /** Omitted */
+            omitted: number;
+        };
         /** RelationOut */
         RelationOut: {
             /**
@@ -813,6 +826,13 @@ export interface components {
             provenance: components["schemas"]["ProvenanceOut"] | null;
             /** References */
             references: components["schemas"]["ReferenceOut"][];
+        };
+        /** RelationPageOut */
+        RelationPageOut: {
+            /** Items */
+            items: components["schemas"]["RelationOut"][];
+            /** Total */
+            total: number;
         };
         /** RelationSlotOut */
         RelationSlotOut: {
@@ -900,6 +920,8 @@ export interface components {
         TypeOut: {
             /** Data Kind */
             data_kind: string | null;
+            /** Data Kinds */
+            data_kinds: string[];
         };
         /** ValidationError */
         ValidationError: {
@@ -925,7 +947,19 @@ export type $defs = Record<string, never>;
 export interface operations {
     list_objects: {
         parameters: {
-            query?: never;
+            query?: {
+                q?: string | null;
+                role?: ("type" | "map" | "section" | "instance") | null;
+                member_of?: string | null;
+                transitive?: boolean;
+                filed_under?: string | null;
+                data_equals?: string | null;
+                data_contains?: string | null;
+                description_contains?: string | null;
+                where?: string[] | null;
+                offset?: number;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -938,7 +972,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ObjectOut"][];
+                    "application/json": components["schemas"]["ObjectPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -972,82 +1015,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    query_objects: {
-        parameters: {
-            query?: {
-                member_of?: string | null;
-                transitive?: boolean;
-                data_equals?: string | null;
-                data_contains?: string | null;
-                description_contains?: string | null;
-                where?: string[] | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ObjectOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_types: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ObjectOut"][];
-                };
-            };
-        };
-    };
-    list_sections: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ObjectOut"][];
                 };
             };
         };
@@ -1233,6 +1200,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NeighborhoodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_object_relations: {
+        parameters: {
+            query: {
+                side: "operator" | "input" | "output";
+                operator_id?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    find_loops: {
+        parameters: {
+            query?: {
+                via?: string | null;
+            };
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoopStepOut"][][];
                 };
             };
             /** @description Validation Error */
@@ -1540,9 +1576,12 @@ export interface operations {
             };
         };
     };
-    list_relations: {
+    map_relations: {
         parameters: {
-            query?: never;
+            query?: {
+                focus?: string[] | null;
+                depth?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1555,7 +1594,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RelationOut"][];
+                    "application/json": components["schemas"]["RelationMapOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2004,6 +2052,7 @@ export interface operations {
             query?: {
                 contributor?: string | null;
                 kind?: ("object_created" | "relation_created" | "comment_created") | null;
+                before?: string | null;
                 limit?: number;
             };
             header?: never;

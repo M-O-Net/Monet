@@ -1,4 +1,5 @@
 import itertools
+import json
 from dataclasses import dataclass
 from fractions import Fraction
 from types import ModuleType
@@ -34,12 +35,25 @@ class Source:
         return f"{self.name} {label or entry}", self.page.format(entry)
 
 
+def fingerprint(data: Data) -> str:
+    return json.dumps(data, sort_keys=True)
+
+
 def held_by(data: Data, *areas: ModuleType) -> str | None:
     for area in areas:
         for key, (_, _, facets) in getattr(area, "INSTANCES", {}).items():
             if any(held == data for _, held in facets):
                 return str(key)
     return None
+
+
+def holdings(*areas: ModuleType) -> dict[str, str]:
+    held: dict[str, str] = {}
+    for area in areas:
+        for key, (_, _, facets) in getattr(area, "INSTANCES", {}).items():
+            for _, data in facets:
+                held.setdefault(fingerprint(data), str(key))
+    return held
 
 
 def integer(n: int) -> Data:
@@ -161,8 +175,47 @@ def path_graph(order: int) -> Data:
     return graph(order, [(i, i + 1) for i in range(order - 1)])
 
 
+def graph_complement(data: Data) -> Data:
+    order = data["graph"]["order"]
+    present = {tuple(e) for e in data["graph"]["edges"]}
+    pairs = itertools.combinations(range(order), 2)
+    return graph(order, [pair for pair in pairs if pair not in present])
+
+
+def _neighbours(data: Data) -> list[set[int]]:
+    adjacent: list[set[int]] = [set() for _ in range(data["graph"]["order"])]
+    for u, v in data["graph"]["edges"]:
+        adjacent[u].add(v)
+        adjacent[v].add(u)
+    return adjacent
+
+
+def isomorphic(a: Data, b: Data) -> bool:
+    first, second = _neighbours(a), _neighbours(b)
+    if sorted(map(len, first)) != sorted(map(len, second)):
+        return False
+
+    def extend(images: list[int]) -> bool:
+        vertex = len(images)
+        if vertex == len(first):
+            return True
+        return any(
+            image not in images
+            and len(second[image]) == len(first[vertex])
+            and all((u in first[vertex]) == (images[u] in second[image]) for u in range(vertex))
+            and extend([*images, image])
+            for image in range(len(second))
+        )
+
+    return extend([])
+
+
 def small_group(order: int, index: int) -> Data:
     return {"smallgroup": [order, index]}
+
+
+def symmetric_permgroup(degree: int) -> Data:
+    return permgroup(degree, [[*range(1, degree), 0], [1, 0, *range(2, degree)]])
 
 
 def abelian(rank: int, torsion: list[int]) -> Data:

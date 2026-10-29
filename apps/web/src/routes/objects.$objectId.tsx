@@ -6,6 +6,7 @@ import { formatApiError } from "@monet/api-client";
 
 import { ConfirmButton } from "../components/ConfirmButton";
 import { Latex } from "../components/Latex";
+import { MemberList, QueriedMemberList } from "../components/MemberList";
 import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
 import { facetData, primaryData } from "../lib/data";
@@ -14,7 +15,6 @@ import type { ReferenceIn } from "../lib/types";
 import { Comments } from "./-components/Comments";
 import { ConvergenceCallout } from "./-components/ConvergenceCallout";
 import { LoopCallout } from "./-components/LoopCallout";
-import { MemberList } from "./-components/MemberList";
 import { OperatorDisplayForm } from "./-components/OperatorDisplayForm";
 import { Provenance } from "./-components/Provenance";
 import { ReferenceEditor } from "./-components/ReferenceEditor";
@@ -42,10 +42,7 @@ function ObjectDetail() {
   const detail = api.useQuery("get", "/objects/{object_id}", {
     params: { path: { object_id: objectId } },
   });
-  const allObjects = api.useQuery("get", "/objects");
-  const allRelations = api.useQuery("get", "/relations");
   const implementations = api.useQuery("get", "/implementations");
-  const types = api.useQuery("get", "/types");
   const updateObject = api.useMutation("patch", "/objects/{object_id}");
   const deleteObject = api.useMutation("delete", "/objects/{object_id}");
   const markTopLevel = api.useMutation("put", "/top-level-objects/{object_id}");
@@ -66,16 +63,14 @@ function ObjectDetail() {
     return <p className="text-sm text-rust">{formatApiError(detail.error)}</p>;
   }
   const obj = detail.data;
-  const edgeCount = new Set(
-    [...obj.as_operator, ...obj.as_input, ...obj.as_output].map((r) => r.id),
-  ).size;
+  const edgeCount = obj.relation_count;
   const isIsolated =
     edgeCount === 0 &&
     obj.roles.length === 0 &&
     obj.sections.length === 0 &&
     obj.facets.length === 0;
   const isMap = obj.roles.includes("map");
-  const firstAsOperator = obj.as_operator.at(0);
+  const firstAsOperator = obj.as_operator.at(0)?.relations.at(0);
   const data = primaryData(obj);
   const isFunction = data !== null && ("poly" in data || "expr" in data);
 
@@ -258,61 +253,60 @@ function ObjectDetail() {
           Not yet connected to anything else in the valley.
         </p>
       )}
-      {allRelations.data && (
-        <LoopCallout relations={allRelations.data} currentObjectId={objectId} />
-      )}
-      <ConvergenceCallout asOutput={obj.as_output} currentObjectId={objectId} />
+      <LoopCallout objectId={objectId} />
+      <ConvergenceCallout asOutput={obj.as_output} />
 
       {(obj.facets.length > 0 || !obj.roles.includes("type")) && (
-        <Facets
-          objectId={objectId}
-          facets={obj.facets}
-          types={types.data ?? []}
-          onChanged={invalidateAll}
-        />
+        <Facets objectId={objectId} facets={obj.facets} onChanged={invalidateAll} />
       )}
       {isFunction && <FunctionAnalysis latex={obj.latex} data={data} />}
       <MemberList title="A kind of" members={obj.supertypes} />
       <MemberList title="Subtypes" members={obj.subtypes} />
-      <MemberList title="Instances" members={obj.instances} />
-      <MemberList title="Filed under this section" members={obj.filed} />
-      {isMap && (
-        <Signatures
-          mapId={objectId}
-          signatures={obj.signatures}
-          types={types.data ?? []}
-          onChanged={invalidateAll}
+      {obj.instance_count > 0 && (
+        <QueriedMemberList
+          title={(total) => `Instances (${String(total)})`}
+          query={{ member_of: objectId, transitive: false }}
         />
+      )}
+      {obj.filed_count > 0 && (
+        <QueriedMemberList
+          title={(total) => `Filed under this section (${String(total)})`}
+          query={{ filed_under: objectId }}
+        />
+      )}
+      {isMap && (
+        <Signatures mapId={objectId} signatures={obj.signatures} onChanged={invalidateAll} />
       )}
       <MemberList title="Maps from this type" members={obj.maps_from} />
       <MemberList title="Maps into this type" members={obj.maps_to} />
       <RelationList
         title="Used as operator in"
-        relations={obj.as_operator}
+        groups={obj.as_operator}
+        side="operator"
         currentObjectId={objectId}
         collapseHidden={false}
       />
       <RelationList
         title="Appears as input in"
-        relations={obj.as_input}
+        groups={obj.as_input}
+        side="input"
         currentObjectId={objectId}
       />
       <RelationList
         title="Appears as output in"
-        relations={obj.as_output}
+        groups={obj.as_output}
+        side="output"
         currentObjectId={objectId}
       />
       <ReferenceList references={obj.references} />
 
       {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
 
-      {obj.roles.includes("instance") && allObjects.data && implementations.data && (
+      {obj.roles.includes("instance") && implementations.data && (
         <Operations
           key={`${obj.id}:${JSON.stringify(obj.facets)}`}
           object={{ id: obj.id, latex: obj.latex, facets: facetData(obj) }}
-          objects={allObjects.data}
           implementations={implementations.data}
-          relations={allRelations.data ?? []}
           onCommitted={invalidateAll}
         />
       )}
@@ -330,7 +324,7 @@ function ObjectDetail() {
       <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
         Add a relation
       </h2>
-      {allObjects.data && <RelationForm objects={allObjects.data} onCreated={invalidateAll} />}
+      <RelationForm onCreated={invalidateAll} />
     </div>
   );
 }

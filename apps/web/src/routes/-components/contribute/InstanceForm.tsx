@@ -9,16 +9,14 @@ import type { SandboxValue } from "../../../sandbox/protocol";
 import { ContributionError, Field, INPUT_CLASS, SUBMIT_CLASS } from "./fields";
 
 export function InstanceForm({
-  types,
   contributor,
   onCreated,
 }: {
-  types: ObjectOut[];
   contributor: string;
   onCreated: (id: string) => void;
 }) {
   const createObject = api.useMutation("post", "/objects");
-  const [typeId, setTypeId] = useState("");
+  const [type, setType] = useState<ObjectOut | null>(null);
   const [text, setText] = useState("");
   const [notationOnly, setNotationOnly] = useState(false);
   const [read, setRead] = useState<SandboxValue | null>(null);
@@ -42,20 +40,22 @@ export function InstanceForm({
     );
   };
 
-  const ready = typeId !== "" && (notationOnly ? text.trim() !== "" : read !== null);
+  const ready = type !== null && (notationOnly ? text.trim() !== "" : read !== null);
 
   return (
     <form
       className="space-y-5"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!ready) return;
+        if (type === null || !ready) return;
         createObject.mutate(
           {
             body: {
               latex: notationOnly || read === null ? text.trim() : read.latex,
               description: description.trim() || null,
-              facets: [{ type_id: typeId, data: notationOnly || read === null ? null : read.data }],
+              facets: [
+                { type_id: type.id, data: notationOnly || read === null ? null : read.data },
+              ],
               contributor,
             },
           },
@@ -69,9 +69,9 @@ export function InstanceForm({
     >
       <Field label="Type" hint="What kind of object this is.">
         <ObjectPicker
-          objects={types}
-          value={typeId}
-          onChange={setTypeId}
+          value={type}
+          onChange={setType}
+          filter={{ role: "type" }}
           placeholder="choose a type…"
         />
       </Field>

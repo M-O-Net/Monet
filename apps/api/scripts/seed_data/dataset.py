@@ -1,4 +1,3 @@
-import json
 import math
 from collections.abc import Iterable, Sequence
 from fractions import Fraction
@@ -13,6 +12,7 @@ from seed_data import (
     fields,
     findstat,
     geometry,
+    graph_atlas,
     graphs,
     groups,
     knotinfo,
@@ -31,6 +31,7 @@ from seed_data.build import (
     Reference,
     RelationSpec,
     Specimen,
+    fingerprint,
     fraction,
     instance,
     integer,
@@ -58,6 +59,7 @@ AREAS = (
     atlas,
     knotinfo,
     mckay,
+    graph_atlas,
 )
 
 
@@ -89,10 +91,6 @@ def merged_references(areas: Sequence[ModuleType]) -> dict[str, list[Reference]]
         for key, references in getattr(area, "REFERENCES", {}).items():
             merged[key] = union(merged.get(key, []), references)
     return merged
-
-
-def fingerprint(data: Data) -> str:
-    return json.dumps(data, sort_keys=True)
 
 
 def _is_prime(n: int) -> bool:

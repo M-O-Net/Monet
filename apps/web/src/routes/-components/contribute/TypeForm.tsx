@@ -18,38 +18,34 @@ const DATA_KINDS: { kind: string | null; label: string }[] = [
 ];
 
 export function TypeForm({
-  types,
-  sections,
   contributor,
   onCreated,
 }: {
-  types: ObjectOut[];
-  sections: ObjectOut[];
   contributor: string;
   onCreated: (id: string) => void;
 }) {
   const createObject = api.useMutation("post", "/objects");
   const [name, setName] = useState("");
-  const [supertypeId, setSupertypeId] = useState("");
+  const [supertype, setSupertype] = useState<ObjectOut | null>(null);
   const [dataKind, setDataKind] = useState<string | null>(null);
-  const [sectionId, setSectionId] = useState("");
+  const [section, setSection] = useState<ObjectOut | null>(null);
   const [description, setDescription] = useState("");
 
-  const ready = name.trim() !== "" && supertypeId !== "";
+  const ready = name.trim() !== "" && supertype !== null;
 
   return (
     <form
       className="space-y-5"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!ready) return;
+        if (supertype === null || !ready) return;
         createObject.mutate(
           {
             body: {
               latex: textLatex(name),
               description: description.trim() || null,
-              as_type: { data_kind: dataKind, supertype_ids: [supertypeId] },
-              sections: sectionId === "" ? [] : [sectionId],
+              as_type: { data_kind: dataKind, supertype_ids: [supertype.id] },
+              sections: section === null ? [] : [section.id],
               contributor,
             },
           },
@@ -76,9 +72,9 @@ export function TypeForm({
         hint="Its supertype. Every instance of the new type is also an instance of this one; pick Mathematical Objects if nothing narrower fits."
       >
         <ObjectPicker
-          objects={types}
-          value={supertypeId}
-          onChange={setSupertypeId}
+          value={supertype}
+          onChange={setSupertype}
+          filter={{ role: "type" }}
           placeholder="choose a supertype…"
         />
       </Field>
@@ -110,9 +106,9 @@ export function TypeForm({
 
       <Field label="Show on the contents page under" hint="Optional.">
         <ObjectPicker
-          objects={sections}
-          value={sectionId}
-          onChange={setSectionId}
+          value={section}
+          onChange={setSection}
+          filter={{ role: "section" }}
           placeholder="no section…"
         />
       </Field>

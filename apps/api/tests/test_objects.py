@@ -10,7 +10,8 @@ async def test_create_and_list_object(client: AsyncClient) -> None:
 
     resp = await client.get("/objects")
     assert resp.status_code == 200
-    assert [o["id"] for o in resp.json()] == [created["id"]]
+    assert [o["id"] for o in resp.json()["items"]] == [created["id"]]
+    assert resp.json()["total"] == 1
 
 
 async def test_object_description_is_optional_and_editable(client: AsyncClient) -> None:
@@ -65,7 +66,7 @@ async def test_relation_closes_a_loop(client: AsyncClient) -> None:
     detail = (await client.get(f"/objects/{p}")).json()
     assert len(detail["as_input"]) == 1
     assert len(detail["as_output"]) == 1
-    assert detail["as_output"][0]["inputs"][0]["object"]["id"] == c
+    assert detail["as_output"][0]["relations"][0]["inputs"][0]["object"]["id"] == c
 
 
 async def test_deleting_an_object_deletes_the_relations_it_is_in(client: AsyncClient) -> None:
@@ -81,11 +82,11 @@ async def test_deleting_an_object_deletes_the_relations_it_is_in(client: AsyncCl
         "/relations",
         json={"operator_id": op, "input_object_ids": [a], "output_object_ids": [b]},
     )
-    assert len((await client.get("/relations")).json()) == 1
+    assert (await client.get(f"/objects/{b}")).json()["relation_count"] == 1
 
     assert (await client.delete(f"/objects/{a}")).status_code == 204
 
-    assert (await client.get("/relations")).json() == []
+    assert (await client.get(f"/objects/{b}")).json()["relation_count"] == 0
     assert (await client.get(f"/objects/{a}")).status_code == 404
     assert (await client.get(f"/objects/{b}")).status_code == 200
     assert (await client.get(f"/objects/{op}")).status_code == 200
@@ -107,8 +108,7 @@ async def test_deleting_an_operator_deletes_the_relations_it_operates(
 
     assert (await client.delete(f"/objects/{op}")).status_code == 204
 
-    assert (await client.get("/relations")).json() == []
-    assert (await client.get(f"/objects/{a}")).status_code == 200
+    assert (await client.get(f"/objects/{a}")).json()["relation_count"] == 0
 
 
 async def test_deleting_a_section_object_clears_its_contents_entry(client: AsyncClient) -> None:

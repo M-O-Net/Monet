@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -17,6 +18,7 @@ async def list_events(
     session: DbSession,
     contributor: str | None = None,
     kind: EventKind | None = None,
+    before: uuid.UUID | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[EventOut]:
-    return await service.list_events(session, contributor, kind, limit)
+    return await service.list_events(session, contributor, kind, before, limit)

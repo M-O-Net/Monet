@@ -37,11 +37,13 @@ async def test_filing_under_a_section_is_editorial_not_a_relation(client: AsyncC
     detail = (await client.get(f"/objects/{inverse}")).json()
     assert [s["id"] for s in detail["sections"]] == [linear_algebra]
     assert detail["as_input"] == []
+    assert detail["relation_count"] == 0
 
     section = (await client.get(f"/objects/{linear_algebra}")).json()
-    assert [o["id"] for o in section["filed"]] == [inverse]
+    assert section["filed_count"] == 1
     assert section["roles"] == ["section"]
-    assert (await client.get("/relations")).json() == []
+    filed = (await client.get("/objects", params={"filed_under": linear_algebra})).json()
+    assert [o["id"] for o in filed["items"]] == [inverse]
 
 
 async def test_filed_objects_are_listed_in_latex_order(client: AsyncClient) -> None:
@@ -50,7 +52,7 @@ async def test_filed_objects_are_listed_in_latex_order(client: AsyncClient) -> N
         await make_object(client, latex, sections=[section])
     await make_object(client, "Z")
 
-    filed = (await client.get(f"/objects/{section}")).json()["filed"]
+    filed = (await client.get("/objects", params={"filed_under": section})).json()["items"]
     assert [o["latex"] for o in filed] == ["A", "B", "C"]
 
 
@@ -121,8 +123,8 @@ async def test_operator_display_round_trip(client: AsyncClient) -> None:
     assert stored["template"] == "{in0} + {in1} = {out0}"
     assert stored["hidden_by_default"] is True
 
-    rows = (await client.get("/relations")).json()
-    by_operator = {r["operator"]["id"]: r["display"] for r in rows}
+    groups = (await client.get(f"/objects/{a}")).json()["as_input"]
+    by_operator = {g["operator"]["id"]: g["relations"][0]["display"] for g in groups}
     assert by_operator[add]["template"] == "{in0} + {in1} = {out0}"
     assert by_operator[add]["hidden_by_default"] is True
     assert by_operator[other] is None

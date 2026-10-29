@@ -42,6 +42,10 @@ async def delete_implementation(session: AsyncSession, implementation: Implement
     await session.commit()
 
 
+async def list_implemented_operator_ids(session: AsyncSession) -> list[uuid.UUID]:
+    return list((await session.exec(select(Implementation.operator_id).distinct())).all())
+
+
 async def has_implementation(session: AsyncSession, operator_id: uuid.UUID) -> bool:
     found = await session.exec(
         select(Implementation.id).where(Implementation.operator_id == operator_id).limit(1)

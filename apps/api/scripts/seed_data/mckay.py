@@ -23,10 +23,12 @@ from seed_data.build import (
     Reference,
     RelationSpec,
     graph,
+    graph_complement,
     held_by,
     instance,
+    isomorphic,
     matrix_instance,
-    permgroup,
+    symmetric_permgroup,
 )
 from seed_data.sources import MCKAY
 
@@ -58,34 +60,6 @@ def _decoded(row: dict[str, str]) -> tuple[int, list[Edge]]:
     return int(row["order"]), [(u, v) for u, v in json.loads(row["edges"])]
 
 
-def _neighbours(data: Data) -> list[set[int]]:
-    adjacent: list[set[int]] = [set() for _ in range(data["graph"]["order"])]
-    for u, v in data["graph"]["edges"]:
-        adjacent[u].add(v)
-        adjacent[v].add(u)
-    return adjacent
-
-
-def _isomorphic(a: Data, b: Data) -> bool:
-    first, second = _neighbours(a), _neighbours(b)
-    if sorted(map(len, first)) != sorted(map(len, second)):
-        return False
-
-    def extend(images: list[int]) -> bool:
-        vertex = len(images)
-        if vertex == len(first):
-            return True
-        return any(
-            image not in images
-            and len(second[image]) == len(first[vertex])
-            and all((u in first[vertex]) == (images[u] in second[image]) for u in range(vertex))
-            and extend([*images, image])
-            for image in range(len(second))
-        )
-
-    return extend([])
-
-
 SEEDED_GRAPHS = [
     (str(key), facets[0][1])
     for area in ELSEWHERE
@@ -109,7 +83,7 @@ def _hold(key: str, specimen: Instance) -> str:
 
 
 def _seeded_isomorph(data: Data) -> tuple[str, Data] | None:
-    return next(((key, seeded) for key, seeded in SEEDED_GRAPHS if _isomorphic(seeded, data)), None)
+    return next(((key, seeded) for key, seeded in SEEDED_GRAPHS if isomorphic(seeded, data)), None)
 
 
 def _graph_latex(order: int, edges: list[Edge]) -> str:
@@ -173,25 +147,14 @@ def _import(row: dict[str, str], counts: Counter[str]) -> tuple[str, Data]:
     return holder, held
 
 
-def _complement(data: Data) -> Data:
-    order = data["graph"]["order"]
-    present = {tuple(e) for e in data["graph"]["edges"]}
-    pairs = [(u, v) for u in range(order) for v in range(u + 1, order)]
-    return graph(order, [pair for pair in pairs if pair not in present])
-
-
-def _symmetric_group(order: int) -> Data:
-    return permgroup(order, [[*range(1, order), 0], [1, 0, *range(2, order)]])
-
-
 with SNAPSHOT.open(encoding="utf-8") as _snapshot:
     _rows = list(csv.DictReader(_snapshot, delimiter="\t"))
 _counts = Counter(row["file"] for row in _rows)
 for _holder, _data in dict(_import(row, _counts) for row in _rows).items():
-    _complement_holder = _held(_complement(_data))
+    _complement_holder = _held(graph_complement(_data))
     if _complement_holder is not None:
         RELATIONS.append(("Complement", [_holder], [_complement_holder]))
     _order, _edges = _data["graph"]["order"], _data["graph"]["edges"]
-    _automorphisms = held_by(_symmetric_group(_order), groups)
+    _automorphisms = held_by(symmetric_permgroup(_order), groups)
     if _automorphisms is not None and len(_edges) in (0, _order * (_order - 1) // 2):
         RELATIONS.append(("AutomorphismGroup", [_holder], [_automorphisms]))

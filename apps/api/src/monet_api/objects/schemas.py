@@ -19,6 +19,11 @@ class ObjectOut(BaseModel):
     facets: list[FacetOut]
 
 
+class ObjectPageOut(BaseModel):
+    items: list[ObjectOut]
+    total: int
+
+
 class ReferenceIn(BaseModel):
     label: str
     url: str
@@ -111,12 +116,19 @@ class FacetDetailOut(BaseModel):
 
 class TypeOut(BaseModel):
     data_kind: str | None
+    data_kinds: list[str]
 
 
 class SignatureOut(BaseModel):
     id: uuid.UUID
     domain: ObjectOut
     codomain: ObjectOut
+
+
+class RelationGroupOut(BaseModel):
+    operator: ObjectOut
+    relations: list[RelationOut]
+    total: int
 
 
 class ObjectDetailOut(BaseModel):
@@ -130,20 +142,37 @@ class ObjectDetailOut(BaseModel):
     as_type: TypeOut | None
     subtypes: list[ObjectOut]
     supertypes: list[ObjectOut]
-    instances: list[ObjectOut]
+    instance_count: int
     signatures: list[SignatureOut]
     maps_from: list[ObjectOut]
     maps_to: list[ObjectOut]
     references: list[ReferenceOut]
     is_top_level: bool
     sections: list[ObjectOut]
-    filed: list[ObjectOut]
-    as_operator: list[RelationOut]
-    as_input: list[RelationOut]
-    as_output: list[RelationOut]
+    filed_count: int
+    relation_count: int
+    as_operator: list[RelationGroupOut]
+    as_input: list[RelationGroupOut]
+    as_output: list[RelationGroupOut]
 
 
 NeighborhoodSide = Literal["operator", "input", "output"]
+
+
+class RelationPageOut(BaseModel):
+    items: list[RelationOut]
+    total: int
+
+
+class LoopStepOut(BaseModel):
+    relation: RelationOut
+    source: ObjectOut
+    target: ObjectOut
+
+
+class RelationMapOut(BaseModel):
+    relations: list[RelationOut]
+    omitted: int
 
 
 class HiddenRelationsOut(BaseModel):
