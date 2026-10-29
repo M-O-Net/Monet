@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
+from sqlalchemy import literal, tuple_
 from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -18,14 +19,26 @@ def add_event(
 
 
 async def list_events(
-    session: AsyncSession, contributor: str | None, kind: str | None, limit: int
+    session: AsyncSession,
+    contributor: str | None,
+    kind: str | None,
+    before: Event | None,
+    limit: int,
 ) -> list[Event]:
+    cursor = tuple_(col(Event.at), col(Event.id))
     query = select(Event)
+    if before is not None:
+        query = query.where(cursor < tuple_(literal(before.at), literal(before.id)))
     if contributor is not None:
         query = query.where(Event.contributor == contributor)
     if kind is not None:
         query = query.where(Event.kind == kind)
-    return list((await session.exec(query.order_by(col(Event.at).desc()).limit(limit))).all())
+    query = query.order_by(col(Event.at).desc(), col(Event.id).desc()).limit(limit)
+    return list((await session.exec(query)).all())
+
+
+async def get_event(session: AsyncSession, event_id: uuid.UUID) -> Event | None:
+    return await session.get(Event, event_id)
 
 
 async def list_events_for(

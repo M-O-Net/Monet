@@ -21,9 +21,13 @@ interface View {
 export function NetworkMap({
   relations,
   focusId,
+  openIds,
+  onOpen,
 }: {
   relations: RelationOut[];
   focusId: string | null;
+  openIds: readonly string[];
+  onOpen: (objectId: string) => void;
 }) {
   const graph = useMemo(() => buildGraph(relations), [relations]);
   const layout = useMemo(() => layoutGraph(graph), [graph]);
@@ -93,7 +97,7 @@ export function NetworkMap({
       }}
       onPointerDown={(event) => {
         if (event.button !== 0 || view === null) return;
-        if ((event.target as HTMLElement).closest("a") !== null) return;
+        if ((event.target as HTMLElement).closest("a, button") !== null) return;
         dragging.current = { x: event.clientX, y: event.clientY, view };
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
@@ -157,32 +161,60 @@ export function NetworkMap({
         {graph.nodes.map((node) => {
           const point = layout.get(node.id);
           if (point === undefined) return null;
-          const isRelation = node.kind === "relation";
-          const objectId = isRelation ? node.relation.operator.id : node.object.id;
+          const hover = {
+            onMouseEnter: () => {
+              setHovered(node.id);
+            },
+            onMouseLeave: () => {
+              setHovered(null);
+            },
+          };
+          const placement = {
+            className: [
+              "absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-1 rounded-sm border whitespace-nowrap transition-opacity",
+              node.kind === "relation"
+                ? "border-gold/40 bg-gold-soft px-1.5 py-0.5 text-[0.6rem] text-ink-soft"
+                : "border-mist bg-paper px-2 py-1 text-xs text-ink shadow-[0_1px_3px_rgba(35,50,43,0.08)]",
+              node.id === focusId ? "is-current border-pond" : "",
+              openIds.includes(node.id) ? "border-pond/60" : "",
+              dim(node.id) ? "opacity-30" : "",
+            ].join(" "),
+            style: { left: point.x + originX, top: point.y + originY },
+          };
+          if (node.kind === "relation") {
+            return (
+              <Link
+                key={node.id}
+                to="/objects/$objectId"
+                params={{ objectId: node.relation.operator.id }}
+                title={describeCredits(node.relation.references)}
+                {...hover}
+                {...placement}
+              >
+                <Latex>{nodeLabel(node)}</Latex>
+              </Link>
+            );
+          }
           return (
-            <Link
-              key={node.id}
-              to="/objects/$objectId"
-              params={{ objectId }}
-              title={isRelation ? describeCredits(node.relation.references) : undefined}
-              onMouseEnter={() => {
-                setHovered(node.id);
-              }}
-              onMouseLeave={() => {
-                setHovered(null);
-              }}
-              className={[
-                "absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm border whitespace-nowrap transition-opacity",
-                isRelation
-                  ? "border-gold/40 bg-gold-soft px-1.5 py-0.5 text-[0.6rem] text-ink-soft"
-                  : "border-mist bg-paper px-2 py-1 text-xs text-ink shadow-[0_1px_3px_rgba(35,50,43,0.08)]",
-                node.id === focusId ? "is-current border-pond" : "",
-                dim(node.id) ? "opacity-30" : "",
-              ].join(" ")}
-              style={{ left: point.x + originX, top: point.y + originY }}
-            >
-              <Latex>{nodeLabel(node)}</Latex>
-            </Link>
+            <span key={node.id} {...hover} {...placement}>
+              <button
+                type="button"
+                onClick={() => {
+                  onOpen(node.id);
+                }}
+                className="hover:text-pond"
+              >
+                <Latex>{nodeLabel(node)}</Latex>
+              </button>
+              <Link
+                to="/objects/$objectId"
+                params={{ objectId: node.id }}
+                aria-label="Visit this object"
+                className="text-[0.6rem] text-ink-soft hover:text-pond"
+              >
+                ↗
+              </Link>
+            </span>
           );
         })}
       </div>

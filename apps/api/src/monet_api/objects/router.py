@@ -8,10 +8,14 @@ from monet_api.core.db import get_session
 from monet_api.objects import service
 from monet_api.objects.schemas import (
     FacetData,
+    LoopStepOut,
     NeighborhoodOut,
+    NeighborhoodSide,
     ObjectCreate,
     ObjectDetailOut,
     ObjectOut,
+    ObjectPageOut,
+    ObjectRole,
     ObjectUpdate,
     OperatorDisplayOut,
     OperatorDisplayUpdate,
@@ -19,7 +23,9 @@ from monet_api.objects.schemas import (
     RelationAssert,
     RelationAssertOut,
     RelationCreate,
+    RelationMapOut,
     RelationOut,
+    RelationPageOut,
     SectionNode,
     SignatureIn,
     SignatureOut,
@@ -33,40 +39,35 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 # ── objects ──────────────────────────────────────────────────────────────────
 
 
-@router.get("/objects", response_model=list[ObjectOut], operation_id="list_objects")
-async def list_objects(session: DbSession) -> list[ObjectOut]:
-    return await service.list_objects(session)
-
-
-@router.get("/objects/query", response_model=list[ObjectOut], operation_id="query_objects")
-async def query_objects(
+@router.get("/objects", response_model=ObjectPageOut, operation_id="list_objects")
+async def list_objects(
     session: DbSession,
+    q: str | None = None,
+    role: ObjectRole | None = None,
     member_of: uuid.UUID | None = None,
     transitive: bool = True,
+    filed_under: uuid.UUID | None = None,
     data_equals: str | None = None,
     data_contains: str | None = None,
     description_contains: str | None = None,
     where: Annotated[list[str] | None, Query()] = None,
-) -> list[ObjectOut]:
-    return await service.query_objects(
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> ObjectPageOut:
+    return await service.list_objects(
         session,
+        q=q,
+        role=role,
         member_of=member_of,
         transitive=transitive,
+        filed_under=filed_under,
         data_equals=data_equals,
         data_contains=data_contains,
         description_contains=description_contains,
         where=where or [],
+        offset=offset,
+        limit=limit,
     )
-
-
-@router.get("/types", response_model=list[ObjectOut], operation_id="list_types")
-async def list_types(session: DbSession) -> list[ObjectOut]:
-    return await service.list_types(session)
-
-
-@router.get("/sections", response_model=list[ObjectOut], operation_id="list_sections")
-async def list_sections(session: DbSession) -> list[ObjectOut]:
-    return await service.list_sections(session)
 
 
 @router.get(
@@ -110,6 +111,33 @@ async def get_neighborhood(
     per_map: Annotated[int, Query(ge=1, le=50)] = 3,
 ) -> NeighborhoodOut:
     return await service.get_neighborhood(session, object_id, per_map)
+
+
+@router.get(
+    "/objects/{object_id}/relations",
+    response_model=RelationPageOut,
+    operation_id="list_object_relations",
+)
+async def list_object_relations(
+    object_id: uuid.UUID,
+    session: DbSession,
+    side: NeighborhoodSide,
+    operator_id: uuid.UUID | None = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> RelationPageOut:
+    return await service.list_object_relations(session, object_id, side, operator_id, offset, limit)
+
+
+@router.get(
+    "/objects/{object_id}/loops",
+    response_model=list[list[LoopStepOut]],
+    operation_id="find_loops",
+)
+async def find_loops(
+    object_id: uuid.UUID, session: DbSession, via: uuid.UUID | None = None
+) -> list[list[LoopStepOut]]:
+    return await service.find_loops(session, object_id, via)
 
 
 @router.patch("/objects/{object_id}", response_model=ObjectOut, operation_id="update_object")
@@ -206,9 +234,13 @@ async def set_operator_display(
 # ── relations ────────────────────────────────────────────────────────────────
 
 
-@router.get("/relations", response_model=list[RelationOut], operation_id="list_relations")
-async def list_relations(session: DbSession) -> list[RelationOut]:
-    return await service.list_relations(session)
+@router.get("/relations", response_model=RelationMapOut, operation_id="map_relations")
+async def map_relations(
+    session: DbSession,
+    focus: Annotated[list[uuid.UUID] | None, Query()] = None,
+    depth: Annotated[int, Query(ge=1, le=3)] = 1,
+) -> RelationMapOut:
+    return await service.map_relations(session, focus or [], depth)
 
 
 @router.post(

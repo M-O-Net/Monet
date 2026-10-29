@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { ContributorField } from "../components/ContributorField";
 import { RelationForm } from "../components/RelationForm";
-import { api } from "../lib/api";
 import { useContributor } from "../lib/contributor";
 import { invalidateObjectGraph } from "../lib/queries";
 import { InstanceForm } from "./-components/contribute/InstanceForm";
@@ -27,9 +26,6 @@ type Kind = keyof typeof KINDS;
 function ContributePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const types = api.useQuery("get", "/types");
-  const sections = api.useQuery("get", "/sections");
-  const allObjects = api.useQuery("get", "/objects");
   const [contributor, setContributor] = useContributor();
   const [kind, setKind] = useState<Kind>("instance");
   const [relationAdded, setRelationAdded] = useState(false);
@@ -72,28 +68,16 @@ function ContributePage() {
         ))}
       </div>
 
-      {kind === "instance" && (
-        <InstanceForm types={types.data ?? []} contributor={contributor} onCreated={open} />
-      )}
-      {kind === "type" && (
-        <TypeForm
-          types={types.data ?? []}
-          sections={sections.data ?? []}
-          contributor={contributor}
-          onCreated={open}
-        />
-      )}
-      {kind === "map" && (
-        <MapForm types={types.data ?? []} contributor={contributor} onCreated={open} />
-      )}
-      {kind === "relation" && allObjects.data && (
+      {kind === "instance" && <InstanceForm contributor={contributor} onCreated={open} />}
+      {kind === "type" && <TypeForm contributor={contributor} onCreated={open} />}
+      {kind === "map" && <MapForm contributor={contributor} onCreated={open} />}
+      {kind === "relation" && (
         <>
           <p className="mb-4 text-sm text-ink-soft">
             A fact connecting objects already in the network: an operation, what it was applied to,
             and what it gave.
           </p>
           <RelationForm
-            objects={allObjects.data}
             onCreated={() => {
               invalidateObjectGraph(queryClient);
               setRelationAdded(true);

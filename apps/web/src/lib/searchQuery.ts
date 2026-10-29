@@ -1,8 +1,9 @@
 import type { ObjectData } from "./data";
+import type { ObjectOut, ObjectQuery } from "./types";
 
 export interface PropertyFilter {
-  operatorId: string;
-  valueId: string;
+  operator: ObjectOut | null;
+  value: ObjectOut | null;
 }
 
 export interface SearchCriteria {
@@ -14,14 +15,10 @@ export interface SearchCriteria {
   description: string;
 }
 
-export interface QueryParams {
-  member_of?: string;
-  transitive?: boolean;
-  data_equals?: string;
-  data_contains?: string;
-  description_contains?: string;
-  where?: string[];
-}
+export type QueryParams = Pick<
+  ObjectQuery,
+  "member_of" | "transitive" | "data_equals" | "data_contains" | "description_contains" | "where"
+>;
 
 export function withoutVariable(data: ObjectData): ObjectData | null {
   const poly = data.poly;
@@ -41,22 +38,13 @@ export function toQueryParams(criteria: SearchCriteria): QueryParams | null {
     if (loosened === null) params.data_equals = JSON.stringify(criteria.value);
     else params.data_contains = JSON.stringify(loosened);
   }
-  const where = criteria.properties
-    .filter((property) => property.operatorId !== "" && property.valueId !== "")
-    .map((property) => `${property.operatorId}:${property.valueId}`);
+  const where = criteria.properties.flatMap(({ operator, value }) =>
+    operator === null || value === null ? [] : [`${operator.id}:${value.id}`],
+  );
   if (where.length > 0) params.where = where;
   const description = criteria.description.trim();
   if (description !== "") params.description_contains = description;
   return Object.keys(params).length === 0 ? null : params;
-}
-
-export function dataKinds(data: readonly (ObjectData | null)[]): Set<string> {
-  const kinds = new Set<string>();
-  for (const entry of data) {
-    if (entry === null) continue;
-    for (const key of Object.keys(entry)) kinds.add(key);
-  }
-  return kinds;
 }
 
 const OBJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

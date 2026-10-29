@@ -39,9 +39,10 @@ async def test_contributing_a_type_an_instance_and_a_map(client: AsyncClient) ->
 
     as_type = await detail(client, matrices)
     assert as_type["roles"] == ["type"]
-    assert as_type["as_type"] == {"data_kind": "matrix"}
+    assert as_type["as_type"] == {"data_kind": "matrix", "data_kinds": ["matrix"]}
     assert [o["id"] for o in as_type["supertypes"]] == [root]
-    assert [o["id"] for o in as_type["instances"]] == [a]
+    assert as_type["instance_count"] == 1
+    assert (await detail(client, root))["as_type"]["data_kinds"] == ["int", "matrix"]
     assert [o["id"] for o in as_type["maps_from"]] == [determinant]
     assert as_type["maps_to"] == []
     assert [o["id"] for o in (await detail(client, integers))["maps_to"]] == [determinant]
@@ -59,8 +60,12 @@ async def test_contributing_a_type_an_instance_and_a_map(client: AsyncClient) ->
     ]
     assert as_instance["provenance"]["contributor"] == "Noether"
 
-    types = (await client.get("/types")).json()
+    types = (await client.get("/objects", params={"role": "type"})).json()["items"]
     assert sorted(o["id"] for o in types) == sorted([root, matrices, integers])
+    maps = (await client.get("/objects", params={"role": "map"})).json()["items"]
+    assert [o["id"] for o in maps] == [determinant]
+    instances = (await client.get("/objects", params={"role": "instance"})).json()["items"]
+    assert [o["id"] for o in instances] == [a]
 
 
 async def test_a_map_can_have_several_signatures(client: AsyncClient) -> None:
@@ -102,8 +107,10 @@ async def test_a_section_is_not_a_type(client: AsyncClient) -> None:
     topic = await make(client, "\\text{Linear Algebra}")
     await make(client, "\\text{Matrix Operations}", sections=[topic])
     assert (await detail(client, topic))["roles"] == ["section"]
-    assert topic not in [o["id"] for o in (await client.get("/types")).json()]
-    assert [o["id"] for o in (await client.get("/sections")).json()] == [topic]
+    types = (await client.get("/objects", params={"role": "type"})).json()["items"]
+    assert topic not in [o["id"] for o in types]
+    sections = (await client.get("/objects", params={"role": "section"})).json()["items"]
+    assert [o["id"] for o in sections] == [topic]
 
 
 async def test_creating_with_a_missing_target_creates_nothing(client: AsyncClient) -> None:
@@ -115,7 +122,7 @@ async def test_creating_with_a_missing_target_creates_nothing(client: AsyncClien
         {"latex": "A", "sections": [missing]},
     ):
         assert (await client.post("/objects", json=body)).status_code == 404
-    assert (await client.get("/objects")).json() == []
+    assert (await client.get("/objects")).json() == {"items": [], "total": 0}
 
 
 async def test_relations_carry_their_provenance(client: AsyncClient) -> None:
@@ -133,7 +140,7 @@ async def test_relations_carry_their_provenance(client: AsyncClient) -> None:
     provenance = resp.json()["provenance"]
     assert provenance["contributor"] == "Hilbert"
     assert provenance["source"] == "manual"
-    listed = (await detail(client, matrix))["as_input"][0]
+    listed = (await detail(client, matrix))["as_input"][0]["relations"][0]
     assert listed["provenance"]["contributor"] == "Hilbert"
 
 
@@ -141,7 +148,7 @@ async def test_query_by_description(client: AsyncClient) -> None:
     singular = await make(client, "S", description="Singular: its rows are proportional.")
     await make(client, "A", description="A symmetric matrix.")
     await make(client, "B")
-    resp = await client.get("/objects/query", params={"description_contains": "SINGULAR"})
-    assert [o["id"] for o in resp.json()] == [singular]
-    resp = await client.get("/objects/query", params={"description_contains": "50%_"})
-    assert resp.json() == []
+    resp = await client.get("/objects", params={"description_contains": "SINGULAR"})
+    assert [o["id"] for o in resp.json()["items"]] == [singular]
+    resp = await client.get("/objects", params={"description_contains": "50%_"})
+    assert resp.json()["items"] == []

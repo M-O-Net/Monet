@@ -2,9 +2,21 @@
 
 import uuid
 from collections.abc import Sequence
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Any, Literal, NamedTuple
 
-from sqlalchemy import ColumnElement, or_, union
+from sqlalchemy import (
+    ColumnElement,
+    SQLColumnExpression,
+    Subquery,
+    case,
+    distinct,
+    func,
+    or_,
+    union,
+    union_all,
+)
+from sqlalchemy import select as select_columns
 from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql.expression import SelectOfScalar
@@ -30,8 +42,127 @@ async def get_object(session: AsyncSession, object_id: uuid.UUID) -> Object | No
     return await session.get(Object, object_id)
 
 
-async def list_objects(session: AsyncSession) -> list[Object]:
-    return list((await session.exec(select(Object).order_by(col(Object.latex)))).all())
+Role = Literal["type", "map", "section", "instance"]
+Side = Literal["operator", "input", "output"]
+
+
+@dataclass(frozen=True)
+class ObjectFilter:
+    member_of: Sequence[uuid.UUID] | None = None
+    filed_under: uuid.UUID | None = None
+    role: Role | None = None
+    implemented: Sequence[uuid.UUID] = ()
+    data_equals: dict[str, Any] | None = None
+    data_contains: dict[str, Any] | None = None
+    description_contains: str | None = None
+    where: Sequence[tuple[uuid.UUID, uuid.UUID]] = ()
+    search: str | None = None
+
+
+def _search_key(text: SQLColumnExpression[str]) -> ColumnElement[str]:
+    without_macros = func.regexp_replace(text, r"\\[a-zA-Z]+", " ", "g")
+    ungrouped = func.regexp_replace(without_macros, "[{}$]", "", "g")
+    return func.lower(func.btrim(func.regexp_replace(ungrouped, r"[\s,&\\]+", " ", "g")))
+
+
+def _like_escaped(text: str) -> str:
+    return text.replace("%", r"\%").replace("_", r"\_")
+
+
+def _search_rank(needle: str) -> ColumnElement[int]:
+    exact = _like_escaped(needle)
+
+    def rank(key: ColumnElement[str]) -> ColumnElement[int]:
+        return case(
+            (key.like(f"{exact}%"), 0),
+            (key.like(f"% {exact}%"), 1),
+            (key.like(f"%{exact}%"), 2),
+            else_=3,
+        )
+
+    keys = (_search_key(col(Object.latex)), _search_key(func.coalesce(col(Object.description), "")))
+    return func.least(*(rank(key) for key in keys))
+
+
+def _matches_search(needle: str) -> ColumnElement[bool]:
+    scattered = "%" + "%".join(_like_escaped(character) for character in needle) + "%"
+    return or_(
+        _search_key(col(Object.latex)).like(scattered),
+        _search_key(func.coalesce(col(Object.description), "")).like(scattered),
+    )
+
+
+def _has_role(role: Role, implemented: Sequence[uuid.UUID]) -> ColumnElement[bool]:
+    object_id = col(Object.id)
+    if role == "type":
+        return object_id.in_(select(Type.object_id))
+    if role == "instance":
+        return object_id.in_(select(Membership.object_id))
+    if role == "section":
+        return or_(
+            object_id.in_(select(SectionFiling.section_id)),
+            object_id.in_(select(TopLevelObject.object_id)),
+        )
+    return or_(
+        object_id.in_(select(Relation.operator_id)),
+        object_id.in_(select(Signature.map_id)),
+        object_id.in_(implemented),
+    )
+
+
+def _conditions(found: ObjectFilter) -> list[ColumnElement[bool]]:
+    conditions: list[ColumnElement[bool]] = []
+    if found.description_contains is not None:
+        conditions.append(
+            col(Object.description).icontains(found.description_contains, autoescape=True)
+        )
+    if (
+        found.member_of is not None
+        or found.data_equals is not None
+        or found.data_contains is not None
+    ):
+        facets = select(Membership.object_id)
+        if found.member_of is not None:
+            facets = facets.where(col(Membership.type_id).in_(found.member_of))
+        if found.data_equals is not None:
+            facets = facets.where(col(Membership.data) == found.data_equals)
+        if found.data_contains is not None:
+            facets = facets.where(col(Membership.data).contains(found.data_contains))
+        conditions.append(col(Object.id).in_(facets))
+    if found.filed_under is not None:
+        filed = select(SectionFiling.object_id).where(SectionFiling.section_id == found.filed_under)
+        conditions.append(col(Object.id).in_(filed))
+    if found.role is not None:
+        conditions.append(_has_role(found.role, found.implemented))
+    conditions.extend(
+        col(Object.id).in_(
+            _inputs_mapped_to([operator_id], col(RelationOutput.object_id) == output_id)
+        )
+        for operator_id, output_id in found.where
+    )
+    if found.search is not None:
+        conditions.append(_matches_search(found.search))
+    return conditions
+
+
+async def page_objects(
+    session: AsyncSession, found: ObjectFilter, *, offset: int, limit: int
+) -> tuple[list[Object], int]:
+    query = select(Object, func.count().over()).where(*_conditions(found))
+    if found.search is not None:
+        query = query.order_by(
+            _search_rank(found.search), func.length(_search_key(col(Object.latex)))
+        )
+    query = query.order_by(col(Object.latex), col(Object.id)).offset(offset).limit(limit)
+    rows = (await session.exec(query)).all()
+    if rows:
+        return [obj for obj, _ in rows], rows[0][1]
+    return [], await count_objects(session, found) if offset else 0
+
+
+async def count_objects(session: AsyncSession, found: ObjectFilter) -> int:
+    query = select(func.count()).select_from(Object).where(*_conditions(found))
+    return (await session.exec(query)).one()
 
 
 async def list_objects_by_ids(
@@ -145,10 +276,6 @@ async def get_relation(session: AsyncSession, relation_id: uuid.UUID) -> Relatio
     return await session.get(Relation, relation_id)
 
 
-async def list_relations(session: AsyncSession) -> list[Relation]:
-    return list((await session.exec(select(Relation))).all())
-
-
 async def list_relations_by_ids(
     session: AsyncSession, relation_ids: Sequence[uuid.UUID]
 ) -> list[Relation]:
@@ -159,47 +286,147 @@ async def list_relations_by_ids(
     )
 
 
-async def list_relations_by_operator(session: AsyncSession, object_id: uuid.UUID) -> list[Relation]:
-    return list(
-        (await session.exec(select(Relation).where(Relation.operator_id == object_id))).all()
-    )
-
-
-async def list_relation_ids_by_input(
-    session: AsyncSession, object_id: uuid.UUID
-) -> list[uuid.UUID]:
-    query = select(RelationInput.relation_id).where(RelationInput.object_id == object_id)
+async def list_relations_matching(
+    session: AsyncSession, operator_id: uuid.UUID, first_input: uuid.UUID | None
+) -> list[Relation]:
+    query = select(Relation).where(Relation.operator_id == operator_id)
+    if first_input is not None:
+        query = query.where(
+            col(Relation.id).in_(
+                select(RelationInput.relation_id)
+                .where(RelationInput.object_id == first_input)
+                .where(RelationInput.position == 0)
+            )
+        )
     return list((await session.exec(query)).all())
 
 
-async def list_relation_ids_by_output(
-    session: AsyncSession, object_id: uuid.UUID
-) -> list[uuid.UUID]:
-    query = select(RelationOutput.relation_id).where(RelationOutput.object_id == object_id)
-    return list((await session.exec(query)).all())
-
-
-async def list_operated_relations(
-    session: AsyncSession, object_id: uuid.UUID
-) -> list[tuple[uuid.UUID, uuid.UUID]]:
-    query = (
-        select(Relation.operator_id, Relation.id)
-        .where(Relation.operator_id == object_id)
-        .order_by(col(Relation.id))
-    )
-    return list((await session.exec(query)).all())
-
-
-async def list_operand_relations(
-    session: AsyncSession, object_id: uuid.UUID, side: Literal["input", "output"]
-) -> list[tuple[uuid.UUID, uuid.UUID]]:
+def _touching(side: Side, object_ids: Sequence[uuid.UUID]) -> Subquery:
+    if side == "operator":
+        return (
+            select(
+                col(Relation.operator_id).label("object_id"), col(Relation.id).label("relation_id")
+            )
+            .where(col(Relation.operator_id).in_(object_ids))
+            .subquery()
+        )
     slot = RelationInput if side == "input" else RelationOutput
-    query = (
-        select(Relation.operator_id, Relation.id)
-        .join(slot, col(slot.relation_id) == col(Relation.id))
-        .where(slot.object_id == object_id)
+    return (
+        select(col(slot.object_id).label("object_id"), col(slot.relation_id).label("relation_id"))
+        .where(col(slot.object_id).in_(object_ids))
         .distinct()
-        .order_by(col(Relation.operator_id), col(Relation.id))
+        .subquery()
+    )
+
+
+class RelationSample(NamedTuple):
+    object_id: uuid.UUID
+    operator_id: uuid.UUID
+    relation_id: uuid.UUID
+    group_size: int
+
+
+async def sample_relations(
+    session: AsyncSession, object_ids: Sequence[uuid.UUID], side: Side, per_operator: int
+) -> list[RelationSample]:
+    if not object_ids:
+        return []
+    touching = _touching(side, object_ids)
+    group = (touching.c.object_id, col(Relation.operator_id))
+    ranked = (
+        select_columns(
+            touching.c.object_id,
+            col(Relation.operator_id),
+            col(Relation.id),
+            func.row_number().over(partition_by=group, order_by=col(Relation.id)).label("rank"),
+            func.count().over(partition_by=group).label("total"),
+        )
+        .join(Relation, col(Relation.id) == touching.c.relation_id)
+        .subquery()
+    )
+    query = (
+        select(ranked.c.object_id, ranked.c.operator_id, ranked.c.id, ranked.c.total)
+        .where(ranked.c.rank <= per_operator)
+        .order_by(ranked.c.object_id, ranked.c.operator_id, ranked.c.id)
+    )
+    return [RelationSample(*row) for row in (await session.exec(query)).all()]
+
+
+def _relations_on_side(
+    object_id: uuid.UUID, side: Side, operator_id: uuid.UUID | None
+) -> list[ColumnElement[bool]]:
+    touching = _touching(side, [object_id])
+    conditions: list[ColumnElement[bool]] = [col(Relation.id).in_(select(touching.c.relation_id))]
+    if operator_id is not None:
+        conditions.append(col(Relation.operator_id) == operator_id)
+    return conditions
+
+
+async def list_relations_on_side(
+    session: AsyncSession,
+    object_id: uuid.UUID,
+    side: Side,
+    operator_id: uuid.UUID | None,
+    *,
+    offset: int,
+    limit: int,
+) -> list[Relation]:
+    query = (
+        select(Relation)
+        .where(*_relations_on_side(object_id, side, operator_id))
+        .order_by(col(Relation.id))
+        .offset(offset)
+        .limit(limit)
+    )
+    return list((await session.exec(query)).all())
+
+
+async def count_relations_on_side(
+    session: AsyncSession, object_id: uuid.UUID, side: Side, operator_id: uuid.UUID | None
+) -> int:
+    query = (
+        select(func.count())
+        .select_from(Relation)
+        .where(*_relations_on_side(object_id, side, operator_id))
+    )
+    return (await session.exec(query)).one()
+
+
+async def count_relations_touching(session: AsyncSession, object_ids: Sequence[uuid.UUID]) -> int:
+    sides: tuple[Side, ...] = ("operator", "input", "output")
+    touching = union(*(select(_touching(side, object_ids).c.relation_id) for side in sides))
+    return (await session.exec(select(func.count()).select_from(touching.subquery()))).one()
+
+
+class Step(NamedTuple):
+    relation_id: uuid.UUID
+    source: uuid.UUID
+    target: uuid.UUID
+
+
+async def list_steps_from(session: AsyncSession, source_ids: Sequence[uuid.UUID]) -> list[Step]:
+    if not source_ids:
+        return []
+    query = (
+        select(RelationInput.relation_id, RelationInput.object_id, RelationOutput.object_id)
+        .join(RelationOutput, col(RelationOutput.relation_id) == col(RelationInput.relation_id))
+        .where(col(RelationInput.object_id).in_(source_ids))
+        .distinct()
+        .order_by(col(RelationInput.relation_id), col(RelationOutput.object_id))
+    )
+    return [Step(*row) for row in (await session.exec(query)).all()]
+
+
+async def list_busiest_objects(session: AsyncSession, limit: int) -> list[uuid.UUID]:
+    slots = union_all(
+        select(col(RelationInput.object_id).label("object_id")),
+        select(col(RelationOutput.object_id).label("object_id")),
+    ).subquery()
+    query = (
+        select(slots.c.object_id)
+        .group_by(slots.c.object_id)
+        .order_by(func.count().desc(), slots.c.object_id)
+        .limit(limit)
     )
     return list((await session.exec(query)).all())
 
@@ -344,39 +571,6 @@ async def delete_relation(session: AsyncSession, relation: Relation) -> None:
     await session.commit()
 
 
-async def query_objects(
-    session: AsyncSession,
-    *,
-    member_of: Sequence[uuid.UUID] | None,
-    data_equals: dict[str, Any] | None,
-    data_contains: dict[str, Any] | None,
-    description_contains: str | None,
-    where: Sequence[tuple[uuid.UUID, uuid.UUID]],
-    limit: int,
-) -> list[Object]:
-    query = select(Object)
-    if description_contains is not None:
-        query = query.where(
-            col(Object.description).icontains(description_contains, autoescape=True)
-        )
-    if member_of is not None or data_equals is not None or data_contains is not None:
-        facets = select(Membership.object_id)
-        if member_of is not None:
-            facets = facets.where(col(Membership.type_id).in_(member_of))
-        if data_equals is not None:
-            facets = facets.where(col(Membership.data) == data_equals)
-        if data_contains is not None:
-            facets = facets.where(col(Membership.data).contains(data_contains))
-        query = query.where(col(Object.id).in_(facets))
-    for operator_id, output_id in where:
-        query = query.where(
-            col(Object.id).in_(
-                _inputs_mapped_to([operator_id], col(RelationOutput.object_id) == output_id)
-            )
-        )
-    return list((await session.exec(query.order_by(col(Object.latex)).limit(limit))).all())
-
-
 def _inputs_mapped_to(
     operator_ids: Sequence[uuid.UUID], output_matches: ColumnElement[bool]
 ) -> SelectOfScalar[uuid.UUID]:
@@ -393,16 +587,45 @@ async def get_type(session: AsyncSession, type_id: uuid.UUID) -> Type | None:
     return await session.get(Type, type_id)
 
 
-async def list_types(session: AsyncSession) -> list[Object]:
-    return list(
-        (
-            await session.exec(
-                select(Object)
-                .join(Type, col(Type.object_id) == col(Object.id))
-                .order_by(col(Object.latex))
-            )
-        ).all()
+async def list_type_ids(session: AsyncSession, object_ids: Sequence[uuid.UUID]) -> list[uuid.UUID]:
+    if not object_ids:
+        return []
+    query = select(Type.object_id).where(col(Type.object_id).in_(object_ids))
+    return list((await session.exec(query)).all())
+
+
+async def list_data_kinds(session: AsyncSession, type_ids: Sequence[uuid.UUID]) -> list[str]:
+    query = (
+        select(Type.data_kind)
+        .where(col(Type.object_id).in_(type_ids))
+        .where(col(Type.data_kind).is_not(None))
+        .distinct()
+        .order_by(col(Type.data_kind))
     )
+    return [kind for kind in (await session.exec(query)).all() if kind is not None]
+
+
+async def count_instances_below(
+    session: AsyncSession, type_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    if not type_ids:
+        return {}
+    below = (
+        select(col(Type.object_id).label("root"), col(Type.object_id).label("type_id"))
+        .where(col(Type.object_id).in_(type_ids))
+        .cte(recursive=True)
+    )
+    below = below.union(
+        select(below.c.root, col(Subtype.type_id)).join(
+            below, col(Subtype.supertype_id) == below.c.type_id
+        )
+    )
+    query = (
+        select(below.c.root, func.count(distinct(col(Membership.object_id))))
+        .join(Membership, col(Membership.type_id) == below.c.type_id)
+        .group_by(below.c.root)
+    )
+    return dict((await session.exec(query)).all())
 
 
 async def list_types_of_kind(session: AsyncSession, data_kind: str) -> list[Type]:
@@ -469,14 +692,6 @@ async def list_memberships_for(
     )
 
 
-async def list_instance_ids(session: AsyncSession, type_id: uuid.UUID) -> list[uuid.UUID]:
-    return list(
-        (
-            await session.exec(select(Membership.object_id).where(Membership.type_id == type_id))
-        ).all()
-    )
-
-
 def add_membership(
     session: AsyncSession, object_id: uuid.UUID, type_id: uuid.UUID, data: dict[str, Any] | None
 ) -> None:
@@ -530,24 +745,29 @@ async def list_filings_of(
     )
 
 
-async def list_filed_under(
+async def list_filed_sections_and_types(
     session: AsyncSession, section_ids: Sequence[uuid.UUID]
 ) -> list[SectionFiling]:
     if not section_ids:
         return []
-    return list(
-        (
-            await session.exec(
-                select(SectionFiling).where(col(SectionFiling.section_id).in_(section_ids))
-            )
-        ).all()
+    filed = col(SectionFiling.object_id)
+    query = (
+        select(SectionFiling)
+        .where(col(SectionFiling.section_id).in_(section_ids))
+        .where(or_(filed.in_(select(Type.object_id)), filed.in_(select(SectionFiling.section_id))))
     )
+    return list((await session.exec(query)).all())
 
 
-async def list_section_ids(session: AsyncSession) -> list[uuid.UUID]:
-    filed = select(SectionFiling.section_id)
-    top = select(TopLevelObject.object_id)
-    return list((await session.exec(union(filed, top))).scalars().all())  # type: ignore[call-overload]
+async def count_filed_under(
+    session: AsyncSession, section_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    query = (
+        select(SectionFiling.section_id, func.count())
+        .where(col(SectionFiling.section_id).in_(section_ids))
+        .group_by(col(SectionFiling.section_id))
+    )
+    return dict((await session.exec(query)).all())
 
 
 def add_section_filing(session: AsyncSession, object_id: uuid.UUID, section_id: uuid.UUID) -> None:

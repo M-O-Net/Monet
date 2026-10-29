@@ -125,7 +125,7 @@ async def test_assert_refuses_data_no_type_holds(client: AsyncClient) -> None:
     )
     assert resp.status_code == 400
     assert "int" in resp.json()["detail"]
-    assert len((await client.get("/objects")).json()) == 1
+    assert (await client.get("/objects")).json()["total"] == 1
 
 
 async def test_assert_is_idempotent_and_matches_outputs_by_data(client: AsyncClient) -> None:
@@ -150,7 +150,7 @@ async def test_assert_is_idempotent_and_matches_outputs_by_data(client: AsyncCli
     second = (await client.post("/relations/assert", json=payload)).json()
     assert second["created_relation"] is False
     assert second["relation"]["id"] == first["relation"]["id"]
-    assert len((await client.get("/relations")).json()) == 1
+    assert (await client.get(f"/objects/{matrix_id}")).json()["relation_count"] == 1
 
 
 async def test_assert_never_matches_outputs_by_latex(client: AsyncClient) -> None:

@@ -8,7 +8,6 @@ import type { EventKind } from "../lib/types";
 import { FeedEntry } from "./-components/feed/FeedEntry";
 
 const PAGE = 50;
-const MOST = 200;
 
 const KINDS: { kind: EventKind | undefined; label: string }[] = [
   { kind: undefined, label: "Everything" },
@@ -38,14 +37,74 @@ export const Route = createFileRoute("/feed")({
   }),
 });
 
+function FeedSlice({
+  search,
+  before,
+  isLast,
+  onOlder,
+}: {
+  search: FeedSearch;
+  before: string | undefined;
+  isLast: boolean;
+  onOlder: (before: string) => void;
+}) {
+  const events = api.useQuery("get", "/events", {
+    params: { query: { ...search, limit: PAGE, ...(before === undefined ? {} : { before }) } },
+  });
+  const oldest = events.data?.at(-1);
+
+  return (
+    <>
+      {events.isPending && <p className="text-sm text-ink-soft italic">Gathering activity…</p>}
+      {events.isError && <p className="text-sm text-rust">{formatApiError(events.error)}</p>}
+      {before === undefined && events.data?.length === 0 && (
+        <p className="text-sm text-ink-soft italic">
+          Nothing here yet. New objects, relations and comments appear here as they are added —{" "}
+          <Link to="/contribute" className="underline underline-offset-2 hover:text-pond">
+            contribute one
+          </Link>
+          .
+        </p>
+      )}
+      {events.data && events.data.length > 0 && (
+        <ul className="mb-2 space-y-2">
+          {events.data.map((event) => (
+            <FeedEntry key={event.id} event={event} />
+          ))}
+        </ul>
+      )}
+      {isLast && oldest !== undefined && events.data?.length === PAGE && (
+        <button
+          type="button"
+          onClick={() => {
+            onOlder(oldest.id);
+          }}
+          className="mt-2 text-xs text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
+        >
+          Show older
+        </button>
+      )}
+    </>
+  );
+}
+
+function FeedSlices({ search }: { search: FeedSearch }) {
+  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
+  return cursors.map((before, index) => (
+    <FeedSlice
+      key={before ?? "newest"}
+      search={search}
+      before={before}
+      isLast={index === cursors.length - 1}
+      onOlder={(older) => {
+        setCursors([...cursors, older]);
+      }}
+    />
+  ));
+}
+
 function FeedPage() {
   const { contributor, kind } = Route.useSearch();
-  const [limit, setLimit] = useState(PAGE);
-  const events = api.useQuery("get", "/events", {
-    params: {
-      query: { limit, ...(contributor ? { contributor } : {}), ...(kind ? { kind } : {}) },
-    },
-  });
 
   return (
     <div>
@@ -88,35 +147,10 @@ function FeedPage() {
         ))}
       </nav>
 
-      {events.isPending && <p className="text-sm text-ink-soft italic">Gathering activity…</p>}
-      {events.isError && <p className="text-sm text-rust">{formatApiError(events.error)}</p>}
-      {events.data?.length === 0 && (
-        <p className="text-sm text-ink-soft italic">
-          Nothing here yet. New objects, relations and comments appear here as they are added —{" "}
-          <Link to="/contribute" className="underline underline-offset-2 hover:text-pond">
-            contribute one
-          </Link>
-          .
-        </p>
-      )}
-      {events.data && events.data.length > 0 && (
-        <ul className="space-y-2">
-          {events.data.map((event) => (
-            <FeedEntry key={event.id} event={event} />
-          ))}
-        </ul>
-      )}
-      {events.data && events.data.length >= limit && limit < MOST && (
-        <button
-          type="button"
-          onClick={() => {
-            setLimit(Math.min(limit + PAGE, MOST));
-          }}
-          className="mt-4 text-xs text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond"
-        >
-          Show older
-        </button>
-      )}
+      <FeedSlices
+        key={`${contributor ?? ""}:${kind ?? ""}`}
+        search={{ ...(contributor ? { contributor } : {}), ...(kind ? { kind } : {}) }}
+      />
     </div>
   );
 }
