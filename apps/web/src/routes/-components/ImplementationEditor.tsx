@@ -199,8 +199,8 @@ function ImplementationForm({
     const inputs = sample
       .split("\n")
       .filter((line) => line.trim() !== "")
-      .map((latex) => ({ latex, data: null }));
-    const first = inputs[0] ?? { latex: "", data: null };
+      .map((latex) => ({ latex, facets: [] }));
+    const first = inputs[0] ?? { latex: "", facets: [] };
     Promise.all([probe(first, [{ id: "draft", code }]), run(code, inputs)]).then(
       ([applicable, outputs]) => {
         setTesting(false);

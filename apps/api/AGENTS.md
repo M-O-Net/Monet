@@ -20,8 +20,10 @@ Backend-local conventions. See root `AGENTS.md` first — this only adds detail 
   `seed.py` reads each file's text into the `implementations` table. They are written against the
   sympy names the browser sandbox injects, which is why `ruff.toml` exempts the directory from
   F821. Nothing imports them, and nothing on the server executes them.
-- `scripts/seed.py` — wipes and reinserts the v0 demo dataset. `uv run python scripts/seed.py`
-  from this directory, or `just seed` from the repo root.
+- `scripts/seed_data/` — the demo dataset: `build.py` (data constructors), `catalogue.py` (the
+  types), one module per area, merged and checked by `dataset.py`. `scripts/seed.py` only wipes
+  and writes it (`just seed`); `scripts/check_implementations.py` (`just test-implementations`)
+  runs every implementation on every seeded relation.
 - `alembic/` — migrations. Autogenerate with `just migrate-new "..."`, which runs inside the
   stack: that is the only place a Postgres to diff against is reachable.
 - `tests/` — pytest suite, plus `docker-entry.sh` and `reset_test_db.py`, which set up the

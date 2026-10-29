@@ -28,8 +28,9 @@ hooks:
 # `draft == false`). `just land` is the only path a PR should reach `main` through: full local
 # suite, flip ready, wait for CI, merge on green or revert to draft on red. See root AGENTS.md.
 
+[positional-arguments]
 pr *ARGS:
-    gh pr create --draft {{ARGS}}
+    gh pr create --draft "$@"
 
 check:
     .githooks/pre-commit --manual
