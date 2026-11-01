@@ -2,12 +2,12 @@ import { useState } from "react";
 
 import { formatApiError } from "@monet/api-client";
 
-import { api } from "../lib/api";
-import { useContributor } from "../lib/contributor";
-import type { ObjectOut } from "../lib/types";
-import { ContributorField } from "./ContributorField";
-import { Latex } from "./Latex";
-import { ObjectPicker } from "./ObjectPicker";
+import { api } from "../../../lib/api";
+import { useContributor } from "../../../lib/contributor";
+import type { ObjectOut } from "../../../lib/types";
+import { ContributorField } from "../../../components/ContributorField";
+import { Latex } from "../../../components/Latex";
+import { ObjectPicker } from "../../../components/ObjectPicker";
 
 function SlotPicker({
   label,

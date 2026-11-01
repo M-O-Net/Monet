@@ -3,11 +3,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { ContributorField } from "../components/ContributorField";
-import { RelationForm } from "../components/RelationForm";
 import { useContributor } from "../lib/contributor";
 import { invalidateObjectGraph } from "../lib/queries";
 import { InstanceForm } from "./-components/contribute/InstanceForm";
 import { MapForm } from "./-components/contribute/MapForm";
+import { RelationForm } from "./-components/contribute/RelationForm";
 import { TypeForm } from "./-components/contribute/TypeForm";
 
 export const Route = createFileRoute("/contribute")({
