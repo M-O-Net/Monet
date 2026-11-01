@@ -1,3 +1,4 @@
+import { Collapsible } from "@base-ui/react/collapsible";
 import { Link } from "@tanstack/react-router";
 
 import { Latex } from "../../components/Latex";
@@ -46,49 +47,59 @@ function TreeNode({
   const children = depth + 1 < MARKERS.length ? node.children : [];
   const hiddenInside = node.member_count - children.length;
 
+  const row = (
+    <Link
+      to="/objects/$objectId"
+      params={{ objectId: node.id }}
+      className="group flex min-w-0 flex-1 items-baseline gap-4 border-l-2 border-l-transparent pr-4 transition-colors hover:border-l-gold hover:bg-gold-soft/40"
+      style={{ paddingLeft: `${String(1 + depth * 1.25)}rem` }}
+    >
+      <span className="font-display text-xs text-ink-soft/70 tabular-nums group-hover:text-gold">
+        {marker(index)}
+      </span>
+      <span className="min-w-0 flex-1 py-3">
+        <span
+          className={
+            depth === 0 ? "font-display text-base text-ink" : "font-display text-sm text-ink"
+          }
+        >
+          <Latex>{node.latex}</Latex>
+        </span>
+        {node.description !== null && (
+          <p className="mt-0.5 text-xs text-ink-soft">{node.description}</p>
+        )}
+        {hiddenInside > 0 && (
+          <p className="mt-0.5 text-xs text-ink-soft/70">
+            {hiddenInside} {hiddenInside === 1 ? "entry" : "entries"} inside
+          </p>
+        )}
+      </span>
+    </Link>
+  );
+
+  if (children.length === 0) return <li>{row}</li>;
+
   return (
-    <li>
-      <Link
-        to="/objects/$objectId"
-        params={{ objectId: node.id }}
-        className="group flex items-baseline gap-4 border-l-2 border-l-transparent pr-4 transition-colors hover:border-l-gold hover:bg-gold-soft/40"
-        style={{ paddingLeft: `${String(1 + depth * 1.25)}rem` }}
-      >
-        <span className="font-display text-xs text-ink-soft/70 tabular-nums group-hover:text-gold">
-          {marker(index)}
-        </span>
-        <span className="min-w-0 flex-1 py-3">
-          <span
-            className={
-              depth === 0 ? "font-display text-base text-ink" : "font-display text-sm text-ink"
-            }
-          >
-            <Latex>{node.latex}</Latex>
-          </span>
-          {node.description !== null && (
-            <p className="mt-0.5 text-xs text-ink-soft">{node.description}</p>
-          )}
-          {hiddenInside > 0 && (
-            <p className="mt-0.5 text-xs text-ink-soft/70">
-              {hiddenInside} {hiddenInside === 1 ? "entry" : "entries"} inside
-            </p>
-          )}
-        </span>
-      </Link>
-      {children.length > 0 && (
-        <ul className="ml-6 border-l border-mist/70">
-          {children.map((child, childIndex) => (
-            <TreeNode
-              key={child.id}
-              node={child}
-              index={childIndex}
-              depth={depth + 1}
-              seen={nextSeen}
-            />
-          ))}
-        </ul>
-      )}
-    </li>
+    <Collapsible.Root render={<li />}>
+      <div className="flex items-stretch">
+        {row}
+        <Collapsible.Trigger className="group/toggle flex shrink-0 items-center gap-1.5 px-4 text-xs text-ink-soft transition-colors hover:bg-gold-soft/40 hover:text-pond">
+          {children.length} {children.length === 1 ? "section" : "sections"}
+          <span className="transition-transform group-data-[panel-open]/toggle:rotate-90">▸</span>
+        </Collapsible.Trigger>
+      </div>
+      <Collapsible.Panel render={<ul className="ml-6 border-l border-mist/70" />}>
+        {children.map((child, childIndex) => (
+          <TreeNode
+            key={child.id}
+            node={child}
+            index={childIndex}
+            depth={depth + 1}
+            seen={nextSeen}
+          />
+        ))}
+      </Collapsible.Panel>
+    </Collapsible.Root>
   );
 }
 
