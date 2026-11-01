@@ -7,7 +7,6 @@ import { formatApiError } from "@monet/api-client";
 import { ConfirmButton } from "../components/ConfirmButton";
 import { Latex } from "../components/Latex";
 import { MemberList, QueriedMemberList } from "../components/MemberList";
-import { RelationForm } from "../components/RelationForm";
 import { api } from "../lib/api";
 import { facetData, primaryData } from "../lib/data";
 import { invalidateObjectGraph } from "../lib/queries";
@@ -320,11 +319,6 @@ function ObjectDetail() {
       )}
 
       <Comments objectId={objectId} />
-
-      <h2 className="mb-2 mt-8 text-xs font-semibold tracking-wide text-ink-soft uppercase">
-        Add a relation
-      </h2>
-      <RelationForm onCreated={invalidateAll} />
     </div>
   );
 }
