@@ -7,7 +7,6 @@ import { useContributor } from "../lib/contributor";
 import { invalidateObjectGraph } from "../lib/queries";
 import { InstanceForm } from "./-components/contribute/InstanceForm";
 import { MapForm } from "./-components/contribute/MapForm";
-import { RelationForm } from "./-components/contribute/RelationForm";
 import { TypeForm } from "./-components/contribute/TypeForm";
 
 export const Route = createFileRoute("/contribute")({
@@ -18,7 +17,6 @@ const KINDS = {
   instance: "An object",
   type: "A type",
   map: "A map",
-  relation: "A relation",
 } as const;
 
 type Kind = keyof typeof KINDS;
@@ -28,7 +26,6 @@ function ContributePage() {
   const navigate = useNavigate();
   const [contributor, setContributor] = useContributor();
   const [kind, setKind] = useState<Kind>("instance");
-  const [relationAdded, setRelationAdded] = useState(false);
 
   const open = (id: string) => {
     invalidateObjectGraph(queryClient);
@@ -55,7 +52,6 @@ function ContributePage() {
             aria-selected={kind === option}
             onClick={() => {
               setKind(option);
-              setRelationAdded(false);
             }}
             className={`-mb-px border-b-2 px-3 py-2 text-sm ${
               kind === option
@@ -71,21 +67,6 @@ function ContributePage() {
       {kind === "instance" && <InstanceForm contributor={contributor} onCreated={open} />}
       {kind === "type" && <TypeForm contributor={contributor} onCreated={open} />}
       {kind === "map" && <MapForm contributor={contributor} onCreated={open} />}
-      {kind === "relation" && (
-        <>
-          <p className="mb-4 text-sm text-ink-soft">
-            A fact connecting objects already in the network: an operation, what it was applied to,
-            and what it gave.
-          </p>
-          <RelationForm
-            onCreated={() => {
-              invalidateObjectGraph(queryClient);
-              setRelationAdded(true);
-            }}
-          />
-          {relationAdded && <p className="mt-3 text-sm text-pond">Added to the network.</p>}
-        </>
-      )}
     </div>
   );
 }
