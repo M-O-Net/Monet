@@ -33,13 +33,15 @@ export function MemberList({
             <Link
               to="/objects/$objectId"
               params={{ objectId: member.id }}
-              className="flex items-baseline gap-3 border-l-2 border-l-transparent px-4 py-2.5 transition-colors hover:border-l-gold hover:bg-gold-soft/40"
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-l-2 border-l-transparent px-4 py-2.5 transition-colors hover:border-l-gold hover:bg-gold-soft/40"
             >
-              <span className="min-w-0 flex-1 text-sm text-ink">
+              <span className="max-w-full overflow-x-auto overflow-y-hidden text-sm text-ink">
                 <Latex>{member.latex}</Latex>
               </span>
               {member.description && (
-                <span className="truncate text-xs text-ink-soft">{member.description}</span>
+                <span className="min-w-48 flex-1 truncate text-right text-xs text-ink-soft">
+                  {member.description}
+                </span>
               )}
             </Link>
           </li>
