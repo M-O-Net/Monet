@@ -18,11 +18,13 @@ from monet_api.objects.models import (
     RelationOutput,
     TopLevelObject,
 )
+from monet_api.suggestions.models import Suggestion
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def _clean_db() -> AsyncGenerator[None]:
     async with async_session() as session:
+        await session.exec(delete(Suggestion))  # type: ignore[call-overload]
         await session.exec(delete(Event))  # type: ignore[call-overload]
         await session.exec(delete(Comment))  # type: ignore[call-overload]
         await session.exec(delete(Implementation))  # type: ignore[call-overload]

@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     # weak default here is one a real deploy could silently inherit. Set it in .env.
     database_url: str
     cors_origins: list[str] = ["http://localhost:5173"]
+    suggestions_review_key: str | None = None
 
     _use_asyncpg = field_validator("database_url")(as_asyncpg_url)
 

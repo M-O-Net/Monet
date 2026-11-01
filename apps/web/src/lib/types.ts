@@ -10,6 +10,7 @@ export type SectionNode = components["schemas"]["SectionNode"];
 export type OperatorDisplayOut = components["schemas"]["OperatorDisplayOut"];
 export type RelationDisplayOut = components["schemas"]["RelationDisplayOut"];
 export type ProvenanceOut = components["schemas"]["ProvenanceOut"];
+export type SuggestionOut = components["schemas"]["SuggestionOut"];
 export type CommentOut = components["schemas"]["CommentOut"];
 export type ObjectRole = ObjectDetailOut["roles"][number];
 export type FacetOut = components["schemas"]["FacetOut"];

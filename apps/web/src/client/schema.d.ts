@@ -425,6 +425,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Suggestions */
+        get: operations["list_suggestions"];
+        put?: never;
+        /** Create Suggestion */
+        post: operations["create_suggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/suggestions/{suggestion_id}/screenshots/{screenshot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Suggestion Screenshot */
+        get: operations["get_suggestion_screenshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/suggestions/{suggestion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Suggestion */
+        delete: operations["delete_suggestion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -840,6 +892,29 @@ export interface components {
             position: number;
             object: components["schemas"]["ObjectOut"];
         };
+        /** ScreenshotIn */
+        ScreenshotIn: {
+            /**
+             * Media Type
+             * @enum {string}
+             */
+            media_type: "image/png" | "image/jpeg" | "image/webp";
+            /**
+             * Data
+             * Format: base64
+             */
+            data: string;
+        };
+        /** ScreenshotOut */
+        ScreenshotOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Media Type */
+            media_type: string;
+        };
         /** SectionNode */
         SectionNode: {
             /**
@@ -908,6 +983,54 @@ export interface components {
              * Format: date-time
              */
             measured_at: string;
+        };
+        /** SuggestionCreate */
+        SuggestionCreate: {
+            /** Body */
+            body: string;
+            /** Page Path */
+            page_path: string;
+            /** Contributor */
+            contributor?: string | null;
+            /**
+             * Screenshots
+             * @default []
+             */
+            screenshots: components["schemas"]["ScreenshotIn"][];
+        };
+        /** SuggestionCreated */
+        SuggestionCreated: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** SuggestionOut */
+        SuggestionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Body */
+            body: string;
+            /** Page Path */
+            page_path: string;
+            /** Contributor */
+            contributor: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Screenshots */
+            screenshots: components["schemas"]["ScreenshotOut"][];
         };
         /** TypeIn */
         TypeIn: {
@@ -2097,6 +2220,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StorageStatsOut"];
+                };
+            };
+        };
+    };
+    list_suggestions: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-review-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_suggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuggestionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_suggestion_screenshot: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-review-key"?: string | null;
+            };
+            path: {
+                suggestion_id: string;
+                screenshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_suggestion: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-review-key"?: string | null;
+            };
+            path: {
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

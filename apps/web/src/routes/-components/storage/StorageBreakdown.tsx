@@ -15,7 +15,11 @@ const LOOK: Record<StorageCategory, { label: string; swatch: string; about: stri
   edges: { label: "Edges", swatch: "bg-series-2", about: "relations, their slots and credits" },
   maps: { label: "Maps", swatch: "bg-series-3", about: "implementations, signatures, displays" },
   types: { label: "Types", swatch: "bg-series-4", about: "types and subtypes" },
-  activity: { label: "Comments & activity", swatch: "bg-series-5", about: "comments, the feed" },
+  activity: {
+    label: "Comments & activity",
+    swatch: "bg-series-5",
+    about: "comments, the feed, suggestions",
+  },
   other: {
     label: "Other tables",
     swatch: "bg-series-6",

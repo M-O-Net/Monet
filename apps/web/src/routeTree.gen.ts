@@ -17,6 +17,7 @@ import { Route as FeedRouteImport } from './routes/feed'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as StorageRouteImport } from './routes/storage'
+import { Route as SuggestionsRouteImport } from './routes/suggestions'
 import { Route as ObjectsObjectIdRouteImport } from './routes/objects.$objectId'
 
 const AboutLazyRouteImport = createFileRoute('/about')()
@@ -56,6 +57,11 @@ const StorageRoute = StorageRouteImport.update({
   path: '/storage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuggestionsRoute = SuggestionsRouteImport.update({
+  id: '/suggestions',
+  path: '/suggestions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ObjectsObjectIdRoute = ObjectsObjectIdRouteImport.update({
   id: '/objects/$objectId',
   path: '/objects/$objectId',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
   '/storage': typeof StorageRoute
+  '/suggestions': typeof SuggestionsRoute
   '/about': typeof AboutLazyRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
@@ -79,6 +86,7 @@ export interface FileRoutesByTo {
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
   '/storage': typeof StorageRoute
+  '/suggestions': typeof SuggestionsRoute
   '/about': typeof AboutLazyRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
@@ -90,6 +98,7 @@ export interface FileRoutesById {
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
   '/storage': typeof StorageRoute
+  '/suggestions': typeof SuggestionsRoute
   '/about': typeof AboutLazyRoute
   '/objects/$objectId': typeof ObjectsObjectIdRoute
 }
@@ -102,6 +111,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/search'
     | '/storage'
+    | '/suggestions'
     | '/about'
     | '/objects/$objectId'
   fileRoutesByTo: FileRoutesByTo
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/search'
     | '/storage'
+    | '/suggestions'
     | '/about'
     | '/objects/$objectId'
   id:
@@ -122,6 +133,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/search'
     | '/storage'
+    | '/suggestions'
     | '/about'
     | '/objects/$objectId'
   fileRoutesById: FileRoutesById
@@ -133,6 +145,7 @@ export interface RootRouteChildren {
   MapRoute: typeof MapRoute
   SearchRoute: typeof SearchRoute
   StorageRoute: typeof StorageRoute
+  SuggestionsRoute: typeof SuggestionsRoute
   AboutLazyRoute: typeof AboutLazyRoute
   ObjectsObjectIdRoute: typeof ObjectsObjectIdRoute
 }
@@ -188,6 +201,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StorageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/suggestions': {
+      id: '/suggestions'
+      path: '/suggestions'
+      fullPath: '/suggestions'
+      preLoaderRoute: typeof SuggestionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/objects/$objectId': {
       id: '/objects/$objectId'
       path: '/objects/$objectId'
@@ -205,6 +225,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   SearchRoute: SearchRoute,
   StorageRoute: StorageRoute,
+  SuggestionsRoute: SuggestionsRoute,
   AboutLazyRoute: AboutLazyRoute,
   ObjectsObjectIdRoute: ObjectsObjectIdRoute,
 }

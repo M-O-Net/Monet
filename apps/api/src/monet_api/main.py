@@ -8,6 +8,7 @@ from monet_api.events.router import router as events_router
 from monet_api.implementations.router import router as implementations_router
 from monet_api.objects.router import router as objects_router
 from monet_api.stats.router import router as stats_router
+from monet_api.suggestions.router import router as suggestions_router
 
 app = FastAPI(title="Monet API")
 
@@ -23,6 +24,7 @@ app.include_router(implementations_router)
 app.include_router(comments_router)
 app.include_router(events_router)
 app.include_router(stats_router)
+app.include_router(suggestions_router)
 
 
 @app.exception_handler(Exception)
