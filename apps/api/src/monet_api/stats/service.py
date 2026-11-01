@@ -13,7 +13,7 @@ CATEGORY_TABLES: dict[StorageCategory, frozenset[str]] = {
     "edges": frozenset({"relations", "relation_input", "relation_output", "relation_references"}),
     "maps": frozenset({"implementations", "signatures", "operator_displays"}),
     "types": frozenset({"types", "subtypes"}),
-    "activity": frozenset({"comments", "events"}),
+    "activity": frozenset({"comments", "events", "suggestions", "suggestion_screenshots"}),
 }
 
 FRESH_FOR = datetime.timedelta(seconds=60)

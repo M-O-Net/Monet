@@ -13,6 +13,7 @@ from monet_api.core.config import settings
 from monet_api.events import models as event_models  # noqa: F401 — same
 from monet_api.implementations import models as implementation_models  # noqa: F401 — same
 from monet_api.objects import models  # noqa: F401 — registers tables on SQLModel.metadata
+from monet_api.suggestions import models as suggestion_models  # noqa: F401 — same
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
