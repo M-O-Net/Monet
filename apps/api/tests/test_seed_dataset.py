@@ -82,3 +82,30 @@ def test_an_importer_finds_the_key_already_holding_its_data(seed_data: SimpleNam
 
     assert seed_data.build.held_by(trefoil, topology) in seed_data.dataset.INSTANCES
     assert seed_data.build.held_by(seed_data.build.knot("not a knot"), topology) is None
+
+
+def test_no_type_names_a_supertype_another_of_its_supertypes_implies(
+    seed_data: SimpleNamespace,
+) -> None:
+    dataset = seed_data.dataset
+    redundant = {
+        (type_key, supertype)
+        for type_key, (_, _, _, supertypes) in dataset.TYPES.items()
+        for supertype in supertypes
+        for other in supertypes
+        if supertype in dataset.ancestors(other)
+    }
+    assert redundant == set()
+
+
+def test_a_broader_row_is_dropped_unless_its_data_has_another_kind(
+    seed_data: SimpleNamespace,
+) -> None:
+    build = seed_data.build
+    polynomial = build.polynomial(1, 0, 1)
+    rows = [
+        ("RationalFunctions", polynomial),
+        ("Polynomials", polynomial),
+        ("DFiniteFunctions", build.dfinite([[2, 0], [1, 0, 1]], [1])),
+    ]
+    assert seed_data.dataset.most_specific(rows) == rows[1:]

@@ -67,6 +67,7 @@ INSTANCES: dict[str, Instance] = {
         None,
         [
             ("EvenFunctions", expr("cos(Symbol('x'))")),
+            ("ElementaryFunctions", expr("cos(Symbol('x'))")),
             ("DFiniteFunctions", dfinite([[1], [0], [1]], [1, 0])),
         ],
     ),
@@ -75,6 +76,7 @@ INSTANCES: dict[str, Instance] = {
         None,
         [
             ("OddFunctions", expr("sin(Symbol('x'))")),
+            ("ElementaryFunctions", expr("sin(Symbol('x'))")),
             ("DFiniteFunctions", dfinite([[1], [0], [1]], [0, 1])),
         ],
     ),
@@ -83,6 +85,7 @@ INSTANCES: dict[str, Instance] = {
         "The inverse tangent.",
         [
             ("OddFunctions", expr("atan(Symbol('x'))")),
+            ("ElementaryFunctions", expr("atan(Symbol('x'))")),
             ("DFiniteFunctions", dfinite([[0], [0, 2], [1, 0, 1]], [0, 1])),
         ],
     ),
@@ -261,10 +264,14 @@ INSTANCES: dict[str, Instance] = {
         ],
     ),
     "minus_sin": instance(
-        r"- \sin{\left(x \right)}", expr("Mul(Integer(-1), sin(Symbol('x')))"), ["OddFunctions"]
+        r"- \sin{\left(x \right)}",
+        expr("Mul(Integer(-1), sin(Symbol('x')))"),
+        ["OddFunctions", "ElementaryFunctions"],
     ),
     "minus_cos": instance(
-        r"- \cos{\left(x \right)}", expr("Mul(Integer(-1), cos(Symbol('x')))"), ["EvenFunctions"]
+        r"- \cos{\left(x \right)}",
+        expr("Mul(Integer(-1), cos(Symbol('x')))"),
+        ["EvenFunctions", "ElementaryFunctions"],
     ),
     "reciprocal_x": instance(
         r"\frac{1}{x}",
@@ -305,7 +312,7 @@ INSTANCES: dict[str, Instance] = {
     "half_log_lorentz": instance(
         r"\frac{\log{\left(x^{2} + 1 \right)}}{2}",
         expr("Mul(Rational(1, 2), log(Add(Pow(Symbol('x'), Integer(2)), Integer(1))))"),
-        ["EvenFunctions"],
+        ["EvenFunctions", "ElementaryFunctions"],
     ),
     "exp2x_minus_expx": instance(
         r"e^{2 x} - e^{x}",
