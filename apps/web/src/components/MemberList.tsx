@@ -7,6 +7,7 @@ import { formatApiError } from "@monet/api-client";
 import { api } from "../lib/api";
 import type { ObjectOut, ObjectQuery } from "../lib/types";
 import { Latex } from "./Latex";
+import { MathText } from "./MathText";
 
 const MAX_MEMBERS = 50;
 const PAGE = 50;
@@ -40,7 +41,7 @@ export function MemberList({
               </span>
               {member.description && (
                 <span className="min-w-48 flex-1 truncate text-right text-xs text-ink-soft">
-                  {member.description}
+                  <MathText>{member.description}</MathText>
                 </span>
               )}
             </Link>

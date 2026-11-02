@@ -2,6 +2,7 @@ import { Collapsible } from "@base-ui/react/collapsible";
 import { Link } from "@tanstack/react-router";
 
 import { Latex } from "../../components/Latex";
+import { MathText } from "../../components/MathText";
 import type { SectionNode } from "../../lib/types";
 
 const ROMAN_NUMERALS: [number, string][] = [
@@ -66,7 +67,9 @@ function TreeNode({
           <Latex>{node.latex}</Latex>
         </span>
         {node.description !== null && (
-          <p className="mt-0.5 text-xs text-ink-soft">{node.description}</p>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            <MathText>{node.description}</MathText>
+          </p>
         )}
         {hiddenInside > 0 && (
           <p className="mt-0.5 text-xs text-ink-soft/70">

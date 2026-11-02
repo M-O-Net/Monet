@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import type { ObjectOut, ObjectQuery } from "../lib/types";
 import { useSettled } from "../lib/useSettled";
 import { Latex } from "./Latex";
+import { MathText } from "./MathText";
 
 const SHOWN = 20;
 const TYPING_PAUSE_MS = 200;
@@ -95,7 +96,9 @@ export function ObjectPicker({
                 >
                   <Latex>{object.latex}</Latex>
                   {object.description && (
-                    <div className="mt-0.5 text-[11px] text-ink-soft">{object.description}</div>
+                    <div className="mt-0.5 text-[11px] text-ink-soft">
+                      <MathText>{object.description}</MathText>
+                    </div>
                   )}
                 </Combobox.Item>
               )}
