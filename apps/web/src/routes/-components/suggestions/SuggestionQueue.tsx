@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { formatApiError } from "@monet/api-client";
 
 import { ConfirmPopover } from "../../../components/ConfirmPopover";
+import { MathText } from "../../../components/MathText";
 import { api, apiBaseUrl } from "../../../lib/api";
 import { relativeTime } from "../../../lib/relativeTime";
 import type { SuggestionOut } from "../../../lib/types";
@@ -154,7 +155,9 @@ function SuggestionItem({
           }}
         />
       </div>
-      <p className="text-sm whitespace-pre-wrap text-ink">{suggestion.body}</p>
+      <p className="text-sm whitespace-pre-wrap text-ink">
+        <MathText>{suggestion.body}</MathText>
+      </p>
       {suggestion.screenshots.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {suggestion.screenshots.map((shot) => (

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { Latex } from "../../../components/Latex";
+import { MathText } from "../../../components/MathText";
 import { describeSource } from "../../../lib/provenance";
 import { buildRelationHtml } from "../../../lib/relationTemplate";
 import { relativeTime } from "../../../lib/relativeTime";
@@ -67,7 +68,7 @@ export function FeedEntry({ event }: { event: EventOut }) {
       )}
       {event.kind === "comment_created" && event.comment && (
         <blockquote className="mt-2 border-l-2 border-gold/50 pl-3 text-sm whitespace-pre-wrap text-ink">
-          {excerpt(event.comment.body)}
+          <MathText>{excerpt(event.comment.body)}</MathText>
         </blockquote>
       )}
 

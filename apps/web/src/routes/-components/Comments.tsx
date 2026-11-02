@@ -5,6 +5,7 @@ import { formatApiError } from "@monet/api-client";
 
 import { ConfirmButton } from "../../components/ConfirmButton";
 import { ContributorField } from "../../components/ContributorField";
+import { MathText } from "../../components/MathText";
 import { api } from "../../lib/api";
 import { useContributor } from "../../lib/contributor";
 import type { CommentOut } from "../../lib/types";
@@ -19,7 +20,9 @@ function Comment({ comment, onDeleted }: { comment: CommentOut; onDeleted: () =>
 
   return (
     <li className="rounded-sm border border-mist bg-white/40 px-3 py-2">
-      <p className="text-sm whitespace-pre-wrap text-ink">{comment.body}</p>
+      <p className="text-sm whitespace-pre-wrap text-ink">
+        <MathText>{comment.body}</MathText>
+      </p>
       <div className="mt-1 flex items-center justify-between text-[11px] text-ink-soft/80">
         <span>
           {comment.contributor ?? "anonymous"} · {day}

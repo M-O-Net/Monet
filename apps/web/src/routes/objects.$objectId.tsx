@@ -6,6 +6,7 @@ import { formatApiError } from "@monet/api-client";
 
 import { ConfirmButton } from "../components/ConfirmButton";
 import { Latex } from "../components/Latex";
+import { MathText } from "../components/MathText";
 import { MemberList, QueriedMemberList } from "../components/MemberList";
 import { api } from "../lib/api";
 import { facetData, primaryData } from "../lib/data";
@@ -157,7 +158,11 @@ function ObjectDetail() {
               <h1 className="font-display text-2xl text-ink">
                 <Latex>{obj.latex}</Latex>
               </h1>
-              {obj.description && <p className="mt-1 text-sm text-ink-soft">{obj.description}</p>}
+              {obj.description && (
+                <p className="mt-1 text-sm text-ink-soft">
+                  <MathText>{obj.description}</MathText>
+                </p>
+              )}
               <SectionTags sections={obj.sections} />
               <Provenance provenance={obj.provenance} />
             </div>
