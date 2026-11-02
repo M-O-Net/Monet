@@ -115,13 +115,58 @@ INSTANCES: dict[str, Instance] = {
         "Nonlinear: its solutions blow up in finite time.",
     ),
     "airy_equation": instance(
-        r"\frac{d^{2}}{d x^{2}} y{\left(x \right)} = x y{\left(x \right)}",
+        r"- x y{\left(x \right)} + \frac{d^{2}}{d x^{2}} y{\left(x \right)} = 0",
         expr(
-            "Equality(Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(2))), "
-            "Mul(Symbol('x'), Function('y')(Symbol('x'))))"
+            "Equality(Add(Mul(Integer(-1), Symbol('x'), Function('y')(Symbol('x'))), "
+            "Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(2)))), Integer(0))"
         ),
         ["OrdinaryDifferentialEquations"],
         "The Airy equation: linear, with a coefficient that is not constant.",
+    ),
+    "lorentzian_equation": instance(
+        r"2 x y{\left(x \right)} + \left(x^{2} + 1\right) \frac{d}{d x} y{\left(x \right)} = 0",
+        expr(
+            "Equality(Add(Mul(Integer(2), Symbol('x'), Function('y')(Symbol('x'))), "
+            "Mul(Add(Pow(Symbol('x'), Integer(2)), Integer(1)), "
+            "Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(1))))), Integer(0))"
+        ),
+        ["OrdinaryDifferentialEquations"],
+        r"Satisfied by $\frac{1}{1 + x^{2}}$.",
+    ),
+    "arctan_equation": instance(
+        r"2 x \frac{d}{d x} y{\left(x \right)} + \left(x^{2} + 1\right) \frac{d^{2}}{d x^{2}} "
+        r"y{\left(x \right)} = 0",
+        expr(
+            "Equality(Add(Mul(Integer(2), Symbol('x'), Derivative(Function('y')(Symbol('x')), "
+            "Tuple(Symbol('x'), Integer(1)))), Mul(Add(Pow(Symbol('x'), Integer(2)), Integer(1)), "
+            "Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(2))))), Integer(0))"
+        ),
+        ["OrdinaryDifferentialEquations"],
+        r"Satisfied by $\arctan x$ and the constants.",
+    ),
+    "catalan_equation": instance(
+        r"\left(10 x - 2\right) \frac{d}{d x} y{\left(x \right)} + \left(4 x^{2} - x\right) "
+        r"\frac{d^{2}}{d x^{2}} y{\left(x \right)} + 2 y{\left(x \right)} = 0",
+        expr(
+            "Equality(Add(Mul(Add(Mul(Integer(10), Symbol('x')), Integer(-2)), "
+            "Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(1)))), "
+            "Mul(Add(Mul(Integer(4), Pow(Symbol('x'), Integer(2))), "
+            "Mul(Integer(-1), Symbol('x'))), "
+            "Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(2)))), "
+            "Mul(Integer(2), Function('y')(Symbol('x')))), Integer(0))"
+        ),
+        ["OrdinaryDifferentialEquations"],
+        "Satisfied by the generating function of the Catalan numbers.",
+    ),
+    "central_binomial_equation": instance(
+        r"\left(4 x - 1\right) \frac{d}{d x} y{\left(x \right)} + 2 y{\left(x \right)} = 0",
+        expr(
+            "Equality(Add(Mul(Add(Mul(Integer(4), Symbol('x')), Integer(-1)), "
+            "Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(1)))), "
+            "Mul(Integer(2), Function('y')(Symbol('x')))), Integer(0))"
+        ),
+        ["OrdinaryDifferentialEquations"],
+        "Satisfied by the generating function of the central binomial coefficients.",
     ),
     "pendulum": instance(
         r"\sin{\left(y{\left(x \right)} \right)} + \frac{d^{2}}{d x^{2}} y{\left(x \right)} = 0",
@@ -154,10 +199,10 @@ INSTANCES: dict[str, Instance] = {
         r"Solved by $e^{x}$ and $e^{2x}$.",
     ),
     "growth": instance(
-        r"\frac{d}{d x} y{\left(x \right)} = y{\left(x \right)}",
+        r"- y{\left(x \right)} + \frac{d}{d x} y{\left(x \right)} = 0",
         expr(
-            "Equality(Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(1))), "
-            "Function('y')(Symbol('x')))"
+            "Equality(Add(Mul(Integer(-1), Function('y')(Symbol('x'))), "
+            "Derivative(Function('y')(Symbol('x')), Tuple(Symbol('x'), Integer(1)))), Integer(0))"
         ),
         ["LinearConstantCoefficientODEs"],
         r"Exponential growth, solved by $e^{x}$.",
@@ -351,10 +396,10 @@ OPERATORS: dict[str, Specimen] = {
         r"Replace $y^{(k)}$ by $x^{k}$ and make the result monic. Its roots are the exponents "
         "of the solutions.",
     ),
-    "HolonomicAnnihilator": (
-        r"\text{Holonomic Annihilator}",
-        "The linear differential equation with polynomial coefficients, and initial values at "
-        "0, that a function satisfies.",
+    "MinimalAnnihilator": (
+        r"\text{Minimal Annihilator}",
+        "The linear differential equation with polynomial coefficients, of least order, that a "
+        "function satisfies, without its initial values. Solve ODE goes back, given them.",
     ),
     "CoefficientRecurrence": (
         r"\text{Coefficient Recurrence}",
@@ -385,8 +430,9 @@ SIGNATURES: list[tuple[str, str, str]] = [
     ("SolveODE", "OrdinaryDifferentialEquations", "ElementaryFunctions"),
     ("SolveODE", "LinearConstantCoefficientODEs", "ElementaryFunctions"),
     ("ODECharacteristicPolynomial", "LinearConstantCoefficientODEs", "Polynomials"),
-    ("HolonomicAnnihilator", "ElementaryFunctions", "DFiniteFunctions"),
-    ("HolonomicAnnihilator", "Polynomials", "DFiniteFunctions"),
+    ("MinimalAnnihilator", "ElementaryFunctions", "OrdinaryDifferentialEquations"),
+    ("MinimalAnnihilator", "Polynomials", "OrdinaryDifferentialEquations"),
+    ("MinimalAnnihilator", "DFiniteFunctions", "OrdinaryDifferentialEquations"),
     ("CoefficientRecurrence", "DFiniteFunctions", "HolonomicSequences"),
     ("CoefficientRecurrence", "ElementaryFunctions", "HolonomicSequences"),
     ("CoefficientRecurrence", "RationalFunctions", "LinearRecurrences"),
@@ -401,7 +447,7 @@ IMPLEMENTATIONS: dict[str, str] = {
     "Poles": "poles",
     "SolveODE": "solve_ode",
     "ODECharacteristicPolynomial": "ode_characteristic_polynomial",
-    "HolonomicAnnihilator": "holonomic_annihilator",
+    "MinimalAnnihilator": "minimal_annihilator",
     "CoefficientRecurrence": "coefficient_recurrence",
 }
 
@@ -454,15 +500,17 @@ RELATIONS: list[RelationSpec] = [
     ("ODECharacteristicPolynomial", ["harmonic_oscillator"], ["Phi4"]),
     ("ODECharacteristicPolynomial", ["two_exponentials"], ["diag12_polynomial"]),
     ("ODECharacteristicPolynomial", ["growth"], ["Phi1"]),
-    ("HolonomicAnnihilator", ["exp"], ["exp"]),
-    ("HolonomicAnnihilator", ["sin"], ["sin"]),
-    ("HolonomicAnnihilator", ["cos"], ["cos"]),
-    ("HolonomicAnnihilator", ["lorentzian"], ["lorentzian"]),
-    ("HolonomicAnnihilator", ["catalan_generating_function"], ["catalan_generating_function"]),
+    ("MinimalAnnihilator", ["exp"], ["growth"]),
+    ("MinimalAnnihilator", ["sin"], ["harmonic_oscillator"]),
+    ("MinimalAnnihilator", ["cos"], ["harmonic_oscillator"]),
+    ("MinimalAnnihilator", ["lorentzian"], ["lorentzian_equation"]),
+    ("MinimalAnnihilator", ["arctan"], ["arctan_equation"]),
+    ("MinimalAnnihilator", ["airy_ai"], ["airy_equation"]),
+    ("MinimalAnnihilator", ["catalan_generating_function"], ["catalan_equation"]),
     (
-        "HolonomicAnnihilator",
+        "MinimalAnnihilator",
         ["central_binomial_generating_function"],
-        ["central_binomial_generating_function"],
+        ["central_binomial_equation"],
     ),
     ("CoefficientRecurrence", ["catalan_generating_function"], ["catalan_numbers"]),
     ("CoefficientRecurrence", ["central_binomial_generating_function"], ["central_binomials"]),
@@ -485,7 +533,7 @@ DISPLAYS: dict[str, tuple[str | None, bool]] = {
 
 REFERENCES: dict[str, list[Reference]] = {
     "airy_coefficients": [("DLMF 9.4", "https://dlmf.nist.gov/9.4")],
-    "HolonomicAnnihilator": [
+    "MinimalAnnihilator": [
         ("Wikipedia", "https://en.wikipedia.org/wiki/Holonomic_function"),
     ],
 }
