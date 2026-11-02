@@ -51,8 +51,11 @@ from monet_api.objects.schemas import (
     RelationPageOut,
     RelationSlotOut,
     SectionNode,
+    SectionOut,
+    SectionTypeOut,
     SignatureIn,
     SignatureOut,
+    SubsectionOut,
     TypeOut,
 )
 
@@ -398,6 +401,14 @@ async def _relation_groups(
     }
 
 
+async def _implied_types(session: AsyncSession, type_ids: Sequence[uuid.UUID]) -> list[ObjectOut]:
+    above = await repository.list_related_types(session, type_ids, "up", transitive=True)
+    beneath_another = {edge.type_id for edge in await repository.list_subtype_edges(session, above)}
+    return await objects_out_by_ids(
+        session, [found for found in above if found in beneath_another and found not in type_ids]
+    )
+
+
 async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> ObjectDetailOut:
     obj = await get_object_or_404(session, object_id)
     as_type = await repository.get_type(session, object_id)
@@ -452,12 +463,13 @@ async def get_object_detail(session: AsyncSession, object_id: uuid.UUID) -> Obje
             for m in memberships
             if m.type_id in types_of
         ],
+        implied_types=await _implied_types(session, list(types_of)),
         as_type=None if as_type is None else await type_out(as_type),
         subtypes=await related("down") if as_type else [],
         supertypes=await related("up") if as_type else [],
-        instance_count=await repository.count_objects(session, ObjectFilter(member_of=[object_id]))
-        if as_type
-        else 0,
+        instance_count=(await repository.count_instances_below(session, [object_id])).get(
+            object_id, 0
+        ),
         signatures=signatures,
         maps_from=await objects_out_by_ids(
             session, await repository.list_map_ids_by_signature(session, object_id, as_domain=True)
@@ -729,6 +741,83 @@ async def get_contents(session: AsyncSession) -> list[SectionNode]:
         )
 
     return [build(root.id) for root in roots]
+
+
+async def get_section(session: AsyncSession, section_id: uuid.UUID) -> SectionOut:
+    await get_object_or_404(session, section_id)
+    filed = [row.object_id for row in await repository.list_filed_under(session, [section_id])]
+    type_ids = set(await repository.list_type_ids(session, filed))
+    others = [object_id for object_id in filed if object_id not in type_ids]
+    subsection_ids = set(await repository.count_filed_under(session, others))
+    entries_of: defaultdict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+    for row in await repository.list_filed_under(session, list(subsection_ids)):
+        entries_of[row.section_id].append(row.object_id)
+
+    above = await repository.list_related_types(session, list(type_ids), "up", transitive=True)
+    supertypes_of: defaultdict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+    for edge in await repository.list_subtype_edges(session, [*type_ids, *above]):
+        supertypes_of[edge.type_id].append(edge.supertype_id)
+    counts = await repository.count_instances_below(session, list(type_ids))
+    outside = {
+        supertype
+        for type_id in type_ids
+        for supertype in supertypes_of[type_id]
+        if supertype not in type_ids and supertypes_of[supertype]
+    }
+    outside_out = {obj.id: obj for obj in await objects_out_by_ids(session, list(outside))}
+
+    def ancestors(type_id: uuid.UUID) -> set[uuid.UUID]:
+        found: set[uuid.UUID] = set()
+        pending = list(supertypes_of[type_id])
+        while pending:
+            supertype = pending.pop()
+            if supertype not in found:
+                found.add(supertype)
+                pending.extend(supertypes_of[supertype])
+        return found
+
+    def nearest_in_section(type_id: uuid.UUID) -> list[uuid.UUID]:
+        reached = ancestors(type_id) & type_ids
+        return [
+            candidate
+            for candidate in reached
+            if not any(candidate in ancestors(other) for other in reached)
+        ]
+
+    def entries_out(object_ids: list[uuid.UUID]) -> list[ObjectOut]:
+        return [obj for obj in others_out if obj.id in object_ids]
+
+    others_out = await objects_out_by_ids(
+        session, [*others, *(entry for found in entries_of.values() for entry in found)]
+    )
+    return SectionOut(
+        types=[
+            SectionTypeOut(
+                id=obj.id,
+                latex=obj.latex,
+                description=obj.description,
+                instance_count=counts.get(obj.id, 0),
+                supertype_ids=nearest_in_section(obj.id),
+                elsewhere=[
+                    outside_out[supertype]
+                    for supertype in supertypes_of[obj.id]
+                    if supertype in outside_out
+                ],
+            )
+            for obj in await repository.list_objects_by_ids(session, list(type_ids))
+        ],
+        entries=entries_out([object_id for object_id in others if object_id not in subsection_ids]),
+        subsections=[
+            SubsectionOut(
+                id=obj.id,
+                latex=obj.latex,
+                description=obj.description,
+                entries=entries_out(entries_of[obj.id]),
+            )
+            for obj in others_out
+            if obj.id in subsection_ids
+        ],
+    )
 
 
 async def get_operator_display(session: AsyncSession, operator_id: uuid.UUID) -> OperatorDisplayOut:

@@ -18,7 +18,7 @@ export function MemberList({
   members,
   footer,
 }: {
-  title: string;
+  title: ReactNode;
   members: ObjectOut[];
   footer?: ReactNode;
 }) {

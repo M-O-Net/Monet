@@ -26,6 +26,7 @@ import { Facets } from "./-components/Facets";
 import { FunctionAnalysis } from "./-components/FunctionAnalysis";
 import { NeighborhoodMap } from "./-components/NeighborhoodMap";
 import { RoleBadges } from "./-components/RoleBadge";
+import { SectionContents } from "./-components/SectionContents";
 import { SectionTags } from "./-components/SectionTags";
 import { Signatures } from "./-components/Signatures";
 
@@ -261,7 +262,12 @@ function ObjectDetail() {
       <ConvergenceCallout asOutput={obj.as_output} />
 
       {(obj.facets.length > 0 || !obj.roles.includes("type")) && (
-        <Facets objectId={objectId} facets={obj.facets} onChanged={invalidateAll} />
+        <Facets
+          objectId={objectId}
+          facets={obj.facets}
+          implied={obj.implied_types}
+          onChanged={invalidateAll}
+        />
       )}
       {isFunction && <FunctionAnalysis latex={obj.latex} data={data} />}
       <MemberList title="A kind of" members={obj.supertypes} />
@@ -269,15 +275,10 @@ function ObjectDetail() {
       {obj.instance_count > 0 && (
         <QueriedMemberList
           title={(total) => `Instances (${String(total)})`}
-          query={{ member_of: objectId, transitive: false }}
+          query={{ member_of: objectId }}
         />
       )}
-      {obj.filed_count > 0 && (
-        <QueriedMemberList
-          title={(total) => `Filed under this section (${String(total)})`}
-          query={{ filed_under: objectId }}
-        />
-      )}
+      {obj.filed_count > 0 && <SectionContents sectionId={objectId} />}
       {isMap && (
         <Signatures mapId={objectId} signatures={obj.signatures} onChanged={invalidateAll} />
       )}
