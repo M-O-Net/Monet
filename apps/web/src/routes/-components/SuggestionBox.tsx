@@ -62,8 +62,11 @@ export function SuggestionBox() {
         if (open) setSent(false);
       }}
     >
-      <Popover.Trigger className="fixed right-4 bottom-4 z-30 rounded-full border border-mist bg-paper px-3 py-1.5 text-xs text-ink-soft opacity-40 shadow-[0_1px_3px_rgba(35,50,43,0.12)] transition-opacity hover:text-ink hover:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100">
-        Suggest
+      <Popover.Trigger className="fixed right-4 bottom-4 z-30 inline-flex items-center gap-2 rounded-full bg-pond px-4 py-2.5 text-sm font-medium text-paper shadow-[0_4px_14px_rgba(35,50,43,0.28)] transition-colors hover:bg-pond-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pond data-[popup-open]:bg-pond-deep">
+        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+          <path d="M3 4.5A2.5 2.5 0 0 1 5.5 2h9A2.5 2.5 0 0 1 17 4.5v6a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5V13h.5A2.5 2.5 0 0 1 3 10.5z" />
+        </svg>
+        Suggest a change
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner side="top" align="end" sideOffset={8} className="z-30 outline-none">
