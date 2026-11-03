@@ -296,5 +296,5 @@ dataset; the dataset itself is documented where it's defined, in `scripts/seed_d
 
 One Render workspace (Hobby, no plan fee) for everything, about $13/month: a web service (the API,
 always on, $7), a static site (the Vite build, free) and Postgres (with backups, $6). Each deploy
-migrates and, while `RESEED_ON_DEPLOY` is `true` in `render.yaml`, wipes and reseeds
-(`scripts/predeploy.sh`) — the live data is disposable until that flag is turned off.
+migrates and seeds only an empty database (`scripts/predeploy.sh`); the live data is kept, so
+`RESEED_ON_DEPLOY` is `true` only for a deploy meant to wipe it.
