@@ -27,6 +27,7 @@ from monet_api.objects.schemas import (
     RelationOut,
     RelationPageOut,
     SectionNode,
+    SectionOut,
     SignatureIn,
     SignatureOut,
 )
@@ -93,6 +94,11 @@ async def list_supertypes(
 @router.post("/objects", response_model=ObjectOut, operation_id="create_object", status_code=201)
 async def create_object(body: ObjectCreate, session: DbSession) -> ObjectOut:
     return await service.create_object(session, body)
+
+
+@router.get("/objects/{object_id}/section", response_model=SectionOut, operation_id="get_section")
+async def get_section(object_id: uuid.UUID, session: DbSession) -> SectionOut:
+    return await service.get_section(session, object_id)
 
 
 @router.get("/objects/{object_id}", response_model=ObjectDetailOut, operation_id="get_object")

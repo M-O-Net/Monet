@@ -745,6 +745,23 @@ async def list_filings_of(
     )
 
 
+async def list_filed_under(
+    session: AsyncSession, section_ids: Sequence[uuid.UUID]
+) -> list[SectionFiling]:
+    if not section_ids:
+        return []
+    query = select(SectionFiling).where(col(SectionFiling.section_id).in_(section_ids))
+    return list((await session.exec(query)).all())
+
+
+async def list_subtype_edges(session: AsyncSession, type_ids: Sequence[uuid.UUID]) -> list[Subtype]:
+    if not type_ids:
+        return []
+    return list(
+        (await session.exec(select(Subtype).where(col(Subtype.type_id).in_(type_ids)))).all()
+    )
+
+
 async def list_filed_sections_and_types(
     session: AsyncSession, section_ids: Sequence[uuid.UUID]
 ) -> list[SectionFiling]:

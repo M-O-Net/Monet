@@ -139,6 +139,7 @@ class ObjectDetailOut(BaseModel):
     roles: list[ObjectRole]
     provenance: ProvenanceOut | None
     facets: list[FacetDetailOut]
+    implied_types: list[ObjectOut]
     as_type: TypeOut | None
     subtypes: list[ObjectOut]
     supertypes: list[ObjectOut]
@@ -217,6 +218,28 @@ class SectionNode(BaseModel):
 
 
 SectionNode.model_rebuild()
+
+
+class SectionTypeOut(BaseModel):
+    id: uuid.UUID
+    latex: str
+    description: str | None
+    instance_count: int
+    supertype_ids: list[uuid.UUID]
+    elsewhere: list[ObjectOut]
+
+
+class SubsectionOut(BaseModel):
+    id: uuid.UUID
+    latex: str
+    description: str | None
+    entries: list[ObjectOut]
+
+
+class SectionOut(BaseModel):
+    types: list[SectionTypeOut]
+    entries: list[ObjectOut]
+    subsections: list[SubsectionOut]
 
 
 class OperatorDisplayOut(ORMModel):

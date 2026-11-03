@@ -152,3 +152,66 @@ async def test_query_by_description(client: AsyncClient) -> None:
     assert [o["id"] for o in resp.json()["items"]] == [singular]
     resp = await client.get("/objects", params={"description_contains": "50%_"})
     assert resp.json()["items"] == []
+
+
+async def test_a_section_nests_its_types_and_lists_its_maps_apart(client: AsyncClient) -> None:
+    analysis = await make(client, "\\text{Analysis}")
+    algebra = await make(client, "\\text{Algebra}")
+    root = await make(client, "\\text{Mathematical Objects}", as_type={})
+    real = await make(
+        client,
+        "\\text{Real Functions}",
+        as_type={"supertype_ids": [root]},
+        sections=[analysis],
+    )
+    elementary = await make(
+        client, "\\text{Elementary Functions}", as_type={"supertype_ids": [real]}
+    )
+    rational = await make(
+        client,
+        "\\text{Rational Functions}",
+        as_type={"supertype_ids": [elementary]},
+        sections=[analysis],
+    )
+    polys = await make(
+        client,
+        "\\text{Polynomials}",
+        as_type={"data_kind": "poly", "supertype_ids": [rational]},
+        sections=[analysis, algebra],
+    )
+    operations = await make(client, "\\text{Analysis Operations}", sections=[analysis])
+    derivative = await make(client, "\\text{Derivative}", sections=[operations])
+    data = {"poly": {"var": "x", "degree": 1, "coeffs": {"1": {"int": 1}}}}
+    await make(client, "x", facets=[{"type_id": polys, "data": data}])
+
+    section = (await client.get(f"/objects/{analysis}/section")).json()
+    nested = {t["id"]: (t["supertype_ids"], t["instance_count"]) for t in section["types"]}
+    assert nested == {real: ([], 1), rational: ([real], 1), polys: ([rational], 1)}
+    elsewhere_of = {t["id"]: [e["id"] for e in t["elsewhere"]] for t in section["types"]}
+    assert elsewhere_of == {real: [], rational: [elementary], polys: []}
+    assert section["entries"] == []
+    assert [(s["id"], [e["id"] for e in s["entries"]]) for s in section["subsections"]] == [
+        (operations, [derivative])
+    ]
+
+    elsewhere = (await client.get(f"/objects/{algebra}/section")).json()["types"]
+    assert [[e["id"] for e in t["elsewhere"]] for t in elsewhere] == [[rational]]
+    assert (await client.get(f"/objects/{root}/section")).status_code == 200
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert (await client.get(f"/objects/{missing}/section")).status_code == 404
+
+
+async def test_an_object_shows_the_types_its_own_imply(client: AsyncClient) -> None:
+    root = await make(client, "\\text{Mathematical Objects}", as_type={})
+    real = await make(client, "\\text{Real Functions}", as_type={"supertype_ids": [root]})
+    rational = await make(client, "\\text{Rational Functions}", as_type={"supertype_ids": [real]})
+    polys = await make(
+        client, "\\text{Polynomials}", as_type={"data_kind": "poly", "supertype_ids": [rational]}
+    )
+    data = {"poly": {"var": "x", "degree": 1, "coeffs": {"1": {"int": 1}}}}
+    x = await make(client, "x", facets=[{"type_id": polys, "data": data}])
+
+    assert sorted(t["id"] for t in (await detail(client, x))["implied_types"]) == sorted(
+        [real, rational]
+    )
+    assert (await detail(client, real))["instance_count"] == 1

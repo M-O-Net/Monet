@@ -18,10 +18,12 @@ function kindOf(facet: Facet): string {
 export function Facets({
   objectId,
   facets,
+  implied,
   onChanged,
 }: {
   objectId: string;
   facets: Facet[];
+  implied: ObjectOut[];
   onChanged: () => void;
 }) {
   const setFacet = api.useMutation("put", "/objects/{object_id}/facets/{type_id}");
@@ -74,6 +76,23 @@ export function Facets({
             </li>
           ))}
         </ul>
+      )}
+      {implied.length > 0 && (
+        <p className="mb-3 text-xs text-ink-soft">
+          and so also{" "}
+          {implied.map((type, index) => (
+            <span key={type.id}>
+              {index > 0 && ", "}
+              <Link
+                to="/objects/$objectId"
+                params={{ objectId: type.id }}
+                className="text-pond hover:text-pond-deep"
+              >
+                <Latex>{type.latex}</Latex>
+              </Link>
+            </span>
+          ))}
+        </p>
       )}
       <form
         className="flex flex-wrap items-center gap-2"

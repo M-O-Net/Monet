@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/objects/{object_id}/section": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Section */
+        get: operations["get_section"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/objects/{object_id}": {
         parameters: {
             query?: never;
@@ -688,6 +705,8 @@ export interface components {
             provenance: components["schemas"]["ProvenanceOut"] | null;
             /** Facets */
             facets: components["schemas"]["FacetDetailOut"][];
+            /** Implied Types */
+            implied_types: components["schemas"]["ObjectOut"][];
             as_type: components["schemas"]["TypeOut"] | null;
             /** Subtypes */
             subtypes: components["schemas"]["ObjectOut"][];
@@ -931,6 +950,33 @@ export interface components {
             /** Children */
             children: components["schemas"]["SectionNode"][];
         };
+        /** SectionOut */
+        SectionOut: {
+            /** Types */
+            types: components["schemas"]["SectionTypeOut"][];
+            /** Entries */
+            entries: components["schemas"]["ObjectOut"][];
+            /** Subsections */
+            subsections: components["schemas"]["SubsectionOut"][];
+        };
+        /** SectionTypeOut */
+        SectionTypeOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Latex */
+            latex: string;
+            /** Description */
+            description: string | null;
+            /** Instance Count */
+            instance_count: number;
+            /** Supertype Ids */
+            supertype_ids: string[];
+            /** Elsewhere */
+            elsewhere: components["schemas"]["ObjectOut"][];
+        };
         /** SignatureIn */
         SignatureIn: {
             /**
@@ -983,6 +1029,20 @@ export interface components {
              * Format: date-time
              */
             measured_at: string;
+        };
+        /** SubsectionOut */
+        SubsectionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Latex */
+            latex: string;
+            /** Description */
+            description: string | null;
+            /** Entries */
+            entries: components["schemas"]["ObjectOut"][];
         };
         /** SuggestionCreate */
         SuggestionCreate: {
@@ -1195,6 +1255,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObjectOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_section: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionOut"];
                 };
             };
             /** @description Validation Error */
