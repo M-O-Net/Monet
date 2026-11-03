@@ -54,6 +54,7 @@ async def list_events(
             at=event.at,
             kind=_KIND.validate_python(event.kind),
             contributor=event.contributor,
+            email=event.email,
             source=event.source,
             object=found_objects.get(about),
             relation=found_relations.get(event.subject_id),

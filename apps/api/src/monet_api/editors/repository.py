@@ -14,8 +14,8 @@ async def list_editors(session: AsyncSession) -> list[Editor]:
     return list((await session.exec(select(Editor).order_by(col(Editor.name)))).all())
 
 
-def add_editor(session: AsyncSession, name: str, level: int, key_hash: str) -> Editor:
-    editor = Editor(name=name, level=level, key_hash=key_hash)
+def add_editor(session: AsyncSession, name: str, email: str, level: int, key_hash: str) -> Editor:
+    editor = Editor(name=name, email=email, level=level, key_hash=key_hash)
     session.add(editor)
     return editor
 

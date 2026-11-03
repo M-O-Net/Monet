@@ -11,9 +11,10 @@ async def add_suggestion(
     body: str,
     page_path: str,
     contributor: str | None,
+    email: str,
     screenshots: list[tuple[str, bytes]],
 ) -> Suggestion:
-    suggestion = Suggestion(body=body, page_path=page_path, contributor=contributor)
+    suggestion = Suggestion(body=body, page_path=page_path, contributor=contributor, email=email)
     session.add(suggestion)
     await session.flush()
     for position, (media_type, content) in enumerate(screenshots):

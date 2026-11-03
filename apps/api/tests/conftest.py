@@ -54,6 +54,7 @@ async def client() -> AsyncGenerator[AsyncClient]:
 
 
 async def editor_key(client: AsyncClient, name: str, level: int) -> dict[str, str]:
-    resp = await client.post("/editors", json={"name": name, "level": level})
+    email = f"{name.lower()}@example.org"
+    resp = await client.post("/editors", json={"name": name, "email": email, "level": level})
     assert resp.status_code == 201, resp.text
     return {"X-Editor-Key": resp.json()["key"]}

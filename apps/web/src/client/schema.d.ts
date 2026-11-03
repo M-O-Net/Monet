@@ -606,6 +606,8 @@ export interface components {
             body: string;
             /** Contributor */
             contributor?: string | null;
+            /** Email */
+            email?: string | null;
         };
         /** CommentOut */
         CommentOut: {
@@ -623,6 +625,8 @@ export interface components {
             body: string;
             /** Contributor */
             contributor: string | null;
+            /** Email */
+            email: string | null;
             /**
              * At
              * Format: date-time
@@ -642,6 +646,8 @@ export interface components {
         EditorCreate: {
             /** Name */
             name: string;
+            /** Email */
+            email: string;
             /** Level */
             level: number;
         };
@@ -651,6 +657,8 @@ export interface components {
             id: string | null;
             /** Name */
             name: string;
+            /** Email */
+            email: string | null;
             /** Level */
             level: number;
             /** Key */
@@ -662,6 +670,8 @@ export interface components {
             id: string | null;
             /** Name */
             name: string;
+            /** Email */
+            email: string | null;
             /** Level */
             level: number;
         };
@@ -684,6 +694,8 @@ export interface components {
             kind: "object_created" | "relation_created" | "comment_created";
             /** Contributor */
             contributor: string | null;
+            /** Email */
+            email: string | null;
             /** Source */
             source: string | null;
             object: components["schemas"]["ObjectOut"] | null;
@@ -798,6 +810,8 @@ export interface components {
             sections?: string[];
             /** Contributor */
             contributor?: string | null;
+            /** Email */
+            email?: string | null;
         };
         /** ObjectDetailOut */
         ObjectDetailOut: {
@@ -909,6 +923,8 @@ export interface components {
             at: string;
             /** Contributor */
             contributor: string | null;
+            /** Email */
+            email: string | null;
             /** Source */
             source: string | null;
         };
@@ -946,6 +962,8 @@ export interface components {
             references?: components["schemas"]["ReferenceIn"][];
             /** Contributor */
             contributor?: string | null;
+            /** Email */
+            email?: string | null;
         };
         /** RelationAssertOut */
         RelationAssertOut: {
@@ -970,6 +988,8 @@ export interface components {
             references?: components["schemas"]["ReferenceIn"][];
             /** Contributor */
             contributor?: string | null;
+            /** Email */
+            email?: string | null;
         };
         /** RelationDisplayOut */
         RelationDisplayOut: {
@@ -1164,6 +1184,8 @@ export interface components {
             page_path: string;
             /** Contributor */
             contributor?: string | null;
+            /** Email */
+            email: string;
             /**
              * Screenshots
              * @default []
@@ -1196,6 +1218,8 @@ export interface components {
             page_path: string;
             /** Contributor */
             contributor: string | null;
+            /** Email */
+            email: string | null;
             /**
              * At
              * Format: date-time

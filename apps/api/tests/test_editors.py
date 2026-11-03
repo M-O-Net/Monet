@@ -1,5 +1,7 @@
+import pytest
 from httpx import AsyncClient
 
+from monet_api.core.config import settings
 from tests.conftest import editor_key
 
 NO_KEY = {"X-Editor-Key": ""}
@@ -97,7 +99,7 @@ async def test_a_wrong_or_revoked_key_is_refused(client: AsyncClient) -> None:
 
     key = await editor_key(client, "Weyl", 1)
     me = (await client.get("/editors/me", headers=key)).json()
-    assert (me["name"], me["level"]) == ("Weyl", 1)
+    assert (me["name"], me["email"], me["level"]) == ("Weyl", "weyl@example.org", 1)
     assert (await client.delete(f"/editors/{me['id']}")).status_code == 204
     assert (await client.get("/editors/me", headers=key)).status_code == 401
 
@@ -120,3 +122,27 @@ async def test_keyed_writes_are_logged(client: AsyncClient) -> None:
         ("DELETE", f"/objects/{created.json()['id']}", 403),
         ("POST", "/objects", 201),
     ]
+
+
+async def test_an_editor_needs_an_email(client: AsyncClient) -> None:
+    for email in (None, "", "weyl"):
+        body = {"name": "Weyl", "email": email, "level": 1}
+        assert (await client.post("/editors", json=body)).status_code == 422
+
+
+async def test_keyed_writes_are_credited_with_the_editors_email(client: AsyncClient) -> None:
+    adder = await editor_key(client, "Gauss", 1)
+    body = {"latex": "x", "contributor": "Someone else", "email": "else@example.org"}
+    created = (await client.post("/objects", json=body, headers=adder)).json()
+    [event] = (await client.get("/events")).json()
+    assert (event["contributor"], event["email"]) == ("Gauss", "gauss@example.org")
+    provenance = (await client.get(f"/objects/{created['id']}")).json()["provenance"]
+    assert (provenance["contributor"], provenance["email"]) == ("Gauss", "gauss@example.org")
+
+
+async def test_the_owner_is_credited_with_the_configured_email(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "admin_email", "owner@example.org")
+    me = (await client.get("/editors/me")).json()
+    assert (me["name"], me["email"]) == (settings.admin_name, "owner@example.org")

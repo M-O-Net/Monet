@@ -21,7 +21,7 @@ async def identify(session: AsyncSession, key: str | None) -> EditorOut | None:
         return None
     owner_key = settings.admin_key
     if owner_key and secrets.compare_digest(key.encode(), owner_key.encode()):
-        return EditorOut(id=None, name=settings.admin_name, level=3)
+        return EditorOut(id=None, name=settings.admin_name, email=settings.admin_email, level=3)
     editor = await repository.find_editor_by_key_hash(session, _hash(key))
     return None if editor is None else EditorOut.model_validate(editor)
 
@@ -51,9 +51,11 @@ async def create_editor(session: AsyncSession, body: EditorCreate) -> EditorCrea
     if not name:
         raise HTTPException(status_code=400, detail="an editor needs a name")
     key = secrets.token_urlsafe(24)
-    editor = repository.add_editor(session, name, body.level, _hash(key))
+    editor = repository.add_editor(session, name, body.email, body.level, _hash(key))
     await session.commit()
-    return EditorCreated(id=editor.id, name=editor.name, level=editor.level, key=key)
+    return EditorCreated(
+        id=editor.id, name=editor.name, email=editor.email, level=editor.level, key=key
+    )
 
 
 async def delete_editor(session: AsyncSession, editor_id: uuid.UUID) -> None:

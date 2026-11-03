@@ -10,6 +10,7 @@ from monet_api.core.schemas import (
     Data,
     Label,
     Latex,
+    OptionalEmail,
     ORMModel,
     Prose,
     Url,
@@ -68,6 +69,7 @@ class ObjectCreate(BaseModel):
     signatures: list[SignatureIn] = Field(default_factory=list, max_length=MAX_ITEMS)
     sections: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_ITEMS)
     contributor: Contributor = None
+    email: OptionalEmail = None
 
 
 class ObjectUpdate(BaseModel):
@@ -89,6 +91,7 @@ class RelationDisplayOut(ORMModel):
 class ProvenanceOut(ORMModel):
     at: datetime.datetime
     contributor: str | None
+    email: str | None
     source: str | None
 
 
@@ -113,6 +116,7 @@ class RelationCreate(BaseModel):
     output_object_ids: list[uuid.UUID] = Field(max_length=MAX_ITEMS)
     references: list[ReferenceIn] = Field(default_factory=list, max_length=MAX_ITEMS)
     contributor: Contributor = None
+    email: OptionalEmail = None
 
 
 ObjectRole = Literal["type", "map", "section", "instance"]
@@ -210,6 +214,7 @@ class RelationAssert(BaseModel):
     implementation_id: uuid.UUID | None = None
     references: list[ReferenceIn] = Field(default_factory=list, max_length=MAX_ITEMS)
     contributor: Contributor = None
+    email: OptionalEmail = None
 
 
 class RelationAssertOut(BaseModel):

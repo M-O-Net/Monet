@@ -15,6 +15,7 @@ class EventOut(BaseModel):
     at: datetime.datetime
     kind: EventKind
     contributor: str | None
+    email: str | None
     source: str | None
     object: ObjectOut | None
     relation: RelationOut | None

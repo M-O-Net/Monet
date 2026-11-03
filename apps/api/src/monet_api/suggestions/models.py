@@ -12,6 +12,7 @@ class Suggestion(SQLModel, table=True):
     body: str
     page_path: str
     contributor: str | None = None
+    email: str | None = None
     at: datetime.datetime = Field(
         sa_column=sa.Column(
             sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now(), index=True

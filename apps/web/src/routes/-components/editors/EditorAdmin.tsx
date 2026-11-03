@@ -20,6 +20,7 @@ export function EditorAdmin() {
   const createEditor = api.useMutation("post", "/editors");
   const deleteEditor = api.useMutation("delete", "/editors/{editor_id}");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [level, setLevel] = useState(1);
   const [created, setCreated] = useState<EditorCreated | null>(null);
 
@@ -42,11 +43,12 @@ export function EditorAdmin() {
           onSubmit={(event) => {
             event.preventDefault();
             createEditor.mutate(
-              { body: { name, level } },
+              { body: { name, email, level } },
               {
                 onSuccess: (editor) => {
                   setCreated(editor);
                   setName("");
+                  setEmail("");
                   refresh();
                 },
               },
@@ -59,6 +61,15 @@ export function EditorAdmin() {
               setName(event.target.value);
             }}
             placeholder="Their name, as it will be credited"
+            className={`${FIELD_CLASS} w-64`}
+          />
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+            }}
+            placeholder="Their email, shown publicly"
             className={`${FIELD_CLASS} w-64`}
           />
           <Select.Root
@@ -91,7 +102,7 @@ export function EditorAdmin() {
           </Select.Root>
           <button
             type="submit"
-            disabled={name.trim() === "" || createEditor.isPending}
+            disabled={name.trim() === "" || email.trim() === "" || createEditor.isPending}
             className="rounded-sm bg-pond px-3 py-1 text-sm font-medium text-paper hover:bg-pond-deep disabled:opacity-50"
           >
             Create key
@@ -123,7 +134,10 @@ export function EditorAdmin() {
                 className="flex items-center justify-between px-4 py-2 text-sm"
               >
                 <span>
-                  {editor.name} <span className="text-ink-soft">· level {editor.level}</span>
+                  {editor.name}{" "}
+                  <span className="text-ink-soft">
+                    {editor.email !== null && <>· {editor.email} </>}· level {editor.level}
+                  </span>
                 </span>
                 {editor.id !== null && (
                   <ConfirmPopover

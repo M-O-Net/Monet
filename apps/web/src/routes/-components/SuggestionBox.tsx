@@ -5,7 +5,7 @@ import { useState } from "react";
 import { formatApiError } from "@monet/api-client";
 
 import { api } from "../../lib/api";
-import { useContributor } from "../../lib/contributor";
+import { useContributor, useContributorEmail } from "../../lib/contributor";
 import { type EncodedScreenshot, shrinkScreenshot } from "../../lib/screenshots";
 
 const MAX_SCREENSHOTS = 3;
@@ -15,6 +15,7 @@ const FIELD_CLASS =
 export function SuggestionBox() {
   const pagePath = useRouterState({ select: (state) => state.location.href });
   const [contributor, setContributor] = useContributor();
+  const [email, setEmail] = useContributorEmail();
   const [text, setText] = useState("");
   const [screenshots, setScreenshots] = useState<EncodedScreenshot[]>([]);
   const [screenshotError, setScreenshotError] = useState<string | null>(null);
@@ -36,13 +37,14 @@ export function SuggestionBox() {
 
   const submit = (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || !email.trim()) return;
     send.mutate(
       {
         body: {
           body: text,
           page_path: pagePath,
           contributor,
+          email,
           screenshots: screenshots.map(({ media_type, data }) => ({ media_type, data })),
         },
       },
@@ -157,11 +159,21 @@ export function SuggestionBox() {
                   placeholder="Your name (optional)"
                   className={FIELD_CLASS}
                 />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                  }}
+                  placeholder="Your email (required)"
+                  className={FIELD_CLASS}
+                />
                 <div className="flex items-center justify-between gap-3 pt-1">
                   <span className="text-[11px] text-ink-soft">Sent with a link to this page.</span>
                   <button
                     type="submit"
-                    disabled={send.isPending || !text.trim()}
+                    disabled={send.isPending || !text.trim() || !email.trim()}
                     className="rounded-sm bg-pond px-3 py-1.5 text-xs font-medium text-paper transition-colors hover:bg-pond-deep disabled:opacity-50"
                   >
                     Send

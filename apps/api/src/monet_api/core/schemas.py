@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Annotated, Any
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
@@ -36,10 +37,24 @@ def _no_null_character(text: str | None) -> str | None:
     return text
 
 
+EMAIL_ADDRESS = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+
+
+def _email_address(address: str | None) -> str | None:
+    if address is not None and not EMAIL_ADDRESS.fullmatch(address):
+        raise ValueError("this is not an email address")
+    return address
+
+
 Text = AfterValidator(_no_null_character)
 
 
 Contributor = Annotated[str | None, Field(max_length=200), Text, AfterValidator(_blank_as_none)]
+EmailShape = AfterValidator(_email_address)
+Email = Annotated[str, Field(max_length=254), AfterValidator(str.strip), EmailShape]
+OptionalEmail = Annotated[
+    str | None, Field(max_length=254), AfterValidator(_blank_as_none), EmailShape
+]
 Latex = Annotated[str, Field(max_length=20_000), Text]
 Prose = Annotated[str, Field(max_length=10_000), Text]
 Label = Annotated[str, Field(max_length=300), Text]

@@ -21,7 +21,12 @@ def screenshot(data: bytes = PNG, media_type: str = "image/png") -> dict[str, st
 
 
 async def suggest(client: AsyncClient, **fields: object) -> dict[str, object]:
-    body = {"body": "Add the Leech lattice.", "page_path": "/objects/abc?tab=1", **fields}
+    body = {
+        "body": "Add the Leech lattice.",
+        "page_path": "/objects/abc?tab=1",
+        "email": "conway@example.org",
+        **fields,
+    }
     resp = await client.post("/suggestions", json=body)
     assert resp.status_code == 201, resp.text
     result: dict[str, object] = resp.json()
@@ -40,6 +45,7 @@ async def test_a_suggestion_reaches_the_queue_with_its_page_and_screenshots(
     assert item["body"] == "Add the Leech lattice."
     assert item["page_path"] == "/objects/abc?tab=1"
     assert item["contributor"] == "Conway"
+    assert item["email"] == "conway@example.org"
     assert [s["media_type"] for s in item["screenshots"]] == ["image/png"]
 
     image = await client.get(
@@ -76,7 +82,9 @@ async def test_without_a_key_on_the_server_the_queue_is_closed(
     monkeypatch.setattr(settings, "suggestions_review_key", None)
 
     assert (
-        await client.post("/suggestions", json={"body": "x", "page_path": "/"})
+        await client.post(
+            "/suggestions", json={"body": "x", "page_path": "/", "email": "a@example.org"}
+        )
     ).status_code == 201
     assert (await client.get("/suggestions", headers={"X-Review-Key": ""})).status_code == 503
 
@@ -98,6 +106,9 @@ async def test_dismissing_a_suggestion_removes_it_and_its_screenshots(client: As
     ("fields", "status"),
     [
         ({"body": "   "}, 400),
+        ({"email": None}, 422),
+        ({"email": "  "}, 422),
+        ({"email": "conway"}, 422),
         ({"page_path": "https://elsewhere.example/"}, 400),
         ({"page_path": "//elsewhere.example/"}, 400),
         ({"screenshots": [screenshot()] * 4}, 422),
@@ -108,6 +119,6 @@ async def test_dismissing_a_suggestion_removes_it_and_its_screenshots(client: As
 async def test_bad_suggestions_are_refused(
     client: AsyncClient, fields: dict[str, object], status: int
 ) -> None:
-    body = {"body": "Add the Leech lattice.", "page_path": "/", **fields}
+    body = {"body": "Add the Leech lattice.", "page_path": "/", "email": "a@example.org", **fields}
     assert (await client.post("/suggestions", json=body)).status_code == status
     assert (await client.get("/suggestions", headers={"X-Review-Key": KEY})).json() == []

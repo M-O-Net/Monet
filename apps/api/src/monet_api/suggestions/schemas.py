@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Base64Bytes, BaseModel, Field
 
-from monet_api.core.schemas import Contributor, ORMModel
+from monet_api.core.schemas import Contributor, Email, ORMModel
 
 MAX_SCREENSHOTS = 3
 
@@ -20,6 +20,7 @@ class SuggestionCreate(BaseModel):
     body: str = Field(max_length=5000)
     page_path: str = Field(max_length=2000)
     contributor: Contributor = None
+    email: Email
     screenshots: list[ScreenshotIn] = Field(default=[], max_length=MAX_SCREENSHOTS)
 
 
@@ -38,5 +39,6 @@ class SuggestionOut(ORMModel):
     body: str
     page_path: str
     contributor: str | None
+    email: str | None
     at: datetime.datetime
     screenshots: list[ScreenshotOut]

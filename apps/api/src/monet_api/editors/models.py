@@ -10,6 +10,7 @@ class Editor(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str
+    email: str | None = None
     level: int
     key_hash: str = Field(sa_column=sa.Column(sa.Text, nullable=False, unique=True))
 

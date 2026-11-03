@@ -317,7 +317,7 @@ async def create_object(session: AsyncSession, body: ObjectCreate) -> ObjectOut:
         repository.add_signature(session, obj.id, signature.domain_id, signature.codomain_id)
     for section_id in body.sections:
         repository.add_section_filing(session, obj.id, section_id)
-    events.add_event(session, "object_created", obj.id, body.contributor, "manual")
+    events.add_event(session, "object_created", obj.id, body.contributor, body.email, "manual")
     await session.commit()
     await session.refresh(obj)
     return (await objects_out(session, [obj]))[0]
@@ -949,7 +949,9 @@ async def create_relation(session: AsyncSession, body: RelationCreate) -> tuple[
         relation = await _insert_relation(
             session, body.operator_id, body.input_object_ids, body.output_object_ids
         )
-        events.add_event(session, "relation_created", relation.id, body.contributor, "manual")
+        events.add_event(
+            session, "relation_created", relation.id, body.contributor, body.email, "manual"
+        )
     await _add_relation_references(session, relation.id, body.references)
 
     await session.commit()
@@ -1093,7 +1095,9 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
         outputs.append(obj)
         if was_created:
             created_object_ids.append(obj.id)
-            events.add_event(session, "object_created", obj.id, body.contributor, source)
+            events.add_event(
+                session, "object_created", obj.id, body.contributor, body.email, source
+            )
 
     output_ids = [obj.id for obj in outputs]
     await repository.lock_until_commit(session, "relation", body.operator_id, body.input_object_ids)
@@ -1105,7 +1109,9 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
         relation = await _insert_relation(
             session, body.operator_id, body.input_object_ids, output_ids
         )
-        events.add_event(session, "relation_created", relation.id, body.contributor, source)
+        events.add_event(
+            session, "relation_created", relation.id, body.contributor, body.email, source
+        )
     await _add_relation_references(session, relation.id, body.references)
 
     await session.commit()

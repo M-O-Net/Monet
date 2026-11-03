@@ -13,9 +13,12 @@ def add_event(
     kind: str,
     subject_id: uuid.UUID,
     contributor: str | None,
+    email: str | None,
     source: str | None,
 ) -> None:
-    session.add(Event(kind=kind, subject_id=subject_id, contributor=contributor, source=source))
+    session.add(
+        Event(kind=kind, subject_id=subject_id, contributor=contributor, email=email, source=source)
+    )
 
 
 async def list_events(

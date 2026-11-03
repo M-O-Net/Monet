@@ -1,3 +1,4 @@
+import { credit } from "./contributor";
 import type { ProvenanceOut } from "./types";
 
 export function describeSource(source: string | null): string {
@@ -14,6 +15,7 @@ export function describeProvenance(provenance: ProvenanceOut): string {
     month: "short",
     day: "numeric",
   });
-  const who = provenance.contributor === null ? "" : ` by ${provenance.contributor}`;
+  const name = credit(provenance.contributor, provenance.email);
+  const who = name === null ? "" : ` by ${name}`;
   return `${describeSource(provenance.source)}${who} · ${day}`;
 }

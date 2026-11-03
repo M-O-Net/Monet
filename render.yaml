@@ -33,6 +33,8 @@ services:
         generateValue: true
       - key: ADMIN_NAME
         value: Shachar
+      - key: ADMIN_EMAIL
+        sync: false
     # Render execs these directly rather than through a shell, so each has to be one script, not
     # a `&&` chain.
     preDeployCommand: ./scripts/predeploy.sh

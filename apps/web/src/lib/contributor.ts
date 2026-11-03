@@ -1,24 +1,55 @@
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 
-const STORAGE_KEY = "monet.contributor";
+const listeners = new Set<() => void>();
 
-function remembered(): string {
+function read(storageKey: string): string {
   try {
-    return localStorage.getItem(STORAGE_KEY) ?? "";
+    return localStorage.getItem(storageKey) ?? "";
   } catch {
     return "";
   }
 }
 
-export function useContributor(): [string, (name: string) => void] {
-  const [name, setName] = useState(remembered);
-  const update = (next: string) => {
-    setName(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      return;
-    }
+function write(storageKey: string, value: string): void {
+  try {
+    localStorage.setItem(storageKey, value);
+  } catch {
+    return;
+  } finally {
+    for (const listener of listeners) listener();
+  }
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
   };
-  return [name, update];
+}
+
+function useRemembered(storageKey: string): [string, (value: string) => void] {
+  const value = useSyncExternalStore(
+    subscribe,
+    () => read(storageKey),
+    () => "",
+  );
+  return [
+    value,
+    (next: string) => {
+      write(storageKey, next);
+    },
+  ];
+}
+
+export function useContributor(): [string, (name: string) => void] {
+  return useRemembered("monet.contributor");
+}
+
+export function useContributorEmail(): [string, (email: string) => void] {
+  return useRemembered("monet.email");
+}
+
+export function credit(name: string | null, email: string | null): string | null {
+  if (name !== null && email !== null) return `${name} (${email})`;
+  return name ?? email;
 }
