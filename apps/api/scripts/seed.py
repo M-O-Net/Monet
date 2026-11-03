@@ -67,7 +67,6 @@ async def seed() -> None:
         await session.exec(delete(RelationInput))
         await session.exec(delete(Relation))
         await session.exec(delete(Object))
-        await session.commit()
 
         ids: dict[str, uuid.UUID] = {}
         for key, (latex, description) in OBJECTS.items():
