@@ -59,12 +59,6 @@ class ObjectFilter:
     search: str | None = None
 
 
-def _search_key(text: SQLColumnExpression[str]) -> ColumnElement[str]:
-    without_macros = func.regexp_replace(text, r"\\[a-zA-Z]+", " ", "g")
-    ungrouped = func.regexp_replace(without_macros, "[{}$]", "", "g")
-    return func.lower(func.btrim(func.regexp_replace(ungrouped, r"[\s,&\\]+", " ", "g")))
-
-
 def _like_escaped(text: str) -> str:
     return text.replace("%", r"\%").replace("_", r"\_")
 
@@ -72,7 +66,7 @@ def _like_escaped(text: str) -> str:
 def _search_rank(needle: str) -> ColumnElement[int]:
     exact = _like_escaped(needle)
 
-    def rank(key: ColumnElement[str]) -> ColumnElement[int]:
+    def rank(key: SQLColumnExpression[str | None]) -> ColumnElement[int]:
         return case(
             (key.like(f"{exact}%"), 0),
             (key.like(f"% {exact}%"), 1),
@@ -80,16 +74,12 @@ def _search_rank(needle: str) -> ColumnElement[int]:
             else_=3,
         )
 
-    keys = (_search_key(col(Object.latex)), _search_key(func.coalesce(col(Object.description), "")))
-    return func.least(*(rank(key) for key in keys))
+    return func.least(rank(col(Object.latex_key)), rank(col(Object.description_key)))
 
 
 def _matches_search(needle: str) -> ColumnElement[bool]:
     scattered = "%" + "%".join(_like_escaped(character) for character in needle) + "%"
-    return or_(
-        _search_key(col(Object.latex)).like(scattered),
-        _search_key(func.coalesce(col(Object.description), "")).like(scattered),
-    )
+    return or_(col(Object.latex_key).like(scattered), col(Object.description_key).like(scattered))
 
 
 def _has_role(role: Role, implemented: Sequence[uuid.UUID]) -> ColumnElement[bool]:
@@ -150,9 +140,7 @@ async def page_objects(
 ) -> tuple[list[Object], int]:
     query = select(Object, func.count().over()).where(*_conditions(found))
     if found.search is not None:
-        query = query.order_by(
-            _search_rank(found.search), func.length(_search_key(col(Object.latex)))
-        )
+        query = query.order_by(_search_rank(found.search), func.length(col(Object.latex_key)))
     query = query.order_by(col(Object.latex), col(Object.id)).offset(offset).limit(limit)
     rows = (await session.exec(query)).all()
     if rows:

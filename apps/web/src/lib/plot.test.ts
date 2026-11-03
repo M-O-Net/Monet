@@ -108,6 +108,17 @@ describe("ticks", () => {
   it("is empty for an empty range", () => {
     expect(ticks([1, 1])).toEqual([]);
   });
+
+  it("stops where floats can no longer step, around a root near 10^16", () => {
+    for (const range of [
+      [1e16 - 2, 1e16 + 2],
+      [1e16, 1e16 + 4],
+    ] as const) {
+      const found = ticks([...range]);
+      expect(found.length).toBeGreaterThan(0);
+      expect(found.length).toBeLessThanOrEqual(50);
+    }
+  });
 });
 
 describe("complexExtent", () => {

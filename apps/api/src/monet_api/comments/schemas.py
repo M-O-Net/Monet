@@ -3,7 +3,7 @@ import uuid
 
 from pydantic import BaseModel
 
-from monet_api.core.schemas import Contributor, ORMModel
+from monet_api.core.schemas import Contributor, ORMModel, Prose
 
 
 class CommentOut(ORMModel):
@@ -15,5 +15,5 @@ class CommentOut(ORMModel):
 
 
 class CommentCreate(BaseModel):
-    body: str
+    body: Prose
     contributor: Contributor = None
