@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { ArrowMarker, DirectedEdge } from "../../components/DirectedEdge";
 import { Latex } from "../../components/Latex";
 import { describeCredits } from "../../lib/credits";
 import { layoutBounds, layoutGraph, nodeLabel } from "../../lib/graphLayout";
@@ -29,6 +30,7 @@ export function NetworkMap({
   openIds: readonly string[];
   onOpen: (objectId: string) => void;
 }) {
+  const arrowId = useId();
   const graph = useMemo(() => buildGraph(relations), [relations]);
   const layout = useMemo(() => layoutGraph(graph), [graph]);
   const bounds = useMemo(() => layoutBounds(graph, layout), [graph, layout]);
@@ -120,34 +122,20 @@ export function NetworkMap({
         width={width}
         height={height}
       >
-        <defs>
-          <marker
-            id="map-arrow"
-            viewBox="0 0 8 8"
-            refX="7"
-            refY="4"
-            markerWidth="5"
-            markerHeight="5"
-            orient="auto-start-reverse"
-          >
-            <path d="M 0 1 L 7 4 L 0 7 z" fill="currentColor" />
-          </marker>
-        </defs>
+        <ArrowMarker id={arrowId} />
         {graph.edges.map((edge) => {
           const from = layout.get(edge.source);
           const to = layout.get(edge.target);
           if (from === undefined || to === undefined) return null;
           const faded = dim(edge.source) && dim(edge.target);
           return (
-            <line
+            <DirectedEdge
               key={edge.id}
-              x1={from.x + originX}
-              y1={from.y + originY}
-              x2={to.x + originX}
-              y2={to.y + originY}
+              tail={{ x: from.x + originX, y: from.y + originY }}
+              head={{ x: to.x + originX, y: to.y + originY }}
+              markerId={arrowId}
               stroke="currentColor"
               strokeWidth={1}
-              markerEnd="url(#map-arrow)"
               opacity={faded ? 0.2 : 0.6}
             />
           );
