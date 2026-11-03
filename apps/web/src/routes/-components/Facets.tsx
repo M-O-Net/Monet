@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { formatApiError } from "@monet/api-client";
 
+import { ConfirmPopover } from "../../components/ConfirmPopover";
 import { Latex } from "../../components/Latex";
 import { ObjectPicker } from "../../components/ObjectPicker";
 import { api } from "../../lib/api";
@@ -50,19 +51,20 @@ export function Facets({
                 </Link>
                 <span className="flex items-baseline gap-3 text-[11px] text-ink-soft">
                   {kindOf(facet)}
-                  <button
-                    type="button"
-                    onClick={() => {
+                  <ConfirmPopover
+                    trigger="×"
+                    triggerClassName="hover:text-rust"
+                    label="Remove this type"
+                    question="Stop counting this as an instance of the type? Its data read as that type is deleted with it."
+                    confirmLabel="Remove"
+                    disabled={removeFacet.isPending}
+                    onConfirm={() => {
                       removeFacet.mutate(
                         { params: { path: { object_id: objectId, type_id: facet.type.id } } },
                         { onSuccess: onChanged },
                       );
                     }}
-                    className="hover:text-rust"
-                    aria-label="Remove this type"
-                  >
-                    ×
-                  </button>
+                  />
                 </span>
               </div>
               {facet.data !== null && (
@@ -132,6 +134,9 @@ export function Facets({
       </form>
       {setFacet.isError && (
         <p className="mt-2 text-xs text-rust">{formatApiError(setFacet.error)}</p>
+      )}
+      {removeFacet.isError && (
+        <p className="mt-2 text-xs text-rust">{formatApiError(removeFacet.error)}</p>
       )}
     </section>
   );

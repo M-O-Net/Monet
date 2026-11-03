@@ -120,8 +120,8 @@ operator nor the object), and no timestamps, author or versioning, same as the r
   as-is.
 - No enums in v0's schema (objects carry no `kind` tag), so no `StrEnum`-to-TS-union concern yet.
 - IDs are UUID everywhere (`uuid4` default, `sa.UUID` column), never surrogate int/str keys.
-- Errors stay ad hoc: FastAPI's default `{"detail": "..."}` shape, plus one catch-all
-  `@app.exception_handler(Exception)`. No shared `ErrorResponse` schema at this scale.
+- Errors stay ad hoc: one `{"detail": "..."}` string, validation errors included, from the
+  handlers in `main.py`. No shared `ErrorResponse` schema at this scale.
 - Every route declares explicit `response_model=` **and** explicit `operation_id="snake_case_name"`
   — the latter is what keeps generated TS hook names stable/readable instead of FastAPI's
   auto-generated ids.

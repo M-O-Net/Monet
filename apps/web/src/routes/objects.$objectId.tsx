@@ -151,6 +151,9 @@ function ObjectDetail() {
               className="rounded-sm border border-mist bg-paper px-2 py-1 text-xs text-ink placeholder:text-ink-soft/60 focus:border-pond focus:outline-none"
             />
             <ReferenceEditor references={draftReferences} onChange={setDraftReferences} />
+            {updateObject.isError && (
+              <p className="text-xs text-rust">{formatApiError(updateObject.error)}</p>
+            )}
           </form>
         ) : (
           <>
@@ -243,6 +246,12 @@ function ObjectDetail() {
       </div>
       {deleteObject.isError && (
         <p className="mb-4 text-xs text-rust">{formatApiError(deleteObject.error)}</p>
+      )}
+      {markTopLevel.isError && (
+        <p className="mb-4 text-xs text-rust">{formatApiError(markTopLevel.error)}</p>
+      )}
+      {unmarkTopLevel.isError && (
+        <p className="mb-4 text-xs text-rust">{formatApiError(unmarkTopLevel.error)}</p>
       )}
 
       {obj.image_url !== null && obj.image_url !== "" && (

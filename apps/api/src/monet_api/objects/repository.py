@@ -1,5 +1,7 @@
 """Raw SQLModel queries for the objects domain. No business logic, no 404s — see service.py."""
 
+import hashlib
+import json
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -648,6 +650,12 @@ async def list_related_types(
     reached = select(far.label("id")).where(near.in_(start_ids)).cte(recursive=True)
     reached = reached.union(select(far).join(reached, near == reached.c.id))
     return list((await session.exec(select(reached.c.id))).all())
+
+
+async def lock_until_commit(session: AsyncSession, *key: object) -> None:
+    digest = hashlib.sha256(json.dumps(key, sort_keys=True, default=str).encode()).digest()
+    lock = int.from_bytes(digest[:8], "big", signed=True)
+    await session.exec(select(func.pg_advisory_xact_lock(lock)))
 
 
 async def find_membership_by_data(session: AsyncSession, data: dict[str, Any]) -> Membership | None:
