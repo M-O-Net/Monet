@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     suggestions_review_key: str | None = None
     admin_key: str | None = None
     admin_name: str = "Admin"
+    admin_email: str | None = None
     statement_timeout_ms: int = 10_000
 
     _use_asyncpg = field_validator("database_url")(as_asyncpg_url)

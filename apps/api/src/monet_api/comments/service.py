@@ -22,8 +22,8 @@ async def create_comment(
     text = body.body.strip()
     if not text:
         raise HTTPException(status_code=400, detail="a comment needs a body")
-    comment = await repository.add_comment(session, object_id, text, body.contributor)
-    events.add_event(session, "comment_created", comment.id, body.contributor, None)
+    comment = await repository.add_comment(session, object_id, text, body.contributor, body.email)
+    events.add_event(session, "comment_created", comment.id, body.contributor, body.email, None)
     await session.commit()
     await session.refresh(comment)
     return comment

@@ -44,6 +44,11 @@ export function FeedEntry({ event }: { event: EventOut }) {
     <li className="rounded-sm border border-mist bg-white/40 px-4 py-3 shadow-[0_1px_3px_rgba(35,50,43,0.06)]">
       <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm text-ink-soft">
         <Who name={event.contributor} />
+        {event.email !== null && (
+          <a href={`mailto:${event.email}`} className="text-xs text-ink-soft hover:text-pond">
+            ({event.email})
+          </a>
+        )}
         {event.kind === "object_created" && event.object && (
           <>
             <span>added</span>

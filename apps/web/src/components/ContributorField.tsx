@@ -1,21 +1,42 @@
+const FIELD =
+  "w-56 rounded-sm border border-mist bg-paper px-2 py-1 text-xs text-ink placeholder:text-ink-soft/60 focus:border-pond focus:outline-none";
+
 export function ContributorField({
-  value,
-  onChange,
+  name,
+  email,
+  onNameChange,
+  onEmailChange,
 }: {
-  value: string;
-  onChange: (name: string) => void;
+  name: string;
+  email: string;
+  onNameChange: (name: string) => void;
+  onEmailChange: (email: string) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-xs text-ink-soft">
-      Your name
-      <input
-        value={value}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-        placeholder="optional — credited on what you add"
-        className="w-64 rounded-sm border border-mist bg-paper px-2 py-1 text-xs text-ink placeholder:text-ink-soft/60 focus:border-pond focus:outline-none"
-      />
-    </label>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-soft">
+      <label className="flex items-center gap-2">
+        Your name
+        <input
+          value={name}
+          onChange={(event) => {
+            onNameChange(event.target.value);
+          }}
+          placeholder="optional"
+          className={FIELD}
+        />
+      </label>
+      <label className="flex items-center gap-2">
+        Email
+        <input
+          type="email"
+          value={email}
+          onChange={(event) => {
+            onEmailChange(event.target.value);
+          }}
+          placeholder="optional, shown publicly"
+          className={FIELD}
+        />
+      </label>
+    </div>
   );
 }

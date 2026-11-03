@@ -30,9 +30,13 @@ async def list_comments_by_ids(
 
 
 async def add_comment(
-    session: AsyncSession, object_id: uuid.UUID, body: str, contributor: str | None
+    session: AsyncSession,
+    object_id: uuid.UUID,
+    body: str,
+    contributor: str | None,
+    email: str | None,
 ) -> Comment:
-    comment = Comment(object_id=object_id, body=body, contributor=contributor)
+    comment = Comment(object_id=object_id, body=body, contributor=contributor, email=email)
     session.add(comment)
     await session.flush()
     return comment

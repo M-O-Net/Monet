@@ -32,3 +32,20 @@ async def test_the_feed_filters_by_kind(client: AsyncClient) -> None:
     }
     assert kinds == {"object_created": 2, "relation_created": 1, "comment_created": 1}
     assert (await client.get("/events", params={"kind": "nonsense"})).status_code == 422
+
+
+async def test_a_comment_keeps_an_optional_email(client: AsyncClient) -> None:
+    obj = await make(client, "C")
+    signed = {"body": "Nice.", "contributor": "Hilbert", "email": " hilbert@example.org "}
+    await client.post(f"/objects/{obj}/comments", json=signed)
+    await client.post(f"/objects/{obj}/comments", json={"body": "Anon.", "email": ""})
+    bad = await client.post(f"/objects/{obj}/comments", json={"body": "x", "email": "hilbert"})
+    assert bad.status_code == 422
+
+    comments = (await client.get(f"/objects/{obj}/comments")).json()
+    assert sorted((c["body"], c["email"]) for c in comments) == [
+        ("Anon.", None),
+        ("Nice.", "hilbert@example.org"),
+    ]
+    feed = (await client.get("/events", params={"kind": "comment_created"})).json()
+    assert {entry["email"] for entry in feed} == {None, "hilbert@example.org"}

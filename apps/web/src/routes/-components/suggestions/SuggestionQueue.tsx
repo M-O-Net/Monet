@@ -126,7 +126,18 @@ function SuggestionItem({
     <li className="space-y-2 px-4 py-3">
       <div className="flex items-baseline justify-between gap-3 text-xs text-ink-soft">
         <span>
-          {suggestion.contributor ?? "Anonymous"} · {relativeTime(suggestion.at)} · on{" "}
+          {suggestion.contributor ?? "Anonymous"}
+          {suggestion.email !== null && (
+            <>
+              {" "}
+              (
+              <a href={`mailto:${suggestion.email}`} className="text-pond hover:underline">
+                {suggestion.email}
+              </a>
+              )
+            </>
+          )}{" "}
+          · {relativeTime(suggestion.at)} · on{" "}
           <a href={suggestion.page_path} className="text-pond hover:underline">
             {suggestion.page_path}
           </a>

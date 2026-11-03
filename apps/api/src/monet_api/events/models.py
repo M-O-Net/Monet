@@ -17,4 +17,5 @@ class Event(SQLModel, table=True):
     kind: str
     subject_id: uuid.UUID = Field(index=True)
     contributor: str | None = Field(default=None, index=True)
+    email: str | None = None
     source: str | None = None

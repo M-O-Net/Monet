@@ -34,6 +34,7 @@ async def create_suggestion(session: AsyncSession, body: SuggestionCreate) -> Su
         text,
         body.page_path,
         body.contributor,
+        body.email,
         [(shot.media_type, shot.data) for shot in body.screenshots],
     )
     await session.commit()
@@ -55,6 +56,7 @@ async def list_suggestions(session: AsyncSession) -> list[SuggestionOut]:
             body=s.body,
             page_path=s.page_path,
             contributor=s.contributor,
+            email=s.email,
             at=s.at,
             screenshots=shots.get(s.id, []),
         )

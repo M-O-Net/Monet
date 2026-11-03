@@ -98,7 +98,7 @@ async def create_object(body: ObjectCreate, session: DbSession, editor: Adder) -
     if body.as_type is not None or body.signatures:
         check_level(editor, 2)
     return await service.create_object(
-        session, body.model_copy(update={"contributor": editor.name})
+        session, body.model_copy(update={"contributor": editor.name, "email": editor.email})
     )
 
 
@@ -266,7 +266,7 @@ async def create_relation(
     body: RelationCreate, session: DbSession, editor: Builder, response: Response
 ) -> RelationOut:
     relation, created = await service.create_relation(
-        session, body.model_copy(update={"contributor": editor.name})
+        session, body.model_copy(update={"contributor": editor.name, "email": editor.email})
     )
     if not created:
         response.status_code = 200
@@ -311,5 +311,5 @@ async def assert_relation(
     body: RelationAssert, session: DbSession, editor: Adder
 ) -> RelationAssertOut:
     return await service.assert_relation(
-        session, body.model_copy(update={"contributor": editor.name})
+        session, body.model_copy(update={"contributor": editor.name, "email": editor.email})
     )

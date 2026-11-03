@@ -7,7 +7,7 @@ import { ConfirmButton } from "../../components/ConfirmButton";
 import { ContributorField } from "../../components/ContributorField";
 import { MathText } from "../../components/MathText";
 import { api } from "../../lib/api";
-import { useContributor } from "../../lib/contributor";
+import { credit, useContributor, useContributorEmail } from "../../lib/contributor";
 import type { CommentOut } from "../../lib/types";
 
 function Comment({
@@ -33,7 +33,7 @@ function Comment({
       </p>
       <div className="mt-1 flex items-center justify-between text-[11px] text-ink-soft/80">
         <span>
-          {comment.contributor ?? "anonymous"} · {day}
+          {credit(comment.contributor, comment.email) ?? "anonymous"} · {day}
         </span>
         {canDelete && (
           <ConfirmButton
@@ -67,6 +67,7 @@ export function Comments({ objectId, canDelete }: { objectId: string; canDelete:
   });
   const createComment = api.useMutation("post", "/objects/{object_id}/comments");
   const [contributor, setContributor] = useContributor();
+  const [email, setEmail] = useContributorEmail();
   const [body, setBody] = useState("");
 
   const refresh = () => {
@@ -99,7 +100,7 @@ export function Comments({ objectId, canDelete }: { objectId: string; canDelete:
           createComment.mutate(
             {
               params: { path: { object_id: objectId } },
-              body: { body, contributor },
+              body: { body, contributor, email },
             },
             {
               onSuccess: () => {
@@ -120,7 +121,12 @@ export function Comments({ objectId, canDelete }: { objectId: string; canDelete:
           className="w-full rounded-sm border border-mist bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-soft/60 focus:border-pond focus:outline-none"
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <ContributorField value={contributor} onChange={setContributor} />
+          <ContributorField
+            name={contributor}
+            email={email}
+            onNameChange={setContributor}
+            onEmailChange={setEmail}
+          />
           <button
             type="submit"
             disabled={createComment.isPending || body.trim() === ""}
