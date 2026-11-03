@@ -24,10 +24,12 @@ function TypeLink({ type }: { type: ObjectOut }) {
 export function Signatures({
   mapId,
   signatures,
+  editable,
   onChanged,
 }: {
   mapId: string;
   signatures: SignatureOut[];
+  editable: boolean;
   onChanged: () => void;
 }) {
   const addSignature = api.useMutation("post", "/objects/{object_id}/signatures");
@@ -49,69 +51,73 @@ export function Signatures({
                 →
               </span>
               <TypeLink type={signature.codomain} />
-              <ConfirmPopover
-                trigger="×"
-                triggerClassName="text-xs text-ink-soft hover:text-rust"
-                label="Remove this signature"
-                question="Remove this signature from the map?"
-                confirmLabel="Remove"
-                disabled={removeSignature.isPending}
-                onConfirm={() => {
-                  removeSignature.mutate(
-                    { params: { path: { signature_id: signature.id } } },
-                    { onSuccess: onChanged },
-                  );
-                }}
-              />
+              {editable && (
+                <ConfirmPopover
+                  trigger="×"
+                  triggerClassName="text-xs text-ink-soft hover:text-rust"
+                  label="Remove this signature"
+                  question="Remove this signature from the map?"
+                  confirmLabel="Remove"
+                  disabled={removeSignature.isPending}
+                  onConfirm={() => {
+                    removeSignature.mutate(
+                      { params: { path: { signature_id: signature.id } } },
+                      { onSuccess: onChanged },
+                    );
+                  }}
+                />
+              )}
             </li>
           ))}
         </ul>
       )}
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (domain === null || codomain === null) return;
-          addSignature.mutate(
-            {
-              params: { path: { object_id: mapId } },
-              body: { domain_id: domain.id, codomain_id: codomain.id },
-            },
-            {
-              onSuccess: () => {
-                setDomain(null);
-                setCodomain(null);
-                onChanged();
+      {editable && (
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (domain === null || codomain === null) return;
+            addSignature.mutate(
+              {
+                params: { path: { object_id: mapId } },
+                body: { domain_id: domain.id, codomain_id: codomain.id },
               },
-            },
-          );
-        }}
-      >
-        <div className="w-48">
-          <ObjectPicker
-            value={domain}
-            onChange={setDomain}
-            filter={{ role: "type" }}
-            placeholder="from…"
-          />
-        </div>
-        <span className="text-ink-soft">→</span>
-        <div className="w-48">
-          <ObjectPicker
-            value={codomain}
-            onChange={setCodomain}
-            filter={{ role: "type" }}
-            placeholder="to…"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={domain === null || codomain === null || addSignature.isPending}
-          className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep disabled:opacity-50"
+              {
+                onSuccess: () => {
+                  setDomain(null);
+                  setCodomain(null);
+                  onChanged();
+                },
+              },
+            );
+          }}
         >
-          Add a signature
-        </button>
-      </form>
+          <div className="w-48">
+            <ObjectPicker
+              value={domain}
+              onChange={setDomain}
+              filter={{ role: "type" }}
+              placeholder="from…"
+            />
+          </div>
+          <span className="text-ink-soft">→</span>
+          <div className="w-48">
+            <ObjectPicker
+              value={codomain}
+              onChange={setCodomain}
+              filter={{ role: "type" }}
+              placeholder="to…"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={domain === null || codomain === null || addSignature.isPending}
+            className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep disabled:opacity-50"
+          >
+            Add a signature
+          </button>
+        </form>
+      )}
       {addSignature.isError && (
         <p className="mt-2 text-xs text-rust">{formatApiError(addSignature.error)}</p>
       )}

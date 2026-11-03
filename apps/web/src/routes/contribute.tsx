@@ -1,9 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { ContributorField } from "../components/ContributorField";
-import { useContributor } from "../lib/contributor";
+import { useEditor } from "../lib/useEditor";
 import { invalidateObjectGraph } from "../lib/queries";
 import { InstanceForm } from "./-components/contribute/InstanceForm";
 import { MapForm } from "./-components/contribute/MapForm";
@@ -19,12 +18,15 @@ const KINDS = {
   map: "A map",
 } as const;
 
+const LEVEL_NEEDED: Record<keyof typeof KINDS, number> = { instance: 1, type: 2, map: 2 };
+
 type Kind = keyof typeof KINDS;
 
 function ContributePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [contributor, setContributor] = useContributor();
+  const { editor, level, checking } = useEditor();
+  const contributor = editor?.name ?? "";
   const [kind, setKind] = useState<Kind>("instance");
 
   const open = (id: string) => {
@@ -40,9 +42,21 @@ function ContributePage() {
         reference, an implementation — open its page instead.
       </p>
 
-      <div className="mb-5">
-        <ContributorField value={contributor} onChange={setContributor} />
-      </div>
+      {editor === null ? (
+        <p className="mb-5 text-sm text-ink-soft">
+          {checking ? "Checking your key…" : "Adding to the network needs an "}
+          {!checking && (
+            <Link to="/key" className="text-pond hover:underline">
+              editor key
+            </Link>
+          )}
+          {!checking && "."}
+        </p>
+      ) : (
+        <p className="mb-5 text-sm text-ink-soft">
+          Adding as <strong className="text-ink">{editor.name}</strong> (level {editor.level}).
+        </p>
+      )}
 
       <div role="tablist" className="mb-6 flex gap-1 border-b border-mist">
         {(Object.keys(KINDS) as Kind[]).map((option) => (
@@ -50,13 +64,19 @@ function ContributePage() {
             key={option}
             role="tab"
             aria-selected={kind === option}
+            disabled={level < LEVEL_NEEDED[option]}
+            title={
+              level < LEVEL_NEEDED[option]
+                ? `Needs a level-${String(LEVEL_NEEDED[option])} editor key`
+                : undefined
+            }
             onClick={() => {
               setKind(option);
             }}
             className={`-mb-px border-b-2 px-3 py-2 text-sm ${
               kind === option
                 ? "border-pond text-ink"
-                : "border-transparent text-ink-soft hover:text-ink"
+                : "border-transparent text-ink-soft hover:text-ink disabled:opacity-40 disabled:hover:text-ink-soft"
             }`}
           >
             {KINDS[option]}
@@ -64,9 +84,15 @@ function ContributePage() {
         ))}
       </div>
 
-      {kind === "instance" && <InstanceForm contributor={contributor} onCreated={open} />}
-      {kind === "type" && <TypeForm contributor={contributor} onCreated={open} />}
-      {kind === "map" && <MapForm contributor={contributor} onCreated={open} />}
+      {level >= LEVEL_NEEDED[kind] && kind === "instance" && (
+        <InstanceForm contributor={contributor} onCreated={open} />
+      )}
+      {level >= LEVEL_NEEDED[kind] && kind === "type" && (
+        <TypeForm contributor={contributor} onCreated={open} />
+      )}
+      {level >= LEVEL_NEEDED[kind] && kind === "map" && (
+        <MapForm contributor={contributor} onCreated={open} />
+      )}
     </div>
   );
 }

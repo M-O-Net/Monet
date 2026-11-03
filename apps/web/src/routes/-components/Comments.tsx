@@ -10,7 +10,15 @@ import { api } from "../../lib/api";
 import { useContributor } from "../../lib/contributor";
 import type { CommentOut } from "../../lib/types";
 
-function Comment({ comment, onDeleted }: { comment: CommentOut; onDeleted: () => void }) {
+function Comment({
+  comment,
+  canDelete,
+  onDeleted,
+}: {
+  comment: CommentOut;
+  canDelete: boolean;
+  onDeleted: () => void;
+}) {
   const deleteComment = api.useMutation("delete", "/comments/{comment_id}");
   const day = new Date(comment.at).toLocaleDateString(undefined, {
     year: "numeric",
@@ -27,21 +35,23 @@ function Comment({ comment, onDeleted }: { comment: CommentOut; onDeleted: () =>
         <span>
           {comment.contributor ?? "anonymous"} · {day}
         </span>
-        <ConfirmButton
-          label="Delete"
-          title="Delete this comment?"
-          description="It disappears for everyone. This cannot be undone."
-          confirmLabel="Delete"
-          tone="danger"
-          pending={deleteComment.isPending}
-          className="text-ink-soft hover:text-rust"
-          onConfirm={() => {
-            deleteComment.mutate(
-              { params: { path: { comment_id: comment.id } } },
-              { onSuccess: onDeleted },
-            );
-          }}
-        />
+        {canDelete && (
+          <ConfirmButton
+            label="Delete"
+            title="Delete this comment?"
+            description="It disappears for everyone. This cannot be undone."
+            confirmLabel="Delete"
+            tone="danger"
+            pending={deleteComment.isPending}
+            className="text-ink-soft hover:text-rust"
+            onConfirm={() => {
+              deleteComment.mutate(
+                { params: { path: { comment_id: comment.id } } },
+                { onSuccess: onDeleted },
+              );
+            }}
+          />
+        )}
       </div>
       {deleteComment.isError && (
         <p className="mt-1 text-xs text-rust">{formatApiError(deleteComment.error)}</p>
@@ -50,7 +60,7 @@ function Comment({ comment, onDeleted }: { comment: CommentOut; onDeleted: () =>
   );
 }
 
-export function Comments({ objectId }: { objectId: string }) {
+export function Comments({ objectId, canDelete }: { objectId: string; canDelete: boolean }) {
   const queryClient = useQueryClient();
   const comments = api.useQuery("get", "/objects/{object_id}/comments", {
     params: { path: { object_id: objectId } },
@@ -77,7 +87,7 @@ export function Comments({ objectId }: { objectId: string }) {
       {comments.data && comments.data.length > 0 && (
         <ul className="mb-3 space-y-2">
           {comments.data.map((comment) => (
-            <Comment key={comment.id} comment={comment} onDeleted={refresh} />
+            <Comment key={comment.id} comment={comment} canDelete={canDelete} onDeleted={refresh} />
           ))}
         </ul>
       )}

@@ -20,11 +20,13 @@ export function Facets({
   objectId,
   facets,
   implied,
+  editable,
   onChanged,
 }: {
   objectId: string;
   facets: Facet[];
   implied: ObjectOut[];
+  editable: boolean;
   onChanged: () => void;
 }) {
   const setFacet = api.useMutation("put", "/objects/{object_id}/facets/{type_id}");
@@ -51,20 +53,22 @@ export function Facets({
                 </Link>
                 <span className="flex items-baseline gap-3 text-[11px] text-ink-soft">
                   {kindOf(facet)}
-                  <ConfirmPopover
-                    trigger="×"
-                    triggerClassName="hover:text-rust"
-                    label="Remove this type"
-                    question="Stop counting this as an instance of the type? Its data read as that type is deleted with it."
-                    confirmLabel="Remove"
-                    disabled={removeFacet.isPending}
-                    onConfirm={() => {
-                      removeFacet.mutate(
-                        { params: { path: { object_id: objectId, type_id: facet.type.id } } },
-                        { onSuccess: onChanged },
-                      );
-                    }}
-                  />
+                  {editable && (
+                    <ConfirmPopover
+                      trigger="×"
+                      triggerClassName="hover:text-rust"
+                      label="Remove this type"
+                      question="Stop counting this as an instance of the type? Its data read as that type is deleted with it."
+                      confirmLabel="Remove"
+                      disabled={removeFacet.isPending}
+                      onConfirm={() => {
+                        removeFacet.mutate(
+                          { params: { path: { object_id: objectId, type_id: facet.type.id } } },
+                          { onSuccess: onChanged },
+                        );
+                      }}
+                    />
+                  )}
                 </span>
               </div>
               {facet.data !== null && (
@@ -96,42 +100,44 @@ export function Facets({
           ))}
         </p>
       )}
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (type === null) return;
-          setFacet.mutate(
-            { params: { path: { object_id: objectId, type_id: type.id } }, body: { data } },
-            {
-              onSuccess: () => {
-                setType(null);
-                onChanged();
+      {editable && (
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (type === null) return;
+            setFacet.mutate(
+              { params: { path: { object_id: objectId, type_id: type.id } }, body: { data } },
+              {
+                onSuccess: () => {
+                  setType(null);
+                  onChanged();
+                },
               },
-            },
-          );
-        }}
-      >
-        <div className="w-64">
-          <ObjectPicker
-            value={type}
-            onChange={setType}
-            filter={{ role: "type" }}
-            exclude={facets.map((facet) => facet.type.id)}
-            placeholder="also an instance of…"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={type === null || setFacet.isPending}
-          className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep disabled:opacity-50"
+            );
+          }}
         >
-          Add
-        </button>
-        {data !== null && (
-          <span className="text-[11px] text-ink-soft">with the same data, read as that type</span>
-        )}
-      </form>
+          <div className="w-64">
+            <ObjectPicker
+              value={type}
+              onChange={setType}
+              filter={{ role: "type" }}
+              exclude={facets.map((facet) => facet.type.id)}
+              placeholder="also an instance of…"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={type === null || setFacet.isPending}
+            className="rounded-sm border border-mist px-2.5 py-1 text-xs text-ink-soft hover:bg-paper-deep disabled:opacity-50"
+          >
+            Add
+          </button>
+          {data !== null && (
+            <span className="text-[11px] text-ink-soft">with the same data, read as that type</span>
+          )}
+        </form>
+      )}
       {setFacet.isError && (
         <p className="mt-2 text-xs text-rust">{formatApiError(setFacet.error)}</p>
       )}

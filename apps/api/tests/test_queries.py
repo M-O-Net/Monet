@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from monet_api.core.db import engine
+from tests.conftest import editor_key
 
 Data = dict[str, Any]
 
@@ -208,9 +209,10 @@ async def test_roles_are_a_set(client: AsyncClient) -> None:
 
 
 async def test_feed_records_who_did_what(client: AsyncClient) -> None:
-    resp = await client.post("/objects", json={"latex": "A", "contributor": "  Noether "})
+    noether = await editor_key(client, "Noether", 1)
+    resp = await client.post("/objects", json={"latex": "A", "contributor": "x"}, headers=noether)
     obj = resp.json()["id"]
-    await client.post("/objects", json={"latex": "B", "contributor": "   "})
+    await client.post("/objects", json={"latex": "B"})
     comment = await client.post(
         f"/objects/{obj}/comments", json={"body": "A nice one.", "contributor": "Noether"}
     )
@@ -222,7 +224,7 @@ async def test_feed_records_who_did_what(client: AsyncClient) -> None:
         "object_created",
         "object_created",
     ]
-    assert [entry["contributor"] for entry in feed] == ["Noether", None, "Noether"]
+    assert [entry["contributor"] for entry in feed] == ["Noether", "Admin", "Noether"]
     assert feed[2]["object"]["id"] == obj
     assert feed[2]["source"] == "manual"
     assert feed[0]["comment"]["body"] == "A nice one."

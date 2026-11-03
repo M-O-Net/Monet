@@ -8,6 +8,7 @@ from monet_api.comments import service
 from monet_api.comments.models import Comment
 from monet_api.comments.schemas import CommentCreate, CommentOut
 from monet_api.core.db import get_session
+from monet_api.editors.access import Owner
 
 router = APIRouter()
 
@@ -34,5 +35,5 @@ async def create_comment(object_id: uuid.UUID, body: CommentCreate, session: DbS
 
 
 @router.delete("/comments/{comment_id}", status_code=204, operation_id="delete_comment")
-async def delete_comment(comment_id: uuid.UUID, session: DbSession) -> None:
+async def delete_comment(comment_id: uuid.UUID, session: DbSession, _: Owner) -> None:
     await service.delete_comment(session, comment_id)

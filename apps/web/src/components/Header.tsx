@@ -1,9 +1,12 @@
 import { Link } from "@tanstack/react-router";
 
+import { useEditor } from "../lib/useEditor";
+
 const NAV_LINK_CLASS =
   "text-xs text-ink-soft underline decoration-dotted underline-offset-2 hover:text-pond";
 
 export function Header() {
+  const { editor } = useEditor();
   return (
     <header className="mb-10">
       <div className="flex items-start justify-between">
@@ -73,6 +76,9 @@ export function Header() {
             </Link>
             <Link to="/about" className={NAV_LINK_CLASS}>
               about
+            </Link>
+            <Link to="/key" className={NAV_LINK_CLASS}>
+              {editor === null ? "editor key" : editor.name}
             </Link>
           </div>
         </div>

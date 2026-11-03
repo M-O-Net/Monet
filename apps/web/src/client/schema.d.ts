@@ -494,6 +494,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/editors/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Current Editor */
+        get: operations["get_current_editor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/editors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Editors */
+        get: operations["list_editors"];
+        put?: never;
+        /** Create Editor */
+        post: operations["create_editor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/editors/{editor_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Editor */
+        delete: operations["delete_editor"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Changes */
+        get: operations["list_changes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -515,6 +584,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ChangeOut */
+        ChangeOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Editor */
+            editor: string;
+            /** Method */
+            method: string;
+            /** Path */
+            path: string;
+            /** Status */
+            status: number;
+        };
         /** CommentCreate */
         CommentCreate: {
             /** Body */
@@ -552,6 +637,33 @@ export interface components {
             data?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** EditorCreate */
+        EditorCreate: {
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+        };
+        /** EditorCreated */
+        EditorCreated: {
+            /** Id */
+            id: string | null;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+            /** Key */
+            key: string;
+        };
+        /** EditorOut */
+        EditorOut: {
+            /** Id */
+            id: string | null;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
         };
         /** EventOut */
         EventOut: {
@@ -1172,7 +1284,9 @@ export interface operations {
     create_object: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1333,7 +1447,9 @@ export interface operations {
     delete_object: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 object_id: string;
             };
@@ -1362,7 +1478,9 @@ export interface operations {
     update_object: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 object_id: string;
             };
@@ -1499,7 +1617,9 @@ export interface operations {
     set_facet: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 object_id: string;
                 type_id: string;
@@ -1535,7 +1655,9 @@ export interface operations {
     remove_facet: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 object_id: string;
                 type_id: string;
@@ -1565,7 +1687,9 @@ export interface operations {
     add_signature: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 object_id: string;
             };
@@ -1600,7 +1724,9 @@ export interface operations {
     remove_signature: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 signature_id: string;
             };
@@ -1649,7 +1775,9 @@ export interface operations {
     mark_top_level_object: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 object_id: string;
             };
@@ -1678,7 +1806,9 @@ export interface operations {
     unmark_top_level_object: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 object_id: string;
             };
@@ -1758,7 +1888,9 @@ export interface operations {
     set_operator_display: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 operator_id: string;
             };
@@ -1825,7 +1957,9 @@ export interface operations {
     create_relation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1889,7 +2023,9 @@ export interface operations {
     replace_relation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 relation_id: string;
             };
@@ -1924,7 +2060,9 @@ export interface operations {
     delete_relation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 relation_id: string;
             };
@@ -1953,7 +2091,9 @@ export interface operations {
     add_relation_reference: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 relation_id: string;
             };
@@ -1988,7 +2128,9 @@ export interface operations {
     assert_relation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2041,7 +2183,9 @@ export interface operations {
     create_implementation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2105,7 +2249,9 @@ export interface operations {
     delete_implementation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 implementation_id: string;
             };
@@ -2134,7 +2280,9 @@ export interface operations {
     update_implementation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 implementation_id: string;
             };
@@ -2235,7 +2383,9 @@ export interface operations {
     delete_comment: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
             path: {
                 comment_id: string;
             };
@@ -2432,6 +2582,165 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_current_editor: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_editors: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditorOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_editor: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditorCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditorCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_editor: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
+            path: {
+                editor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_changes: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-editor-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeOut"][];
+                };
             };
             /** @description Validation Error */
             422: {

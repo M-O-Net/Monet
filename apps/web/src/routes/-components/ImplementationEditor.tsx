@@ -31,10 +31,12 @@ def compute(a):
 export function ImplementationEditor({
   object,
   implementations,
+  level,
   onChanged,
 }: {
   object: { id: string; latex: string };
   implementations: Implementation[];
+  level: number;
   onChanged: () => void;
 }) {
   const createImplementation = api.useMutation("post", "/implementations");
@@ -55,15 +57,20 @@ export function ImplementationEditor({
 
       {mine.length === 0 ? (
         <p className="text-sm text-ink-soft italic">
-          Nothing computes this yet.{" "}
-          <button
-            onClick={writeOne}
-            disabled={createImplementation.isPending}
-            className="text-pond not-italic hover:underline disabled:opacity-50"
-          >
-            Write the sympy for it
-          </button>
-          .
+          Nothing computes this yet.
+          {level >= 2 && (
+            <>
+              {" "}
+              <button
+                onClick={writeOne}
+                disabled={createImplementation.isPending}
+                className="text-pond not-italic hover:underline disabled:opacity-50"
+              >
+                Write the sympy for it
+              </button>
+              .
+            </>
+          )}
         </p>
       ) : (
         <div className="space-y-4">
@@ -71,16 +78,19 @@ export function ImplementationEditor({
             <ImplementationForm
               key={implementation.id}
               implementation={implementation}
+              canSave={level >= 3}
               onChanged={onChanged}
             />
           ))}
-          <button
-            onClick={writeOne}
-            disabled={createImplementation.isPending}
-            className="text-xs text-ink-soft hover:text-pond disabled:opacity-50"
-          >
-            + another implementation
-          </button>
+          {level >= 2 && (
+            <button
+              onClick={writeOne}
+              disabled={createImplementation.isPending}
+              className="text-xs text-ink-soft hover:text-pond disabled:opacity-50"
+            >
+              + another implementation
+            </button>
+          )}
         </div>
       )}
       {createImplementation.isError && (
@@ -155,9 +165,11 @@ function CheckIcon() {
 
 function ImplementationForm({
   implementation,
+  canSave,
   onChanged,
 }: {
   implementation: Implementation;
+  canSave: boolean;
   onChanged: () => void;
 }) {
   const updateImplementation = api.useMutation("patch", "/implementations/{implementation_id}");
@@ -240,22 +252,28 @@ function ImplementationForm({
         </div>
 
         <span className="flex-1 text-[11px] text-ink-soft">
-          {dirty ? "unsaved changes" : "saved"}
+          {canSave
+            ? dirty
+              ? "unsaved changes"
+              : "saved"
+            : "try changes here; saving needs a level-3 editor key"}
         </span>
 
-        <ConfirmPopover
-          trigger={<TrashIcon />}
-          triggerClassName={CONFIRM_TRIGGER}
-          label="Delete this implementation"
-          question="Delete this implementation? The operator keeps its relations, but nothing will compute it."
-          confirmLabel="Delete"
-          onConfirm={() => {
-            deleteImplementation.mutate(
-              { params: { path: { implementation_id: implementation.id } } },
-              { onSuccess: onChanged },
-            );
-          }}
-        />
+        {canSave && (
+          <ConfirmPopover
+            trigger={<TrashIcon />}
+            triggerClassName={CONFIRM_TRIGGER}
+            label="Delete this implementation"
+            question="Delete this implementation? The operator keeps its relations, but nothing will compute it."
+            confirmLabel="Delete"
+            onConfirm={() => {
+              deleteImplementation.mutate(
+                { params: { path: { implementation_id: implementation.id } } },
+                { onSuccess: onChanged },
+              );
+            }}
+          />
+        )}
         <ConfirmPopover
           trigger={<RevertIcon />}
           triggerClassName={CONFIRM_TRIGGER}
@@ -267,14 +285,16 @@ function ImplementationForm({
             setCode(implementation.code);
           }}
         />
-        <button
-          onClick={save}
-          disabled={!dirty || updateImplementation.isPending}
-          className="inline-flex items-center gap-1.5 rounded-sm bg-pond px-3 py-1 text-xs font-medium text-paper transition-colors hover:bg-pond-deep disabled:opacity-40 disabled:hover:bg-pond"
-        >
-          <CheckIcon />
-          Save
-        </button>
+        {canSave && (
+          <button
+            onClick={save}
+            disabled={!dirty || updateImplementation.isPending}
+            className="inline-flex items-center gap-1.5 rounded-sm bg-pond px-3 py-1 text-xs font-medium text-paper transition-colors hover:bg-pond-deep disabled:opacity-40 disabled:hover:bg-pond"
+          >
+            <CheckIcon />
+            Save
+          </button>
+        )}
       </div>
 
       {updateImplementation.isError && (

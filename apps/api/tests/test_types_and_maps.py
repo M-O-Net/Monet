@@ -2,6 +2,8 @@ from typing import Any
 
 from httpx import AsyncClient
 
+from tests.conftest import editor_key
+
 
 async def make(client: AsyncClient, latex: str, **extra: object) -> str:
     resp = await client.post("/objects", json={"latex": latex, **extra})
@@ -25,12 +27,13 @@ async def test_contributing_a_type_an_instance_and_a_map(client: AsyncClient) ->
     integers = await make(
         client, "\\text{Integers}", as_type={"data_kind": "int", "supertype_ids": [root]}
     )
-    a = await make(
-        client,
-        "A",
-        facets=[{"type_id": matrices, "data": {"matrix": [[{"int": 1}]]}}],
-        contributor="Noether",
+    noether = await editor_key(client, "Noether", 1)
+    created = await client.post(
+        "/objects",
+        json={"latex": "A", "facets": [{"type_id": matrices, "data": {"matrix": [[{"int": 1}]]}}]},
+        headers=noether,
     )
+    a = created.json()["id"]
     determinant = await make(
         client,
         "\\text{Determinant}",
@@ -134,8 +137,9 @@ async def test_relations_carry_their_provenance(client: AsyncClient) -> None:
             "operator_id": operator,
             "input_object_ids": [matrix],
             "output_object_ids": [matrix],
-            "contributor": "Hilbert",
+            "contributor": "someone else",
         },
+        headers=await editor_key(client, "Hilbert", 2),
     )
     provenance = resp.json()["provenance"]
     assert provenance["contributor"] == "Hilbert"

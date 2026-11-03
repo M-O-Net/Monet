@@ -1,12 +1,16 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.exc import IntegrityError
+from starlette.middleware.base import RequestResponseEndpoint
 
 from monet_api.comments.router import router as comments_router
 from monet_api.core.config import settings
+from monet_api.core.db import async_session
 from monet_api.core.limits import BodySizeLimit
+from monet_api.editors import service as editors
+from monet_api.editors.router import router as editors_router
 from monet_api.events.router import router as events_router
 from monet_api.implementations.router import router as implementations_router
 from monet_api.objects.router import router as objects_router
@@ -29,6 +33,19 @@ app.include_router(comments_router)
 app.include_router(events_router)
 app.include_router(stats_router)
 app.include_router(suggestions_router)
+app.include_router(editors_router)
+
+
+@app.middleware("http")
+async def record_changes(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    response = await call_next(request)
+    editor = getattr(request.state, "editor", None)
+    if editor is not None and request.method != "GET":
+        async with async_session() as session:
+            await editors.record_change(
+                session, editor.name, request.method, request.url.path, response.status_code
+            )
+    return response
 
 
 @app.exception_handler(RequestValidationError)

@@ -144,7 +144,7 @@ applies it even to its own single-concern modules, and so does Monet.
 generated `paths` type — call sites use `api.useQuery(method, path, init?)` and
 `api.useMutation(method, path)`. The app uses no Suspense and no error boundaries — branch on
 `isPending`/`isError` the way every existing route does. Monet's version drops Muse's
-WebSocket/realtime machinery (device-specific) and its auth-token plumbing (Monet v0 has no auth).
+WebSocket/realtime machinery (device-specific); its only auth is the `X-Editor-Key` header.
 No zod or other runtime validation layer on top — generated types are trusted as-is.
 
 A file under `apps/web/src/routes/` stays a thin route: wire up `Route` and a page component that
@@ -222,9 +222,8 @@ unless a human explicitly says to land that PR. Opening a PR is never merging.**
 
 ## Implementations
 
-Anyone can write Python against an operator and have it run — which means running code authored by
-a stranger, since Monet has no auth. Two decisions follow from that, and neither should be softened
-without re-deciding both:
+Any level-2 editor can write Python against an operator and have every visitor's browser run it.
+Two decisions follow from that, and neither should be softened without re-deciding both:
 
 **Execution is client-side, always.** Pyodide (CPython compiled to WebAssembly) runs inside
 `<iframe sandbox="allow-scripts">` in `apps/web/src/sandbox/`, deliberately **without**
