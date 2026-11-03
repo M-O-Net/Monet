@@ -282,6 +282,11 @@ function ImplementationForm({
           {formatApiError(updateImplementation.error)}
         </p>
       )}
+      {deleteImplementation.isError && (
+        <p className="border-b border-mist px-3 py-2 text-xs text-rust">
+          {formatApiError(deleteImplementation.error)}
+        </p>
+      )}
 
       <CodeMirror
         ref={editor}

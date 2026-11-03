@@ -8,7 +8,7 @@ import json
 import re
 import uuid
 from collections import Counter, defaultdict
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Hashable, Sequence
 from typing import Any, Literal
 
 from fastapi import HTTPException
@@ -254,6 +254,7 @@ async def _check_facet(
         raise HTTPException(
             status_code=400, detail=f"this type holds {held_as.data_kind} data, not {kind}"
         )
+    await repository.lock_until_commit(session, "data", data)
     existing = await repository.find_membership_by_data(session, data)
     if existing is not None and existing.object_id != object_id:
         raise HTTPException(
@@ -261,11 +262,40 @@ async def _check_facet(
         )
 
 
+async def _check_type_has_a_home(
+    session: AsyncSession, data_kind: str, supertypes: list[uuid.UUID]
+) -> None:
+    await repository.lock_until_commit(session, "data_kind", data_kind)
+    if not await repository.list_types_of_kind(session, data_kind):
+        return
+    above = [
+        *supertypes,
+        *await repository.list_related_types(session, supertypes, "up", transitive=True),
+    ]
+    if data_kind not in await repository.list_data_kinds(session, above):
+        raise HTTPException(
+            status_code=400,
+            detail=f"a type already holds {data_kind} data: make this one a subtype of it",
+        )
+
+
+def _check_distinct(name: str, items: Sequence[Hashable]) -> None:
+    if len(set(items)) != len(items):
+        raise HTTPException(status_code=400, detail=f"{name} names the same id twice")
+
+
 async def create_object(session: AsyncSession, body: ObjectCreate) -> ObjectOut:
+    supertype_ids = body.as_type.supertype_ids if body.as_type else []
+    _check_distinct("facets", [facet.type_id for facet in body.facets])
+    _check_distinct("supertype_ids", supertype_ids)
+    _check_distinct("sections", body.sections)
+    _check_distinct("signatures", [(s.domain_id, s.codomain_id) for s in body.signatures])
     for facet in body.facets:
         await _check_facet(session, None, facet.type_id, facet.data)
-    for supertype_id in body.as_type.supertype_ids if body.as_type else []:
+    for supertype_id in supertype_ids:
         await get_type_or_404(session, supertype_id)
+    if body.as_type is not None and body.as_type.data_kind is not None:
+        await _check_type_has_a_home(session, body.as_type.data_kind, supertype_ids)
     for signature in body.signatures:
         await get_type_or_404(session, signature.domain_id)
         await get_type_or_404(session, signature.codomain_id)
@@ -998,6 +1028,7 @@ async def _find_or_create_output(
 ) -> tuple[Object, bool]:
     if output.data is None:
         return await repository.add_object(session, output.latex, None), True
+    await repository.lock_until_commit(session, "data", output.data)
     existing = await repository.find_membership_by_data(session, output.data)
     if existing is not None:
         return await get_object_or_404(session, existing.object_id), False
@@ -1054,6 +1085,9 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
     )
     outputs: list[Object] = []
     created_object_ids: list[uuid.UUID] = []
+    computed = [output.data for output in body.outputs if output.data is not None]
+    for data in sorted(computed, key=lambda data: json.dumps(data, sort_keys=True)):
+        await repository.lock_until_commit(session, "data", data)
     for output in body.outputs:
         obj, was_created = await _find_or_create_output(session, output)
         outputs.append(obj)
@@ -1062,6 +1096,7 @@ async def assert_relation(session: AsyncSession, body: RelationAssert) -> Relati
             events.add_event(session, "object_created", obj.id, body.contributor, source)
 
     output_ids = [obj.id for obj in outputs]
+    await repository.lock_until_commit(session, "relation", body.operator_id, body.input_object_ids)
     relation = await _find_matching_relation(
         session, body.operator_id, body.input_object_ids, output_ids
     )
@@ -1087,7 +1122,7 @@ def _json_object(name: str, raw: str | None) -> dict[str, Any] | None:
         return None
     try:
         parsed = json.loads(raw)
-    except json.JSONDecodeError as error:
+    except (json.JSONDecodeError, RecursionError) as error:
         raise HTTPException(status_code=400, detail=f"{name} is not valid JSON") from error
     if not isinstance(parsed, dict):
         raise HTTPException(status_code=400, detail=f"{name} must be a JSON object")

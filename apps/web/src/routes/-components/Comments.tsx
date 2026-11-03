@@ -43,6 +43,9 @@ function Comment({ comment, onDeleted }: { comment: CommentOut; onDeleted: () =>
           }}
         />
       </div>
+      {deleteComment.isError && (
+        <p className="mt-1 text-xs text-rust">{formatApiError(deleteComment.error)}</p>
+      )}
     </li>
   );
 }
