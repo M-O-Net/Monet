@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 
+import { ArrowMarker, DirectedEdge } from "../../components/DirectedEdge";
 import { Latex } from "../../components/Latex";
 import { describeCredits } from "../../lib/credits";
 import { api } from "../../lib/api";
@@ -53,6 +54,7 @@ export function NeighborhoodMap({ objectId }: { objectId: string }) {
 }
 
 function MiniMap({ relations, focusId }: { relations: RelationOut[]; focusId: string }) {
+  const arrowId = useId();
   const graph = useMemo(() => buildGraph(relations), [relations]);
   const layout = useMemo(() => layoutGraph(graph), [graph]);
   const bounds = useMemo(() => layoutBounds(graph, layout), [graph, layout]);
@@ -78,19 +80,17 @@ function MiniMap({ relations, focusId }: { relations: RelationOut[]; focusId: st
         height={BOX_HEIGHT}
         aria-hidden="true"
       >
+        <ArrowMarker id={arrowId} />
         {graph.edges.map((edge) => {
           const source = layout.get(edge.source);
           const target = layout.get(edge.target);
           if (source === undefined || target === undefined) return null;
-          const from = place(source);
-          const to = place(target);
           return (
-            <line
+            <DirectedEdge
               key={edge.id}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
+              tail={place(source)}
+              head={place(target)}
+              markerId={arrowId}
               stroke="currentColor"
               strokeWidth={1}
               opacity={0.5}
