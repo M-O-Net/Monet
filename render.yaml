@@ -26,7 +26,7 @@ services:
       - key: CORS_ORIGINS
         value: '["https://monet.wiki", "https://www.monet.wiki"]'
       - key: RESEED_ON_DEPLOY
-        value: "true"
+        value: "false"
       - key: SUGGESTIONS_REVIEW_KEY
         generateValue: true
     # Render execs these directly rather than through a shell, so each has to be one script, not

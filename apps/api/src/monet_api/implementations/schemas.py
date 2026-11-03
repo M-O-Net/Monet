@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel
 
-from monet_api.core.schemas import ORMModel
+from monet_api.core.schemas import Code, ORMModel
 from monet_api.objects.schemas import ObjectOut
 
 
@@ -20,4 +20,4 @@ class ImplementationDetailOut(BaseModel):
 
 class ImplementationWrite(BaseModel):
     operator_id: uuid.UUID
-    code: str
+    code: Code

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     database_url: str
     cors_origins: list[str] = ["http://localhost:5173"]
     suggestions_review_key: str | None = None
+    statement_timeout_ms: int = 10_000
 
     _use_asyncpg = field_validator("database_url")(as_asyncpg_url)
 

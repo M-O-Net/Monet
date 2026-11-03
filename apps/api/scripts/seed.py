@@ -56,6 +56,7 @@ async def seed() -> None:
                 print(f"objects table already has {count} rows, skipping (--if-empty)")
                 return
 
+        await (await session.connection()).exec_driver_sql("SET LOCAL statement_timeout = 0")
         await session.exec(delete(Event))
         await session.exec(delete(Comment))
         await session.exec(delete(Implementation))
@@ -66,7 +67,6 @@ async def seed() -> None:
         await session.exec(delete(RelationInput))
         await session.exec(delete(Relation))
         await session.exec(delete(Object))
-        await session.commit()
 
         ids: dict[str, uuid.UUID] = {}
         for key, (latex, description) in OBJECTS.items():

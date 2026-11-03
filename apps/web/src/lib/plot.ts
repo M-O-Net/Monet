@@ -68,12 +68,18 @@ export function niceStep(span: number, count: number): number {
   return nice * magnitude;
 }
 
+const MAX_TICKS = 50;
+
 export function ticks([min, max]: Range, count = 5): number[] {
   if (!(max > min)) return [];
   const step = niceStep(max - min, count);
+  const first = Math.ceil(min / step);
   const found: number[] = [];
-  for (let k = Math.ceil(min / step); k * step <= max + step * 1e-9; k += 1) {
-    found.push(Number((k * step).toPrecision(12)) || 0);
+  for (let k = 0; k < MAX_TICKS; k += 1) {
+    const value = (first + k) * step;
+    if (value > max + step * 1e-9) break;
+    const tick = Number(value.toPrecision(12)) || 0;
+    if (found.at(-1) !== tick) found.push(tick);
   }
   return found;
 }

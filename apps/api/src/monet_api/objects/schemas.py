@@ -4,7 +4,16 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from monet_api.core.schemas import Contributor, ORMModel
+from monet_api.core.schemas import (
+    MAX_ITEMS,
+    Contributor,
+    Data,
+    Label,
+    Latex,
+    ORMModel,
+    Prose,
+    Url,
+)
 
 
 class FacetOut(ORMModel):
@@ -25,8 +34,8 @@ class ObjectPageOut(BaseModel):
 
 
 class ReferenceIn(BaseModel):
-    label: str
-    url: str
+    label: Label
+    url: Url
 
 
 class ReferenceOut(ORMModel):
@@ -36,12 +45,12 @@ class ReferenceOut(ORMModel):
 
 class FacetIn(BaseModel):
     type_id: uuid.UUID
-    data: dict[str, Any] | None = None
+    data: Data = None
 
 
 class TypeIn(BaseModel):
-    data_kind: str | None = None
-    supertype_ids: list[uuid.UUID] = Field(default_factory=list)
+    data_kind: Label | None = None
+    supertype_ids: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_ITEMS)
 
 
 class SignatureIn(BaseModel):
@@ -50,26 +59,26 @@ class SignatureIn(BaseModel):
 
 
 class ObjectCreate(BaseModel):
-    latex: str
-    description: str | None = None
-    image_url: str | None = None
-    references: list[ReferenceIn] = Field(default_factory=list)
-    facets: list[FacetIn] = Field(default_factory=list)
+    latex: Latex
+    description: Prose | None = None
+    image_url: Url | None = None
+    references: list[ReferenceIn] = Field(default_factory=list, max_length=MAX_ITEMS)
+    facets: list[FacetIn] = Field(default_factory=list, max_length=MAX_ITEMS)
     as_type: TypeIn | None = None
-    signatures: list[SignatureIn] = Field(default_factory=list)
-    sections: list[uuid.UUID] = Field(default_factory=list)
+    signatures: list[SignatureIn] = Field(default_factory=list, max_length=MAX_ITEMS)
+    sections: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_ITEMS)
     contributor: Contributor = None
 
 
 class ObjectUpdate(BaseModel):
-    latex: str
-    description: str | None = None
-    image_url: str | None = None
-    references: list[ReferenceIn] = Field(default_factory=list)
+    latex: Latex
+    description: Prose | None = None
+    image_url: Url | None = None
+    references: list[ReferenceIn] = Field(default_factory=list, max_length=MAX_ITEMS)
 
 
 class FacetData(BaseModel):
-    data: dict[str, Any] | None = None
+    data: Data = None
 
 
 class RelationDisplayOut(ORMModel):
@@ -100,9 +109,9 @@ class RelationOut(BaseModel):
 
 class RelationCreate(BaseModel):
     operator_id: uuid.UUID
-    input_object_ids: list[uuid.UUID]
-    output_object_ids: list[uuid.UUID]
-    references: list[ReferenceIn] = Field(default_factory=list)
+    input_object_ids: list[uuid.UUID] = Field(max_length=MAX_ITEMS)
+    output_object_ids: list[uuid.UUID] = Field(max_length=MAX_ITEMS)
+    references: list[ReferenceIn] = Field(default_factory=list, max_length=MAX_ITEMS)
     contributor: Contributor = None
 
 
@@ -188,18 +197,18 @@ class NeighborhoodOut(BaseModel):
 
 
 class ComputedOutput(BaseModel):
-    latex: str
-    data: dict[str, Any] | None = None
+    latex: Latex
+    data: Data = None
 
 
 class RelationAssert(BaseModel):
     """Record a computed result; outputs are values because they may not exist as objects yet."""
 
     operator_id: uuid.UUID
-    input_object_ids: list[uuid.UUID]
-    outputs: list[ComputedOutput]
+    input_object_ids: list[uuid.UUID] = Field(max_length=MAX_ITEMS)
+    outputs: list[ComputedOutput] = Field(max_length=MAX_ITEMS)
     implementation_id: uuid.UUID | None = None
-    references: list[ReferenceIn] = Field(default_factory=list)
+    references: list[ReferenceIn] = Field(default_factory=list, max_length=MAX_ITEMS)
     contributor: Contributor = None
 
 
@@ -249,5 +258,5 @@ class OperatorDisplayOut(ORMModel):
 
 
 class OperatorDisplayUpdate(BaseModel):
-    template: str | None
+    template: Prose | None
     hidden_by_default: bool

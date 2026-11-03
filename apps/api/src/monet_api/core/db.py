@@ -5,7 +5,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.config import settings
 
-engine = create_async_engine(settings.database_url)
+engine = create_async_engine(
+    settings.database_url,
+    connect_args={"server_settings": {"statement_timeout": str(settings.statement_timeout_ms)}},
+)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
