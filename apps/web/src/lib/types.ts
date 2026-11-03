@@ -24,3 +24,6 @@ export type HiddenRelationsOut = components["schemas"]["HiddenRelationsOut"];
 export type RelationGroupOut = components["schemas"]["RelationGroupOut"];
 export type LoopStepOut = components["schemas"]["LoopStepOut"];
 export type ObjectQuery = NonNullable<operations["list_objects"]["parameters"]["query"]>;
+export type EditorOut = components["schemas"]["EditorOut"];
+export type EditorCreated = components["schemas"]["EditorCreated"];
+export type ChangeOut = components["schemas"]["ChangeOut"];

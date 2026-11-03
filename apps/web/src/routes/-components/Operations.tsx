@@ -97,10 +97,12 @@ function ClosedLoops({
 export function Operations({
   object,
   implementations,
+  canAdd,
   onCommitted,
 }: {
   object: { id: string; latex: string; facets: ObjectData[] };
   implementations: Implementation[];
+  canAdd: boolean;
   onCommitted: () => void;
 }) {
   const assertRelation = api.useMutation("post", "/relations/assert");
@@ -297,13 +299,19 @@ export function Operations({
             ))}
           </ul>
           <div className="flex items-center gap-2">
-            <button
-              onClick={commit}
-              disabled={assertRelation.isPending}
-              className="rounded-sm bg-pond px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-pond-deep disabled:opacity-50"
-            >
-              Add to the network
-            </button>
+            {canAdd ? (
+              <button
+                onClick={commit}
+                disabled={assertRelation.isPending}
+                className="rounded-sm bg-pond px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-pond-deep disabled:opacity-50"
+              >
+                Add to the network
+              </button>
+            ) : (
+              <Link to="/key" className="text-xs text-pond hover:underline">
+                An editor key is needed to add this to the network
+              </Link>
+            )}
             <button
               onClick={() => {
                 setResult(null);

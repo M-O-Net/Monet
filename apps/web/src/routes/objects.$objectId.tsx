@@ -9,6 +9,7 @@ import { Latex } from "../components/Latex";
 import { MathText } from "../components/MathText";
 import { MemberList, QueriedMemberList } from "../components/MemberList";
 import { api } from "../lib/api";
+import { useEditor } from "../lib/useEditor";
 import { facetData, primaryData } from "../lib/data";
 import { invalidateObjectGraph } from "../lib/queries";
 import type { ReferenceIn } from "../lib/types";
@@ -40,6 +41,7 @@ function ObjectDetail() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
+  const { level } = useEditor();
   const detail = api.useQuery("get", "/objects/{object_id}", {
     params: { path: { object_id: objectId } },
   });
@@ -171,74 +173,78 @@ function ObjectDetail() {
               <Provenance provenance={obj.provenance} />
             </div>
             <div className="flex shrink-0 flex-wrap gap-2 sm:w-72 sm:justify-end">
-              {obj.is_top_level ? (
-                <ConfirmButton
-                  label="On contents page"
-                  title="Remove from the contents page?"
-                  description="It will stop being listed as a section on the contents page. Nothing else changes — its relations and everything filed under it stay exactly as they are."
-                  confirmLabel="Remove"
-                  tone="danger"
-                  pending={unmarkTopLevel.isPending}
-                  className="rounded-sm border border-gold/40 bg-gold-soft px-2 py-1 text-xs text-ink hover:bg-gold-soft/70"
-                  onConfirm={() => {
-                    unmarkTopLevel.mutate(
-                      { params: { path: { object_id: objectId } } },
-                      { onSuccess: invalidateAll },
-                    );
-                  }}
-                />
-              ) : (
-                <ConfirmButton
-                  label="Add to contents page"
-                  title="Add to the contents page?"
-                  description="It will be listed as a top-level section on the contents page."
-                  confirmLabel="Add"
-                  pending={markTopLevel.isPending}
-                  className="rounded-sm border border-mist px-2 py-1 text-xs text-ink-soft hover:bg-paper-deep"
-                  onConfirm={() => {
-                    markTopLevel.mutate(
-                      { params: { path: { object_id: objectId } } },
-                      { onSuccess: invalidateAll },
-                    );
-                  }}
-                />
+              {level >= 3 && (
+                <>
+                  {obj.is_top_level ? (
+                    <ConfirmButton
+                      label="On contents page"
+                      title="Remove from the contents page?"
+                      description="It will stop being listed as a section on the contents page. Nothing else changes — its relations and everything filed under it stay exactly as they are."
+                      confirmLabel="Remove"
+                      tone="danger"
+                      pending={unmarkTopLevel.isPending}
+                      className="rounded-sm border border-gold/40 bg-gold-soft px-2 py-1 text-xs text-ink hover:bg-gold-soft/70"
+                      onConfirm={() => {
+                        unmarkTopLevel.mutate(
+                          { params: { path: { object_id: objectId } } },
+                          { onSuccess: invalidateAll },
+                        );
+                      }}
+                    />
+                  ) : (
+                    <ConfirmButton
+                      label="Add to contents page"
+                      title="Add to the contents page?"
+                      description="It will be listed as a top-level section on the contents page."
+                      confirmLabel="Add"
+                      pending={markTopLevel.isPending}
+                      className="rounded-sm border border-mist px-2 py-1 text-xs text-ink-soft hover:bg-paper-deep"
+                      onConfirm={() => {
+                        markTopLevel.mutate(
+                          { params: { path: { object_id: objectId } } },
+                          { onSuccess: invalidateAll },
+                        );
+                      }}
+                    />
+                  )}
+                  <button
+                    onClick={() => {
+                      setDraftLatex(obj.latex);
+                      setDraftDescription(obj.description ?? "");
+                      setDraftImageUrl(obj.image_url ?? "");
+                      setDraftReferences(
+                        obj.references.map((reference) => ({
+                          label: reference.label,
+                          url: reference.url,
+                        })),
+                      );
+                      setEditing(true);
+                    }}
+                    className="rounded-sm border border-mist px-2 py-1 text-xs text-ink-soft hover:bg-paper-deep"
+                  >
+                    Edit
+                  </button>
+                  <ConfirmButton
+                    label="Delete"
+                    title="Delete this object?"
+                    description={
+                      edgeCount === 0
+                        ? "It takes part in no relations, so nothing else is affected. This cannot be undone."
+                        : `The ${edgeCount === 1 ? "relation" : `${String(edgeCount)} relations`} it takes part in ${edgeCount === 1 ? "goes" : "go"} with it, and will disappear from the other objects involved. This cannot be undone.`
+                    }
+                    confirmLabel="Delete"
+                    tone="danger"
+                    pending={deleteObject.isPending}
+                    className="rounded-sm border border-rust/30 px-2 py-1 text-xs text-rust hover:bg-rust/10"
+                    onConfirm={() => {
+                      deleteObject.mutate(
+                        { params: { path: { object_id: objectId } } },
+                        { onSuccess: () => void navigate({ to: "/" }) },
+                      );
+                    }}
+                  />
+                </>
               )}
-              <button
-                onClick={() => {
-                  setDraftLatex(obj.latex);
-                  setDraftDescription(obj.description ?? "");
-                  setDraftImageUrl(obj.image_url ?? "");
-                  setDraftReferences(
-                    obj.references.map((reference) => ({
-                      label: reference.label,
-                      url: reference.url,
-                    })),
-                  );
-                  setEditing(true);
-                }}
-                className="rounded-sm border border-mist px-2 py-1 text-xs text-ink-soft hover:bg-paper-deep"
-              >
-                Edit
-              </button>
-              <ConfirmButton
-                label="Delete"
-                title="Delete this object?"
-                description={
-                  edgeCount === 0
-                    ? "It takes part in no relations, so nothing else is affected. This cannot be undone."
-                    : `The ${edgeCount === 1 ? "relation" : `${String(edgeCount)} relations`} it takes part in ${edgeCount === 1 ? "goes" : "go"} with it, and will disappear from the other objects involved. This cannot be undone.`
-                }
-                confirmLabel="Delete"
-                tone="danger"
-                pending={deleteObject.isPending}
-                className="rounded-sm border border-rust/30 px-2 py-1 text-xs text-rust hover:bg-rust/10"
-                onConfirm={() => {
-                  deleteObject.mutate(
-                    { params: { path: { object_id: objectId } } },
-                    { onSuccess: () => void navigate({ to: "/" }) },
-                  );
-                }}
-              />
               <NeighborhoodMap objectId={objectId} />
             </div>
           </>
@@ -270,11 +276,12 @@ function ObjectDetail() {
       <LoopCallout objectId={objectId} />
       <ConvergenceCallout asOutput={obj.as_output} />
 
-      {(obj.facets.length > 0 || !obj.roles.includes("type")) && (
+      {(obj.facets.length > 0 || (level >= 3 && !obj.roles.includes("type"))) && (
         <Facets
           objectId={objectId}
           facets={obj.facets}
           implied={obj.implied_types}
+          editable={level >= 3}
           onChanged={invalidateAll}
         />
       )}
@@ -289,7 +296,12 @@ function ObjectDetail() {
       )}
       {obj.filed_count > 0 && <SectionContents sectionId={objectId} />}
       {isMap && (
-        <Signatures mapId={objectId} signatures={obj.signatures} onChanged={invalidateAll} />
+        <Signatures
+          mapId={objectId}
+          signatures={obj.signatures}
+          editable={level >= 3}
+          onChanged={invalidateAll}
+        />
       )}
       <MemberList title="Maps from this type" members={obj.maps_from} />
       <MemberList title="Maps into this type" members={obj.maps_to} />
@@ -314,13 +326,16 @@ function ObjectDetail() {
       />
       <ReferenceList references={obj.references} />
 
-      {firstAsOperator && <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />}
+      {level >= 3 && firstAsOperator && (
+        <OperatorDisplayForm operatorId={objectId} sample={firstAsOperator} />
+      )}
 
       {obj.roles.includes("instance") && implementations.data && (
         <Operations
           key={`${obj.id}:${JSON.stringify(obj.facets)}`}
           object={{ id: obj.id, latex: obj.latex, facets: facetData(obj) }}
           implementations={implementations.data}
+          canAdd={level >= 1}
           onCommitted={invalidateAll}
         />
       )}
@@ -329,11 +344,12 @@ function ObjectDetail() {
         <ImplementationEditor
           object={{ id: obj.id, latex: obj.latex }}
           implementations={implementations.data}
+          level={level}
           onChanged={invalidateAll}
         />
       )}
 
-      <Comments objectId={objectId} />
+      <Comments objectId={objectId} canDelete={level >= 3} />
     </div>
   );
 }

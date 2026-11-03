@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.db import get_session
+from monet_api.editors.access import Adder, Builder, Owner
+from monet_api.editors.service import check_level
 from monet_api.objects import service
 from monet_api.objects.schemas import (
     FacetData,
@@ -92,8 +94,12 @@ async def list_supertypes(
 
 
 @router.post("/objects", response_model=ObjectOut, operation_id="create_object", status_code=201)
-async def create_object(body: ObjectCreate, session: DbSession) -> ObjectOut:
-    return await service.create_object(session, body)
+async def create_object(body: ObjectCreate, session: DbSession, editor: Adder) -> ObjectOut:
+    if body.as_type is not None or body.signatures:
+        check_level(editor, 2)
+    return await service.create_object(
+        session, body.model_copy(update={"contributor": editor.name})
+    )
 
 
 @router.get("/objects/{object_id}/section", response_model=SectionOut, operation_id="get_section")
@@ -147,12 +153,14 @@ async def find_loops(
 
 
 @router.patch("/objects/{object_id}", response_model=ObjectOut, operation_id="update_object")
-async def update_object(object_id: uuid.UUID, body: ObjectUpdate, session: DbSession) -> ObjectOut:
+async def update_object(
+    object_id: uuid.UUID, body: ObjectUpdate, session: DbSession, _: Owner
+) -> ObjectOut:
     return await service.update_object(session, object_id, body)
 
 
 @router.delete("/objects/{object_id}", status_code=204, operation_id="delete_object")
-async def delete_object(object_id: uuid.UUID, session: DbSession) -> None:
+async def delete_object(object_id: uuid.UUID, session: DbSession, _: Owner) -> None:
     await service.delete_object(session, object_id)
 
 
@@ -160,7 +168,7 @@ async def delete_object(object_id: uuid.UUID, session: DbSession) -> None:
     "/objects/{object_id}/facets/{type_id}", response_model=ObjectOut, operation_id="set_facet"
 )
 async def set_facet(
-    object_id: uuid.UUID, type_id: uuid.UUID, body: FacetData, session: DbSession
+    object_id: uuid.UUID, type_id: uuid.UUID, body: FacetData, session: DbSession, _: Owner
 ) -> ObjectOut:
     return await service.set_facet(session, object_id, type_id, body)
 
@@ -168,7 +176,9 @@ async def set_facet(
 @router.delete(
     "/objects/{object_id}/facets/{type_id}", status_code=204, operation_id="remove_facet"
 )
-async def remove_facet(object_id: uuid.UUID, type_id: uuid.UUID, session: DbSession) -> None:
+async def remove_facet(
+    object_id: uuid.UUID, type_id: uuid.UUID, session: DbSession, _: Owner
+) -> None:
     await service.remove_facet(session, object_id, type_id)
 
 
@@ -179,13 +189,13 @@ async def remove_facet(object_id: uuid.UUID, type_id: uuid.UUID, session: DbSess
     status_code=201,
 )
 async def add_signature(
-    object_id: uuid.UUID, body: SignatureIn, session: DbSession
+    object_id: uuid.UUID, body: SignatureIn, session: DbSession, _: Owner
 ) -> SignatureOut:
     return await service.add_signature(session, object_id, body)
 
 
 @router.delete("/signatures/{signature_id}", status_code=204, operation_id="remove_signature")
-async def remove_signature(signature_id: uuid.UUID, session: DbSession) -> None:
+async def remove_signature(signature_id: uuid.UUID, session: DbSession, _: Owner) -> None:
     await service.remove_signature(session, signature_id)
 
 
@@ -201,14 +211,14 @@ async def list_top_level_objects(session: DbSession) -> list[ObjectOut]:
 
 
 @router.put("/top-level-objects/{object_id}", status_code=204, operation_id="mark_top_level_object")
-async def mark_top_level_object(object_id: uuid.UUID, session: DbSession) -> None:
+async def mark_top_level_object(object_id: uuid.UUID, session: DbSession, _: Owner) -> None:
     await service.mark_top_level_object(session, object_id)
 
 
 @router.delete(
     "/top-level-objects/{object_id}", status_code=204, operation_id="unmark_top_level_object"
 )
-async def unmark_top_level_object(object_id: uuid.UUID, session: DbSession) -> None:
+async def unmark_top_level_object(object_id: uuid.UUID, session: DbSession, _: Owner) -> None:
     await service.unmark_top_level_object(session, object_id)
 
 
@@ -232,7 +242,7 @@ async def get_operator_display(operator_id: uuid.UUID, session: DbSession) -> Op
     operation_id="set_operator_display",
 )
 async def set_operator_display(
-    operator_id: uuid.UUID, body: OperatorDisplayUpdate, session: DbSession
+    operator_id: uuid.UUID, body: OperatorDisplayUpdate, session: DbSession, _: Owner
 ) -> OperatorDisplayOut:
     return await service.set_operator_display(session, operator_id, body)
 
@@ -253,9 +263,11 @@ async def map_relations(
     "/relations", response_model=RelationOut, operation_id="create_relation", status_code=201
 )
 async def create_relation(
-    body: RelationCreate, session: DbSession, response: Response
+    body: RelationCreate, session: DbSession, editor: Builder, response: Response
 ) -> RelationOut:
-    relation, created = await service.create_relation(session, body)
+    relation, created = await service.create_relation(
+        session, body.model_copy(update={"contributor": editor.name})
+    )
     if not created:
         response.status_code = 200
     return relation
@@ -268,7 +280,7 @@ async def get_relation(relation_id: uuid.UUID, session: DbSession) -> RelationOu
 
 @router.put("/relations/{relation_id}", response_model=RelationOut, operation_id="replace_relation")
 async def replace_relation(
-    relation_id: uuid.UUID, body: RelationCreate, session: DbSession
+    relation_id: uuid.UUID, body: RelationCreate, session: DbSession, _: Owner
 ) -> RelationOut:
     return await service.replace_relation(session, relation_id, body)
 
@@ -279,13 +291,13 @@ async def replace_relation(
     operation_id="add_relation_reference",
 )
 async def add_relation_reference(
-    relation_id: uuid.UUID, body: ReferenceIn, session: DbSession
+    relation_id: uuid.UUID, body: ReferenceIn, session: DbSession, _: Owner
 ) -> RelationOut:
     return await service.add_relation_reference(session, relation_id, body)
 
 
 @router.delete("/relations/{relation_id}", status_code=204, operation_id="delete_relation")
-async def delete_relation(relation_id: uuid.UUID, session: DbSession) -> None:
+async def delete_relation(relation_id: uuid.UUID, session: DbSession, _: Owner) -> None:
     await service.delete_relation(session, relation_id)
 
 
@@ -295,5 +307,9 @@ async def delete_relation(relation_id: uuid.UUID, session: DbSession) -> None:
     operation_id="assert_relation",
     status_code=200,
 )
-async def assert_relation(body: RelationAssert, session: DbSession) -> RelationAssertOut:
-    return await service.assert_relation(session, body)
+async def assert_relation(
+    body: RelationAssert, session: DbSession, editor: Adder
+) -> RelationAssertOut:
+    return await service.assert_relation(
+        session, body.model_copy(update={"contributor": editor.name})
+    )

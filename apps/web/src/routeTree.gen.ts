@@ -13,7 +13,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ContributeRouteImport } from './routes/contribute'
+import { Route as EditorsRouteImport } from './routes/editors'
 import { Route as FeedRouteImport } from './routes/feed'
+import { Route as KeyRouteImport } from './routes/key'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as StorageRouteImport } from './routes/storage'
@@ -37,9 +39,19 @@ const ContributeRoute = ContributeRouteImport.update({
   path: '/contribute',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EditorsRoute = EditorsRouteImport.update({
+  id: '/editors',
+  path: '/editors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FeedRoute = FeedRouteImport.update({
   id: '/feed',
   path: '/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KeyRoute = KeyRouteImport.update({
+  id: '/key',
+  path: '/key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MapRoute = MapRouteImport.update({
@@ -71,7 +83,9 @@ const ObjectsObjectIdRoute = ObjectsObjectIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/contribute': typeof ContributeRoute
+  '/editors': typeof EditorsRoute
   '/feed': typeof FeedRoute
+  '/key': typeof KeyRoute
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
   '/storage': typeof StorageRoute
@@ -82,7 +96,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contribute': typeof ContributeRoute
+  '/editors': typeof EditorsRoute
   '/feed': typeof FeedRoute
+  '/key': typeof KeyRoute
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
   '/storage': typeof StorageRoute
@@ -94,7 +110,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/contribute': typeof ContributeRoute
+  '/editors': typeof EditorsRoute
   '/feed': typeof FeedRoute
+  '/key': typeof KeyRoute
   '/map': typeof MapRoute
   '/search': typeof SearchRoute
   '/storage': typeof StorageRoute
@@ -107,7 +125,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/contribute'
+    | '/editors'
     | '/feed'
+    | '/key'
     | '/map'
     | '/search'
     | '/storage'
@@ -118,7 +138,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/contribute'
+    | '/editors'
     | '/feed'
+    | '/key'
     | '/map'
     | '/search'
     | '/storage'
@@ -129,7 +151,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/contribute'
+    | '/editors'
     | '/feed'
+    | '/key'
     | '/map'
     | '/search'
     | '/storage'
@@ -141,7 +165,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContributeRoute: typeof ContributeRoute
+  EditorsRoute: typeof EditorsRoute
   FeedRoute: typeof FeedRoute
+  KeyRoute: typeof KeyRoute
   MapRoute: typeof MapRoute
   SearchRoute: typeof SearchRoute
   StorageRoute: typeof StorageRoute
@@ -173,11 +199,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContributeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/editors': {
+      id: '/editors'
+      path: '/editors'
+      fullPath: '/editors'
+      preLoaderRoute: typeof EditorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/feed': {
       id: '/feed'
       path: '/feed'
       fullPath: '/feed'
       preLoaderRoute: typeof FeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/key': {
+      id: '/key'
+      path: '/key'
+      fullPath: '/key'
+      preLoaderRoute: typeof KeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/map': {
@@ -221,7 +261,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContributeRoute: ContributeRoute,
+  EditorsRoute: EditorsRoute,
   FeedRoute: FeedRoute,
+  KeyRoute: KeyRoute,
   MapRoute: MapRoute,
   SearchRoute: SearchRoute,
   StorageRoute: StorageRoute,

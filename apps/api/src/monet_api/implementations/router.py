@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from monet_api.core.db import get_session
+from monet_api.editors.access import Builder, Owner
 from monet_api.implementations import service
 from monet_api.implementations.schemas import ImplementationDetailOut, ImplementationWrite
 
@@ -29,7 +30,7 @@ async def list_implementations(session: DbSession) -> list[ImplementationDetailO
     status_code=201,
 )
 async def create_implementation(
-    body: ImplementationWrite, session: DbSession
+    body: ImplementationWrite, session: DbSession, _: Builder
 ) -> ImplementationDetailOut:
     return await service.create_implementation(session, body)
 
@@ -51,7 +52,7 @@ async def get_implementation(
     operation_id="update_implementation",
 )
 async def update_implementation(
-    implementation_id: uuid.UUID, body: ImplementationWrite, session: DbSession
+    implementation_id: uuid.UUID, body: ImplementationWrite, session: DbSession, _: Owner
 ) -> ImplementationDetailOut:
     return await service.update_implementation(session, implementation_id, body)
 
@@ -61,5 +62,5 @@ async def update_implementation(
     operation_id="delete_implementation",
     status_code=204,
 )
-async def delete_implementation(implementation_id: uuid.UUID, session: DbSession) -> None:
+async def delete_implementation(implementation_id: uuid.UUID, session: DbSession, _: Owner) -> None:
     await service.delete_implementation(session, implementation_id)
