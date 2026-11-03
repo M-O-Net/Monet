@@ -6,6 +6,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 
+def search_key(text: str) -> str:
+    without_macros = rf"regexp_replace({text}, '\\[a-zA-Z]+', ' ', 'g')"
+    ungrouped = f"regexp_replace({without_macros}, '[{{}}$]', '', 'g')"
+    return rf"lower(btrim(regexp_replace({ungrouped}, '[\s,&\\]+', ' ', 'g')))"
+
+
 class Object(SQLModel, table=True):
     __tablename__ = "objects"
 
@@ -13,6 +19,13 @@ class Object(SQLModel, table=True):
     latex: str
     description: str | None = None
     image_url: str | None = None
+    latex_key: str | None = Field(
+        default=None, sa_column=sa.Column(sa.Text, sa.Computed(search_key("latex")))
+    )
+    description_key: str | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.Text, sa.Computed(search_key("coalesce(description, '')"))),
+    )
 
 
 class ObjectReference(SQLModel, table=True):

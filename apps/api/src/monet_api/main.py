@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from monet_api.comments.router import router as comments_router
 from monet_api.core.config import settings
+from monet_api.core.limits import BodySizeLimit
 from monet_api.events.router import router as events_router
 from monet_api.implementations.router import router as implementations_router
 from monet_api.objects.router import router as objects_router
@@ -12,6 +13,7 @@ from monet_api.suggestions.router import router as suggestions_router
 
 app = FastAPI(title="Monet API")
 
+app.add_middleware(BodySizeLimit)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
