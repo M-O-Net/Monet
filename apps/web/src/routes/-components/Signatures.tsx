@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { formatApiError } from "@monet/api-client";
 
+import { ConfirmPopover } from "../../components/ConfirmPopover";
 import { Latex } from "../../components/Latex";
 import { ObjectPicker } from "../../components/ObjectPicker";
 import { api } from "../../lib/api";
@@ -48,19 +49,20 @@ export function Signatures({
                 →
               </span>
               <TypeLink type={signature.codomain} />
-              <button
-                type="button"
-                onClick={() => {
+              <ConfirmPopover
+                trigger="×"
+                triggerClassName="text-xs text-ink-soft hover:text-rust"
+                label="Remove this signature"
+                question="Remove this signature from the map?"
+                confirmLabel="Remove"
+                disabled={removeSignature.isPending}
+                onConfirm={() => {
                   removeSignature.mutate(
                     { params: { path: { signature_id: signature.id } } },
                     { onSuccess: onChanged },
                   );
                 }}
-                className="text-xs text-ink-soft hover:text-rust"
-                aria-label="Remove this signature"
-              >
-                ×
-              </button>
+              />
             </li>
           ))}
         </ul>
@@ -112,6 +114,9 @@ export function Signatures({
       </form>
       {addSignature.isError && (
         <p className="mt-2 text-xs text-rust">{formatApiError(addSignature.error)}</p>
+      )}
+      {removeSignature.isError && (
+        <p className="mt-2 text-xs text-rust">{formatApiError(removeSignature.error)}</p>
       )}
     </section>
   );
