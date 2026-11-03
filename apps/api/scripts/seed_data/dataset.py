@@ -119,7 +119,34 @@ DISPLAYS: dict[str, tuple[str | None, bool]] = _merged("DISPLAYS", {})
 REFERENCES: dict[str, list[Reference]] = merged_references(AREAS)
 IMAGES: dict[str, str] = _merged("IMAGES", {})
 SIGNATURES: list[tuple[str, str, str]] = _concatenated("SIGNATURES")
-INSTANCES: dict[str, Instance] = _merged("INSTANCES", {})
+
+
+def ancestors(type_key: str) -> set[str]:
+    found: set[str] = set()
+    pending = list(TYPES[type_key][3])
+    while pending:
+        supertype = pending.pop()
+        if supertype not in found:
+            found.add(supertype)
+            pending.extend(TYPES[supertype][3])
+    return found
+
+
+def most_specific(facets: list[tuple[str, Data]]) -> list[tuple[str, Data]]:
+    implied = {
+        (supertype, next(iter(data)))
+        for type_key, data in facets
+        for supertype in ancestors(type_key)
+    }
+    return [
+        (type_key, data) for type_key, data in facets if (type_key, next(iter(data))) not in implied
+    ]
+
+
+INSTANCES: dict[str, Instance] = {
+    key: (latex, description, most_specific(facets))
+    for key, (latex, description, facets) in _merged("INSTANCES", {}).items()
+}
 
 FILINGS: dict[str, list[str]] = {
     section: list(filed) for section, filed in CATALOGUE_FILINGS.items()
