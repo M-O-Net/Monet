@@ -59,9 +59,9 @@ section_filings(object_id fk -> objects, section_id fk -> objects)
 - `objects` has no type/kind tag, no label, no canonical hash, no timestamps. Its `latex` is
   display only — see "LaTeX is display, not data".
 - What an object is lives in `memberships`: one row per type it is an instance of, holding its
-  `data` read as that type. Only the most specific type is stored; queries walk `subtypes`.
-  Equal `data` never belongs to two objects, and it must carry the type's `data_kind` as its one
-  top-level key.
+  `data` read as that type. Only the most specific types are stored, plus a broader one whose data
+  has another kind; queries walk `subtypes`. Equal `data` never belongs to two objects, and it
+  must carry the type's `data_kind` as its one top-level key.
 - An object is a map by operating some relation, having an implementation, or having
   `signatures`, several allowed. Contents-page headings are `section_filings`, never types.
 - Deleting an object deletes its edges: every relation it appears in, plus its typing, filing,
