@@ -3,10 +3,20 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { ApiError } from "@monet/api-client";
+
 import "./index.css";
 import { routeTree } from "./routeTree.gen";
 
-const queryClient = new QueryClient();
+const MAX_RETRIES = 3;
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failures, error) =>
+        failures < MAX_RETRIES && !(error instanceof ApiError && error.status < 500),
+    },
+  },
+});
 const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
