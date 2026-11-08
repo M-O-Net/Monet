@@ -1,16 +1,7 @@
+from sympy.polys.domains import ZZ
+from sympy.polys.matrices import DomainMatrix
+
 MAX_CROSSINGS = 60
-
-
-def _generator(strands, letter, t):
-    size = strands - 1
-    i = abs(letter) - 1
-    m = eye(size)
-    m[i, i] = -t
-    if i > 0:
-        m[i, i - 1] = t
-    if i < size - 1:
-        m[i, i + 1] = 1
-    return m if letter > 0 else m.inv()
 
 
 def _closes_to_a_knot(b):
@@ -36,13 +27,33 @@ def accepts(b):
 
 def compute(b):
     t = Symbol("t")
-    product = eye(b.strands - 1)
+    ring = ZZ[t]
+    size = b.strands - 1
+    one, zero, tt = ring.one, ring.zero, ring.gens[0]
+    product = DomainMatrix.eye(size, ring)
+    inverses = 0
     for letter in b.word:
-        product = (product * _generator(b.strands, letter, t)).applyfunc(cancel)
-    numerator = cancel((eye(b.strands - 1) - product).det(method="berkowitz"))
+        i = abs(letter) - 1
+        rows = [[one if r == c else zero for c in range(size)] for r in range(size)]
+        if letter > 0:
+            rows[i][i] = -tt
+            if i > 0:
+                rows[i][i - 1] = tt
+            if i < size - 1:
+                rows[i][i + 1] = one
+        else:
+            inverses += 1
+            rows = [[tt if r == c else zero for c in range(size)] for r in range(size)]
+            rows[i][i] = -one
+            if i > 0:
+                rows[i][i - 1] = tt
+            if i < size - 1:
+                rows[i][i + 1] = one
+        product = product * DomainMatrix(rows, (size, size), ring)
+    scaled = DomainMatrix.eye(size, ring) * (tt**inverses) - product
+    numerator = ring.to_sympy(scaled.det())
     top, _ = fraction(cancel(numerator * (1 - t) / (1 - t**b.strands)))
-    quotient = Poly(top, t)
-    coeffs = quotient.all_coeffs()
+    coeffs = Poly(top, t).all_coeffs()
     while coeffs and coeffs[-1] == 0:
         coeffs.pop()
     if coeffs[0] < 0:

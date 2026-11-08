@@ -141,9 +141,9 @@ SIGNATURES: list[tuple[str, str, str]] = [
     ("ReflectPositroid", "Positroids", "Positroids"),
     ("DualPositroid", "Positroids", "Positroids"),
     ("PositroidBraid", "Positroids", "BraidWords"),
-    ("ClusterQuiver", "Positroids", "ExchangeMatrices"),
-    ("AcyclicSeed", "ExchangeMatrices", "AcyclicExchangeMatrices"),
-    ("CoxeterPolynomial", "AcyclicExchangeMatrices", "MonicIntegerPolynomials"),
+    ("ClusterQuiver", "Positroids", "SquareMatrices"),
+    ("AcyclicSeed", "SquareMatrices", "SquareMatrices"),
+    ("CoxeterPolynomial", "SquareMatrices", "MonicIntegerPolynomials"),
     ("ClosureAlexanderPolynomial", "BraidWords", "IntegerPolynomials"),
     ("NegateVariable", "Polynomials", "Polynomials"),
 ]
