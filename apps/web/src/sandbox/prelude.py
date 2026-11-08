@@ -1,5 +1,6 @@
 import cmath
 import functools
+import itertools
 import math
 import re
 
@@ -196,6 +197,15 @@ class Braid(_Record):
 
     def _key(self):
         return self.strands, self.word
+
+
+class Positroid(_Record):
+    def __init__(self, window):
+        self.window = tuple(int(x) for x in window)
+        self.n = len(self.window)
+
+    def _key(self):
+        return (self.window,)
 
 
 class Surface(_Record):
@@ -468,6 +478,7 @@ _AS_DATA = (
     (FiniteField, lambda f: {"finitefield": [_json_int(f.characteristic), f.degree]}),
     (Knot, lambda k: {"knot": k.name}),
     (Braid, lambda b: {"braid": {"strands": b.strands, "word": list(b.word)}}),
+    (Positroid, lambda p: {"positroid": {"n": p.n, "window": list(p.window)}}),
     (Surface, lambda s: {"surface": {"orientable": s.orientable, "genus": s.genus}}),
     (SimplicialComplex, lambda k: {"simplicial": [list(f) for f in k.facets]}),
     (Polytope, lambda p: {"polytope": [[to_data(c) for c in point] for point in p.points]}),
@@ -535,6 +546,7 @@ _FROM_DATA = {
     "finitefield": lambda payload: FiniteField(*payload),
     "knot": Knot,
     "braid": lambda payload: Braid(payload["strands"], payload["word"]),
+    "positroid": lambda payload: Positroid(payload["window"]),
     "surface": lambda payload: Surface(payload["orientable"], payload["genus"]),
     "simplicial": SimplicialComplex,
     "abelian": lambda payload: AbelianGroup(payload["rank"], payload["torsion"]),
@@ -669,7 +681,30 @@ def _polytope_latex(payload):
     return rf"\operatorname{{conv}}\left\{{{points}\right\}}"
 
 
+def _braid_latex(payload):
+    word = payload["word"]
+    if not word:
+        return rf"1_{{B_{{{payload['strands']}}}}}"
+    pieces = []
+    for letter, run in itertools.groupby(word):
+        power = len(list(run)) * (1 if letter > 0 else -1)
+        pieces.append(rf"\sigma_{{{abs(letter)}}}" + ("" if power == 1 else f"^{{{power}}}"))
+    return " ".join(pieces)
+
+
+def _knot_latex(name):
+    crossings, _, index = name.partition("_")
+    return rf"\mathrm{{{crossings}}}_{{{index}}}" if index else rf"\mathrm{{{name}}}"
+
+
+def _positroid_latex(payload):
+    return rf"\Pi^{{\circ}}_{{[{', '.join(map(str, payload['window']))}]}}"
+
+
 _LATEX_OF = {
+    "braid": _braid_latex,
+    "knot": _knot_latex,
+    "positroid": _positroid_latex,
     "residue": lambda payload: rf"{payload[0]} \bmod {payload[1]}",
     "partition": lambda payload: rf"\left({', '.join(map(str, payload))}\right) \vdash {sum(payload)}",
     "tableau": _tableau_latex,
@@ -691,6 +726,9 @@ _LATEX_OF = {
 
 _RENDERED_FROM_DATA = (
     ModularInteger,
+    Braid,
+    Knot,
+    Positroid,
     Tableau,
     AbelianGroup,
     NumberField,
@@ -740,6 +778,7 @@ def namespace():
     ns["FiniteField"] = FiniteField
     ns["Knot"] = Knot
     ns["Braid"] = Braid
+    ns["Positroid"] = Positroid
     ns["Surface"] = Surface
     ns["SimplicialComplex"] = SimplicialComplex
     ns["Polytope"] = Polytope
