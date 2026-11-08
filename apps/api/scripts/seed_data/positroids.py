@@ -256,7 +256,7 @@ def _import(row: dict[str, str]) -> None:
         ]
     )
     ASSERTED.append(("BraidClosure", [braid_key], [knot_key], [COMPUTED]))
-    if row["alexander"]:
+    if row["negated"]:
         alexander_key = _polynomial(f"positroid_alexander_{tag}", row, "alexander")
         negated_key = _polynomial(f"positroid_negated_{tag}", row, "negated")
         RELATIONS.extend(
