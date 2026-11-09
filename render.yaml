@@ -26,7 +26,7 @@ services:
       - key: CORS_ORIGINS
         value: '["https://monet.wiki", "https://www.monet.wiki"]'
       - key: RESEED_ON_DEPLOY
-        value: "true"
+        value: "false"
       - key: SUGGESTIONS_REVIEW_KEY
         generateValue: true
       - key: ADMIN_KEY
