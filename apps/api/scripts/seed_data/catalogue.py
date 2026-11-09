@@ -240,6 +240,19 @@ TYPES: dict[str, TypeSpec] = {
         "matrix",
         ["OrthogonalMatrices"],
     ),
+    "ExchangeMatrices": (
+        r"\text{Exchange Matrices}",
+        r"Skew-symmetric integer matrices, each read as a quiver with $b_{ij}$ arrows from $i$ "
+        r"to $j$ when $b_{ij} > 0$.",
+        "matrix",
+        ["SquareMatrices"],
+    ),
+    "AcyclicExchangeMatrices": (
+        r"\text{Acyclic Exchange Matrices}",
+        "Exchange matrices whose quiver has no oriented cycle.",
+        "matrix",
+        ["ExchangeMatrices"],
+    ),
     "PermutationMatrices": (
         r"\text{Permutation Matrices}",
         "Matrices with exactly one 1 in each row and each column, and zeros elsewhere.",
@@ -319,6 +332,13 @@ TYPES: dict[str, TypeSpec] = {
         r"Fillings of a Young diagram with $1, \dots, n$, increasing along every row and down "
         "every column.",
         "tableau",
+        ["MathematicalObjects"],
+    ),
+    "Positroids": (
+        r"\text{Positroids}",
+        r"Matroids of totally nonnegative $k \times n$ matrices, held as their bounded affine "
+        r"permutation in window notation $[f(1), \dots, f(n)]$.",
+        "positroid",
         ["MathematicalObjects"],
     ),
     "Graphs": (
@@ -679,6 +699,8 @@ FILINGS: dict[str, list[str]] = {
         "RotationMatrices",
         "PermutationMatrices",
         "CompanionMatrices",
+        "ExchangeMatrices",
+        "AcyclicExchangeMatrices",
     ],
     "PolynomialAlgebra": [
         "Polynomials",
@@ -694,6 +716,7 @@ FILINGS: dict[str, list[str]] = {
         "IntegerPartitions",
         "DistinctPartitions",
         "StandardYoungTableaux",
+        "Positroids",
     ],
     "GraphTheory": [
         "Graphs",

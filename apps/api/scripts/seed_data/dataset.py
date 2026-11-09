@@ -21,6 +21,7 @@ from seed_data import (
     mckay,
     numbers,
     polynomials,
+    positroids,
     sequences,
     topology,
 )
@@ -60,6 +61,7 @@ AREAS = (
     knotinfo,
     mckay,
     graph_atlas,
+    positroids,
 )
 
 
